@@ -29,7 +29,10 @@ async function readConfig(): Promise<Record<string, unknown>> {
  * Standalone mirror of the sanitization logic in openclaw-auth.ts.
  * Uses the same blocklist approach as the production code.
  */
-async function sanitizeConfig(filePath: string): Promise<boolean> {
+async function sanitizeConfig(
+  filePath: string,
+  options?: { dingtalkPluginInstalled?: boolean }
+): Promise<boolean> {
   let raw: string;
   try {
     raw = await readFile(filePath, 'utf-8');
@@ -49,6 +52,33 @@ async function sanitizeConfig(filePath: string): Promise<boolean> {
       if (key in skillsObj) {
         delete skillsObj[key];
         modified = true;
+      }
+    }
+  }
+
+  // Mirror of stale DingTalk cleanup in production code:
+  // remove only when plugin is not installed.
+  const dingtalkPluginInstalled = options?.dingtalkPluginInstalled ?? false;
+  if (!dingtalkPluginInstalled) {
+    const channels = config.channels;
+    if (channels && typeof channels === 'object' && !Array.isArray(channels)) {
+      const channelsObj = channels as Record<string, unknown>;
+      if (channelsObj.dingtalk !== undefined) {
+        delete channelsObj.dingtalk;
+        modified = true;
+      }
+    }
+
+    const plugins = config.plugins;
+    if (plugins && typeof plugins === 'object' && !Array.isArray(plugins)) {
+      const pluginsObj = plugins as Record<string, unknown>;
+      const allowRaw = pluginsObj.allow;
+      if (Array.isArray(allowRaw)) {
+        const nextAllow = allowRaw.filter((entry) => entry !== 'dingtalk');
+        if (nextAllow.length !== allowRaw.length) {
+          pluginsObj.allow = nextAllow;
+          modified = true;
+        }
       }
     }
   }
@@ -199,6 +229,56 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
 
     const modified = await sanitizeConfig(configPath);
     expect(modified).toBe(false);
+  });
+
+  it('removes stale channels.dingtalk when plugin is missing', async () => {
+    await writeConfig({
+      channels: {
+        dingtalk: { enabled: true, clientId: 'x' },
+        telegram: { enabled: true },
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath, { dingtalkPluginInstalled: false });
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const channels = result.channels as Record<string, unknown>;
+    expect(channels).not.toHaveProperty('dingtalk');
+    expect(channels.telegram).toEqual({ enabled: true });
+  });
+
+  it('removes stale plugins.allow dingtalk value when plugin is missing', async () => {
+    await writeConfig({
+      plugins: {
+        allow: ['dingtalk', 'feishu', 'discord'],
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath, { dingtalkPluginInstalled: false });
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    expect(plugins.allow).toEqual(['feishu', 'discord']);
+  });
+
+  it('keeps dingtalk config intact when plugin is installed', async () => {
+    const original = {
+      channels: {
+        dingtalk: { enabled: true, clientId: 'x' },
+      },
+      plugins: {
+        allow: ['dingtalk'],
+      },
+    };
+    await writeConfig(original);
+
+    const modified = await sanitizeConfig(configPath, { dingtalkPluginInstalled: true });
+    expect(modified).toBe(false);
+
+    const result = await readConfig();
+    expect(result).toEqual(original);
   });
 
   it('preserves all other top-level config sections', async () => {

@@ -20,6 +20,7 @@ import { isQuitting, setQuitting } from './app-state';
 import { applyProxySettings } from './proxy';
 import { getSetting } from '../utils/store';
 import { ensureBuiltinSkillsInstalled } from '../utils/skill-config';
+import { ensureDingTalkStartupCompatibility } from '../utils/dingtalk-plugin';
 
 // Disable GPU hardware acceleration globally for maximum stability across
 // all GPU configurations (no GPU, integrated, discrete).
@@ -198,6 +199,20 @@ async function initialize(): Promise<void> {
   void ensureBuiltinSkillsInstalled().catch((error) => {
     logger.warn('Failed to install built-in skills:', error);
   });
+
+  // Startup compatibility preflight: if openclaw.json still references DingTalk
+  // from older installs, make sure the bundled DingTalk plugin mirror is
+  // installed before the first Gateway start attempt.
+  try {
+    const dingtalkCompatResult = await ensureDingTalkStartupCompatibility();
+    if (dingtalkCompatResult.detectedConfigReferences && !dingtalkCompatResult.installed) {
+      logger.warn(
+        `DingTalk startup compatibility preflight could not ensure plugin install: ${dingtalkCompatResult.warning || 'unknown reason'}`
+      );
+    }
+  } catch (error) {
+    logger.warn('DingTalk startup compatibility preflight failed:', error);
+  }
 
   // Start Gateway automatically (this seeds missing bootstrap files with full templates)
   const gatewayAutoStart = await getSetting('gatewayAutoStart');

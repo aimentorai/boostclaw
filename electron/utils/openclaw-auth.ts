@@ -125,6 +125,13 @@ async function discoverAgentIds(): Promise<string[]> {
 // ── OpenClaw Config Helpers ──────────────────────────────────────
 
 const OPENCLAW_CONFIG_PATH = join(homedir(), '.openclaw', 'openclaw.json');
+const DINGTALK_PLUGIN_MANIFEST_PATH = join(
+  homedir(),
+  '.openclaw',
+  'extensions',
+  'dingtalk',
+  'openclaw.plugin.json'
+);
 
 async function readOpenClawJson(): Promise<Record<string, unknown>> {
   return (await readJsonFile<Record<string, unknown>>(OPENCLAW_CONFIG_PATH)) ?? {};
@@ -132,6 +139,10 @@ async function readOpenClawJson(): Promise<Record<string, unknown>> {
 
 async function writeOpenClawJson(config: Record<string, unknown>): Promise<void> {
   await writeJsonFile(OPENCLAW_CONFIG_PATH, config);
+}
+
+async function isDingTalkPluginInstalled(): Promise<boolean> {
+  return fileExists(DINGTALK_PLUGIN_MANIFEST_PATH);
 }
 
 // ── Exported Functions (all async) ───────────────────────────────
@@ -777,6 +788,39 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
         console.log(`[sanitize] Removing misplaced key "skills.${key}" from openclaw.json`);
         delete skillsObj[key];
         modified = true;
+      }
+    }
+  }
+
+  // ── dingtalk stale config cleanup ──────────────────────────────
+  // If legacy configs still reference DingTalk but the plugin is not installed
+  // under ~/.openclaw/extensions/dingtalk, OpenClaw strict validation fails with:
+  // - channels.dingtalk: unknown channel id: dingtalk
+  // - plugins.allow: plugin not found: dingtalk
+  // In that case we remove only the stale DingTalk references.
+  const dingtalkInstalled = await isDingTalkPluginInstalled();
+  if (!dingtalkInstalled) {
+    const channels = config.channels;
+    if (channels && typeof channels === 'object' && !Array.isArray(channels)) {
+      const channelsObj = channels as Record<string, unknown>;
+      if (channelsObj.dingtalk !== undefined) {
+        console.log('[sanitize] Removing stale key "channels.dingtalk" (plugin not installed)');
+        delete channelsObj.dingtalk;
+        modified = true;
+      }
+    }
+
+    const plugins = config.plugins;
+    if (plugins && typeof plugins === 'object' && !Array.isArray(plugins)) {
+      const pluginsObj = plugins as Record<string, unknown>;
+      const allowRaw = pluginsObj.allow;
+      if (Array.isArray(allowRaw)) {
+        const nextAllow = allowRaw.filter((entry) => entry !== 'dingtalk');
+        if (nextAllow.length !== allowRaw.length) {
+          console.log('[sanitize] Removing stale value "dingtalk" from "plugins.allow" (plugin not installed)');
+          pluginsObj.allow = nextAllow;
+          modified = true;
+        }
       }
     }
   }
