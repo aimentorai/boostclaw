@@ -132,3 +132,12 @@ This branch captures local refactors focused on frontend UX polish, IPC call con
 ### 17. External gateway shutdown compatibility
 - Added capability cache for externally managed Gateway shutdown RPC.
 - If `shutdown` is unsupported (`unknown method: shutdown`), mark it unsupported and skip future shutdown RPC attempts to avoid repeated warnings.
+
+### 18. Chat history sidebar grouping (ChatGPT-style buckets)
+- Updated chat session history display in sidebar to time buckets:
+  - Today / Yesterday / Within 1 Week / Within 2 Weeks / Within 1 Month / Older than 1 Month
+- Added `historyBuckets` locale keys in EN/ZH/JA (`chat` namespace).
+- Fixed i18n namespace usage for bucket labels in sidebar:
+  - explicitly resolves via `chat:historyBuckets.*` to avoid raw key fallback.
+- Removed forced uppercase rendering for bucket headers to preserve localized casing.
+- Grouping now applies to all sessions (including `:main`) for consistent bucket visibility and behavior.
