@@ -23,12 +23,10 @@ import {
   DEFAULT_RECONNECT_CONFIG,
   type ReconnectConfig,
   type GatewayLifecycleState,
-  getDeferredRestartAction,
   getReconnectScheduleDecision,
   getReconnectSkipReason,
   isLifecycleSuperseded,
   nextLifecycleEpoch,
-  shouldDeferRestart,
 } from './process-policy';
 import {
   clearPendingGatewayRequests,
@@ -49,6 +47,8 @@ import {
   waitForPortFree,
   warmupManagedPythonReadiness,
 } from './supervisor';
+import { GatewayConnectionMonitor } from './connection-monitor';
+import { GatewayRestartController } from './restart-controller';
 import { classifyGatewayStderrMessage, recordGatewayStartupStderrLine } from './startup-stderr';
 
 /**
@@ -201,8 +201,6 @@ export class GatewayManager extends EventEmitter {
   private status: GatewayStatus = { state: 'stopped', port: PORTS.OPENCLAW_GATEWAY };
   private readonly stateController: GatewayStateController;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private pingInterval: NodeJS.Timeout | null = null;
-  private healthCheckInterval: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private reconnectConfig: ReconnectConfig;
   private shouldReconnect = true;
@@ -211,10 +209,10 @@ export class GatewayManager extends EventEmitter {
   private recentStartupStderrLines: string[] = [];
   private pendingRequests: Map<string, PendingGatewayRequest> = new Map();
   private deviceIdentity: DeviceIdentity | null = null;
-  private restartDebounceTimer: NodeJS.Timeout | null = null;
   private lifecycleEpoch = 0;
-  private deferredRestartPending = false;
   private restartInFlight: Promise<void> | null = null;
+  private readonly connectionMonitor = new GatewayConnectionMonitor();
+  private readonly restartController = new GatewayRestartController();
 
   constructor(config?: Partial<ReconnectConfig>) {
     super();
@@ -224,7 +222,19 @@ export class GatewayManager extends EventEmitter {
         this.emit('status', status);
       },
       onTransition: (previousState, nextState) => {
-        this.flushDeferredRestart(`status:${previousState}->${nextState}`);
+        this.restartController.flushDeferredRestart(
+          `status:${previousState}->${nextState}`,
+          {
+            state: this.status.state,
+            startLock: this.startLock,
+            shouldReconnect: this.shouldReconnect,
+          },
+          () => {
+            void this.restart().catch((error) => {
+              logger.warn('Deferred Gateway restart failed:', error);
+            });
+          },
+        );
       },
     });
     this.reconnectConfig = { ...DEFAULT_RECONNECT_CONFIG, ...config };
@@ -264,56 +274,6 @@ export class GatewayManager extends EventEmitter {
         `Gateway ${phase} superseded (expectedEpoch=${expectedEpoch}, currentEpoch=${this.lifecycleEpoch})`
       );
     }
-  }
-
-  private isRestartDeferred(): boolean {
-    return shouldDeferRestart({
-      state: this.status.state,
-      startLock: this.startLock,
-    });
-  }
-
-  private markDeferredRestart(reason: string): void {
-    if (!this.deferredRestartPending) {
-      logger.info(
-        `Deferring Gateway restart (${reason}) until startup/reconnect settles (state=${this.status.state}, startLock=${this.startLock})`
-      );
-    } else {
-      logger.debug(
-        `Gateway restart already deferred; keeping pending request (${reason}, state=${this.status.state}, startLock=${this.startLock})`
-      );
-    }
-    this.deferredRestartPending = true;
-  }
-
-  private flushDeferredRestart(trigger: string): void {
-    const action = getDeferredRestartAction({
-      hasPendingRestart: this.deferredRestartPending,
-      state: this.status.state,
-      startLock: this.startLock,
-      shouldReconnect: this.shouldReconnect,
-    });
-
-    if (action === 'none') return;
-    if (action === 'wait') {
-      logger.debug(
-        `Deferred Gateway restart still waiting (${trigger}, state=${this.status.state}, startLock=${this.startLock})`
-      );
-      return;
-    }
-
-    this.deferredRestartPending = false;
-    if (action === 'drop') {
-      logger.info(
-        `Dropping deferred Gateway restart (${trigger}) because lifecycle already recovered (state=${this.status.state}, shouldReconnect=${this.shouldReconnect})`
-      );
-      return;
-    }
-
-    logger.info(`Executing deferred Gateway restart now (${trigger})`);
-    void this.restart().catch((error) => {
-      logger.warn('Deferred Gateway restart failed:', error);
-    });
   }
 
   /**
@@ -466,7 +426,19 @@ export class GatewayManager extends EventEmitter {
       throw error;
     } finally {
       this.startLock = false;
-      this.flushDeferredRestart('start:finally');
+      this.restartController.flushDeferredRestart(
+        'start:finally',
+        {
+          state: this.status.state,
+          startLock: this.startLock,
+          shouldReconnect: this.shouldReconnect,
+        },
+        () => {
+          void this.restart().catch((error) => {
+            logger.warn('Deferred Gateway restart failed:', error);
+          });
+        },
+      );
     }
   }
 
@@ -511,7 +483,7 @@ export class GatewayManager extends EventEmitter {
 
     clearPendingGatewayRequests(this.pendingRequests, new Error('Gateway stopped'));
 
-    this.deferredRestartPending = false;
+    this.restartController.resetDeferredRestart();
     this.setStatus({ state: 'stopped', error: undefined, pid: undefined, connectedAt: undefined, uptime: undefined });
   }
 
@@ -519,8 +491,14 @@ export class GatewayManager extends EventEmitter {
    * Restart Gateway process
    */
   async restart(): Promise<void> {
-    if (this.isRestartDeferred()) {
-      this.markDeferredRestart('restart');
+    if (this.restartController.isRestartDeferred({
+      state: this.status.state,
+      startLock: this.startLock,
+    })) {
+      this.restartController.markDeferredRestart('restart', {
+        state: this.status.state,
+        startLock: this.startLock,
+      });
       return;
     }
 
@@ -540,7 +518,19 @@ export class GatewayManager extends EventEmitter {
       await this.restartInFlight;
     } finally {
       this.restartInFlight = null;
-      this.flushDeferredRestart('restart:finally');
+      this.restartController.flushDeferredRestart(
+        'restart:finally',
+        {
+          state: this.status.state,
+          startLock: this.startLock,
+          shouldReconnect: this.shouldReconnect,
+        },
+        () => {
+          void this.restart().catch((error) => {
+            logger.warn('Deferred Gateway restart failed:', error);
+          });
+        },
+      );
     }
   }
 
@@ -552,16 +542,11 @@ export class GatewayManager extends EventEmitter {
    * of each other during setup.
    */
   debouncedRestart(delayMs = 2000): void {
-    if (this.restartDebounceTimer) {
-      clearTimeout(this.restartDebounceTimer);
-    }
-    logger.debug(`Gateway restart debounced (will fire in ${delayMs}ms)`);
-    this.restartDebounceTimer = setTimeout(() => {
-      this.restartDebounceTimer = null;
+    this.restartController.debouncedRestart(delayMs, () => {
       void this.restart().catch((err) => {
         logger.warn('Debounced Gateway restart failed:', err);
       });
-    }, delayMs);
+    });
   }
 
   /**
@@ -572,18 +557,8 @@ export class GatewayManager extends EventEmitter {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = null;
-    }
-    if (this.restartDebounceTimer) {
-      clearTimeout(this.restartDebounceTimer);
-      this.restartDebounceTimer = null;
-    }
+    this.connectionMonitor.clear();
+    this.restartController.clearDebounceTimer();
   }
 
   /**
@@ -631,25 +606,16 @@ export class GatewayManager extends EventEmitter {
    * Start health check monitoring
    */
   private startHealthCheck(): void {
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-    }
-
-    this.healthCheckInterval = setInterval(async () => {
-      if (this.status.state !== 'running') {
-        return;
-      }
-
-      try {
-        const health = await this.checkHealth();
-        if (!health.ok) {
-          logger.warn(`Gateway health check failed: ${health.error ?? 'unknown'}`);
-          this.emit('error', new Error(health.error || 'Health check failed'));
-        }
-      } catch (error) {
-        logger.error('Gateway health check error:', error);
-      }
-    }, 30000); // Check every 30 seconds
+    this.connectionMonitor.startHealthCheck({
+      shouldCheck: () => this.status.state === 'running',
+      checkHealth: () => this.checkHealth(),
+      onUnhealthy: (errorMessage) => {
+        this.emit('error', new Error(errorMessage));
+      },
+      onError: () => {
+        // The monitor already logged the error; nothing else to do here.
+      },
+    });
   }
 
   /**
@@ -1047,15 +1013,11 @@ export class GatewayManager extends EventEmitter {
    * Start ping interval to keep connection alive
    */
   private startPing(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-    }
-
-    this.pingInterval = setInterval(() => {
+    this.connectionMonitor.startPing(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.ping();
       }
-    }, 30000);
+    });
   }
 
   /**
