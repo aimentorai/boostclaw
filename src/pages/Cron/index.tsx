@@ -114,6 +114,64 @@ function parseCronExpr(cron: string): string {
   return cron;
 }
 
+function estimateNextRun(scheduleExpr: string): string | null {
+  const now = new Date();
+  const next = new Date(now.getTime());
+
+  if (scheduleExpr === '* * * * *') {
+    next.setSeconds(0, 0);
+    next.setMinutes(next.getMinutes() + 1);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '*/5 * * * *') {
+    const delta = 5 - (next.getMinutes() % 5 || 5);
+    next.setSeconds(0, 0);
+    next.setMinutes(next.getMinutes() + delta);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '*/15 * * * *') {
+    const delta = 15 - (next.getMinutes() % 15 || 15);
+    next.setSeconds(0, 0);
+    next.setMinutes(next.getMinutes() + delta);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '0 * * * *') {
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '0 9 * * *' || scheduleExpr === '0 18 * * *') {
+    const targetHour = scheduleExpr === '0 9 * * *' ? 9 : 18;
+    next.setSeconds(0, 0);
+    next.setHours(targetHour, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '0 9 * * 1') {
+    next.setSeconds(0, 0);
+    next.setHours(9, 0, 0, 0);
+    const day = next.getDay();
+    const daysUntilMonday = day === 1 ? 7 : (8 - day) % 7;
+    next.setDate(next.getDate() + daysUntilMonday);
+    return next.toLocaleString();
+  }
+
+  if (scheduleExpr === '0 9 1 * *') {
+    next.setSeconds(0, 0);
+    next.setDate(1);
+    next.setHours(9, 0, 0, 0);
+    if (next <= now) next.setMonth(next.getMonth() + 1);
+    return next.toLocaleString();
+  }
+
+  return null;
+}
+
 // Create/Edit Task Dialog
 interface TaskDialogProps {
   job?: CronJob;
@@ -141,6 +199,7 @@ function TaskDialog({ job, onClose, onSave }: TaskDialogProps) {
   const [customSchedule, setCustomSchedule] = useState('');
   const [useCustom, setUseCustom] = useState(false);
   const [enabled, setEnabled] = useState(job?.enabled ?? true);
+  const schedulePreview = estimateNextRun(useCustom ? customSchedule : schedule);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -254,6 +313,9 @@ function TaskDialog({ job, onClose, onSave }: TaskDialogProps) {
             >
               {useCustom ? t('dialog.usePresets') : t('dialog.useCustomCron')}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              {schedulePreview ? `${t('card.next')}: ${schedulePreview}` : t('dialog.cronPlaceholder')}
+            </p>
           </div>
 
           {/* Enabled */}

@@ -24,6 +24,7 @@ import { useChatStore } from '@/stores/chat';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { invokeIpc } from '@/lib/api-client';
 import { useTranslation } from 'react-i18next';
 
 interface NavItemProps {
@@ -90,7 +91,7 @@ export function Sidebar() {
 
   const openDevConsole = async () => {
     try {
-      const result = await window.electron.ipcRenderer.invoke('gateway:getControlUiUrl') as {
+      const result = await invokeIpc('gateway:getControlUiUrl') as {
         success: boolean;
         url?: string;
         error?: string;

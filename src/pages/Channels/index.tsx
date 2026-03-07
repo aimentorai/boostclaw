@@ -45,6 +45,7 @@ import {
 } from '@/types/channel';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { invokeIpc } from '@/lib/api-client';
 
 export function Channels() {
   const { t } = useTranslation('channels');
@@ -55,16 +56,18 @@ export function Channels() {
   const [selectedChannelType, setSelectedChannelType] = useState<ChannelType | null>(null);
   const [configuredTypes, setConfiguredTypes] = useState<string[]>([]);
   const [channelToDelete, setChannelToDelete] = useState<{ id: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch channels on mount
   useEffect(() => {
-    fetchChannels();
+    void fetchChannels({ probe: false });
   }, [fetchChannels]);
 
   // Fetch configured channel types from config file
   const fetchConfiguredTypes = useCallback(async () => {
     try {
-      const result = await window.electron.ipcRenderer.invoke('channel:listConfigured') as {
+      const result = await invokeIpc('channel:listConfigured') as {
         success: boolean;
         channels?: string[];
       };
@@ -77,16 +80,24 @@ export function Channels() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchConfiguredTypes();
   }, [fetchConfiguredTypes]);
 
   useEffect(() => {
     const unsubscribe = window.electron.ipcRenderer.on('gateway:channel-status', () => {
-      fetchChannels();
-      fetchConfiguredTypes();
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current);
+      }
+      refreshDebounceRef.current = setTimeout(() => {
+        void fetchChannels({ probe: false, silent: true });
+        void fetchConfiguredTypes();
+      }, 300);
     });
     return () => {
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current);
+        refreshDebounceRef.current = null;
+      }
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
@@ -99,7 +110,7 @@ export function Channels() {
   // Connected/disconnected channel counts
   const connectedCount = channels.filter((c) => c.status === 'connected').length;
 
-  if (loading) {
+  if (loading && channels.length === 0) {
     return (
       <div className="flex h-96 items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -118,8 +129,20 @@ export function Channels() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchChannels}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                setRefreshing(true);
+                await fetchChannels({ probe: true, silent: true });
+                await fetchConfiguredTypes();
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2${refreshing ? ' animate-spin' : ''}`} />
             {t('refresh')}
           </Button>
           <Button onClick={() => setShowAddDialog(true)}>
@@ -272,8 +295,8 @@ export function Channels() {
             setSelectedChannelType(null);
           }}
           onChannelAdded={() => {
-            fetchChannels();
-            fetchConfiguredTypes();
+            void fetchChannels({ probe: false, silent: true });
+            void fetchConfiguredTypes();
             setShowAddDialog(false);
             setSelectedChannelType(null);
           }}
@@ -382,7 +405,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
       setChannelName('');
       setIsExistingConfig(false);
       // Ensure we clean up any pending QR session if switching away
-      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => { });
+      invokeIpc('channel:cancelWhatsAppQr').catch(() => { });
       return;
     }
 
@@ -391,7 +414,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
 
     (async () => {
       try {
-        const result = await window.electron.ipcRenderer.invoke(
+        const result = await invokeIpc(
           'channel:getFormValues',
           selectedType
         ) as { success: boolean; values?: Record<string, string> };
@@ -439,7 +462,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
       toast.success(t('toast.whatsappConnected'));
       const accountId = data?.accountId || channelName.trim() || 'default';
       try {
-        const saveResult = await window.electron.ipcRenderer.invoke(
+        const saveResult = await invokeIpc(
           'channel:saveConfig',
           'whatsapp',
           { enabled: true }
@@ -458,7 +481,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
         name: channelName || 'WhatsApp',
       }).then(() => {
         // Restart gateway to pick up the new session
-        window.electron.ipcRenderer.invoke('gateway:restart').catch(console.error);
+        invokeIpc('gateway:restart').catch(console.error);
         onChannelAdded();
       });
     };
@@ -480,7 +503,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
       if (typeof removeSuccessListener === 'function') removeSuccessListener();
       if (typeof removeErrorListener === 'function') removeErrorListener();
       // Cancel when unmounting or switching types
-      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => { });
+      invokeIpc('channel:cancelWhatsAppQr').catch(() => { });
     };
   }, [selectedType, addChannel, channelName, onChannelAdded, t]);
 
@@ -491,7 +514,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     setValidationResult(null);
 
     try {
-      const result = await window.electron.ipcRenderer.invoke(
+      const result = await invokeIpc(
         'channel:validateCredentials',
         selectedType,
         configValues
@@ -538,14 +561,14 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
       // For QR-based channels, request QR code
       if (meta.connectionType === 'qr') {
         const accountId = channelName.trim() || 'default';
-        await window.electron.ipcRenderer.invoke('channel:requestWhatsAppQr', accountId);
+        await invokeIpc('channel:requestWhatsAppQr', accountId);
         // The QR code will be set via event listener
         return;
       }
 
       // Step 1: Validate credentials against the actual service API
       if (meta.connectionType === 'token') {
-        const validationResponse = await window.electron.ipcRenderer.invoke(
+        const validationResponse = await invokeIpc(
           'channel:validateCredentials',
           selectedType,
           configValues
@@ -592,7 +615,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
 
       // Step 2: Save channel configuration via IPC
       const config: Record<string, unknown> = { ...configValues };
-      const saveResult = await window.electron.ipcRenderer.invoke('channel:saveConfig', selectedType, config) as {
+      const saveResult = await invokeIpc('channel:saveConfig', selectedType, config) as {
         success?: boolean;
         error?: string;
         warning?: string;
