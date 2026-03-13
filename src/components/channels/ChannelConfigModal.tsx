@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useChannelsStore } from '@/stores/channels';
-import { useGatewayStore } from '@/stores/gateway';
+
 import { hostApiFetch } from '@/lib/host-api';
 import { subscribeHostEvent } from '@/lib/host-events';
 import { cn } from '@/lib/utils';
@@ -98,7 +98,7 @@ export function ChannelConfigModal({
       setValidationResult(null);
       setQrCode(null);
       setConnecting(false);
-      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => {});
+      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => { });
       return;
     }
 
@@ -193,7 +193,10 @@ export function ChannelConfigModal({
         }
 
         await finishSave('whatsapp');
-        useGatewayStore.getState().restart().catch(console.error);
+        // Gateway restart is already triggered by scheduleGatewayChannelRestart
+        // in the POST /api/channels/config route handler (debounced).  Calling
+        // restart() here directly races with that debounced restart and the
+        // config write, which can cause openclaw.json overwrites.
         onClose();
       } catch (error) {
         toast.error(t('toast.configFailed', { error: String(error) }));
@@ -216,7 +219,7 @@ export function ChannelConfigModal({
       removeQrListener();
       removeSuccessListener();
       removeErrorListener();
-      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => {});
+      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => { });
     };
   }, [selectedType, finishSave, onClose, t]);
 

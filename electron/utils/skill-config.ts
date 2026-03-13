@@ -12,6 +12,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { getOpenClawDir, getResourcesDir } from './paths';
 import { logger } from './logger';
+import { withConfigLock } from './config-mutex';
 
 const OPENCLAW_CONFIG_PATH = join(homedir(), '.openclaw', 'openclaw.json');
 
@@ -87,19 +88,21 @@ async function setSkillsEnabled(skillKeys: string[], enabled: boolean): Promise<
     if (skillKeys.length === 0) {
         return;
     }
-    const config = await readConfig();
-    if (!config.skills) {
-        config.skills = {};
-    }
-    if (!config.skills.entries) {
-        config.skills.entries = {};
-    }
-    for (const skillKey of skillKeys) {
-        const entry = config.skills.entries[skillKey] || {};
-        entry.enabled = enabled;
-        config.skills.entries[skillKey] = entry;
-    }
-    await writeConfig(config);
+    return withConfigLock(async () => {
+        const config = await readConfig();
+        if (!config.skills) {
+            config.skills = {};
+        }
+        if (!config.skills.entries) {
+            config.skills.entries = {};
+        }
+        for (const skillKey of skillKeys) {
+            const entry = config.skills.entries[skillKey] || {};
+            entry.enabled = enabled;
+            config.skills.entries[skillKey] = entry;
+        }
+        await writeConfig(config);
+    });
 }
 
 /**
@@ -118,55 +121,57 @@ export async function updateSkillConfig(
     updates: { apiKey?: string; env?: Record<string, string> }
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const config = await readConfig();
+        return await withConfigLock(async () => {
+            const config = await readConfig();
 
-        // Ensure skills.entries exists
-        if (!config.skills) {
-            config.skills = {};
-        }
-        if (!config.skills.entries) {
-            config.skills.entries = {};
-        }
-
-        // Get or create skill entry
-        const entry = config.skills.entries[skillKey] || {};
-
-        // Update apiKey
-        if (updates.apiKey !== undefined) {
-            const trimmed = updates.apiKey.trim();
-            if (trimmed) {
-                entry.apiKey = trimmed;
-            } else {
-                delete entry.apiKey;
+            // Ensure skills.entries exists
+            if (!config.skills) {
+                config.skills = {};
             }
-        }
+            if (!config.skills.entries) {
+                config.skills.entries = {};
+            }
 
-        // Update env
-        if (updates.env !== undefined) {
-            const newEnv: Record<string, string> = {};
+            // Get or create skill entry
+            const entry = config.skills.entries[skillKey] || {};
 
-            for (const [key, value] of Object.entries(updates.env)) {
-                const trimmedKey = key.trim();
-                if (!trimmedKey) continue;
-
-                const trimmedVal = value.trim();
-                if (trimmedVal) {
-                    newEnv[trimmedKey] = trimmedVal;
+            // Update apiKey
+            if (updates.apiKey !== undefined) {
+                const trimmed = updates.apiKey.trim();
+                if (trimmed) {
+                    entry.apiKey = trimmed;
+                } else {
+                    delete entry.apiKey;
                 }
             }
 
-            if (Object.keys(newEnv).length > 0) {
-                entry.env = newEnv;
-            } else {
-                delete entry.env;
+            // Update env
+            if (updates.env !== undefined) {
+                const newEnv: Record<string, string> = {};
+
+                for (const [key, value] of Object.entries(updates.env)) {
+                    const trimmedKey = key.trim();
+                    if (!trimmedKey) continue;
+
+                    const trimmedVal = value.trim();
+                    if (trimmedVal) {
+                        newEnv[trimmedKey] = trimmedVal;
+                    }
+                }
+
+                if (Object.keys(newEnv).length > 0) {
+                    entry.env = newEnv;
+                } else {
+                    delete entry.env;
+                }
             }
-        }
 
-        // Save entry back
-        config.skills.entries[skillKey] = entry;
+            // Save entry back
+            config.skills.entries[skillKey] = entry;
 
-        await writeConfig(config);
-        return { success: true };
+            await writeConfig(config);
+            return { success: true };
+        });
     } catch (err) {
         console.error('Failed to update skill config:', err);
         return { success: false, error: String(err) };
