@@ -425,6 +425,116 @@ function patchBrokenModules(nodeModulesDir) {
             windowsHide: true,
         });`,
     },
+    // ── Windows TUI console fix ─────────────────────────────────────────────
+    // When ClawX.exe (GUI subsystem) runs with ELECTRON_RUN_AS_NODE=1,
+    // Electron calls AttachConsole(ATTACH_PARENT_PROCESS) to connect to the
+    // parent console. However, libuv may not detect stdout as a TTY, which
+    // means ENABLE_VIRTUAL_TERMINAL_PROCESSING is never set on the output
+    // handle. Without it, the legacy Windows console (conhost.exe) does not
+    // process ANSI escape sequences, so the TUI renders as garbled text.
+    //
+    // Additionally, if stdin is not detected as a TTY, setRawMode is
+    // unavailable and input falls back to line-buffered mode with echo,
+    // which fights with the TUI renderer for the screen.
+    //
+    // The fix extends enableWindowsVTInput() to:
+    //   1. Enable ENABLE_VIRTUAL_TERMINAL_PROCESSING on stdout via koffi.
+    //   2. When setRawMode is missing, manually set raw mode on stdin by
+    //      clearing ENABLE_LINE_INPUT + ENABLE_ECHO_INPUT and setting
+    //      ENABLE_WINDOW_INPUT via the Win32 console API.
+    {
+      rel: '@mariozechner/pi-tui/dist/terminal.js',
+      search: `    enableWindowsVTInput() {
+        if (process.platform !== "win32")
+            return;
+        try {
+            // Dynamic require to avoid bundling koffi's 74MB of cross-platform
+            // native binaries into every compiled binary. Koffi is only needed
+            // on Windows for VT input support.
+            const koffi = cjsRequire("koffi");
+            const k32 = koffi.load("kernel32.dll");
+            const GetStdHandle = k32.func("void* __stdcall GetStdHandle(int)");
+            const GetConsoleMode = k32.func("bool __stdcall GetConsoleMode(void*, _Out_ uint32_t*)");
+            const SetConsoleMode = k32.func("bool __stdcall SetConsoleMode(void*, uint32_t)");
+            const STD_INPUT_HANDLE = -10;
+            const ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200;
+            const handle = GetStdHandle(STD_INPUT_HANDLE);
+            const mode = new Uint32Array(1);
+            GetConsoleMode(handle, mode);
+            SetConsoleMode(handle, mode[0] | ENABLE_VIRTUAL_TERMINAL_INPUT);
+        }
+        catch {
+            // koffi not available — Shift+Tab won't be distinguishable from Tab
+        }
+    }`,
+      replace: `    enableWindowsVTInput() {
+        if (process.platform !== "win32")
+            return;
+        try {
+            const koffi = cjsRequire("koffi");
+            const k32 = koffi.load("kernel32.dll");
+            const GetStdHandle = k32.func("void* __stdcall GetStdHandle(int)");
+            const GetConsoleMode = k32.func("bool __stdcall GetConsoleMode(void*, _Out_ uint32_t*)");
+            const SetConsoleMode = k32.func("bool __stdcall SetConsoleMode(void*, uint32_t)");
+            const STD_INPUT_HANDLE = -10;
+            const STD_OUTPUT_HANDLE = -11;
+            const ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200;
+            const ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
+            const DISABLE_NEWLINE_AUTO_RETURN = 0x0008;
+            const ENABLE_LINE_INPUT = 0x0002;
+            const ENABLE_ECHO_INPUT = 0x0004;
+            const ENABLE_WINDOW_INPUT = 0x0008;
+            const ENABLE_PROCESSED_INPUT = 0x0001;
+            const inHandle = GetStdHandle(STD_INPUT_HANDLE);
+            const inMode = new Uint32Array(1);
+            if (GetConsoleMode(inHandle, inMode)) {
+                let newInMode = inMode[0] | ENABLE_VIRTUAL_TERMINAL_INPUT;
+                if (!process.stdin.setRawMode) {
+                    this._savedWinConsoleMode = inMode[0];
+                    newInMode = (newInMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT))
+                        | ENABLE_WINDOW_INPUT | ENABLE_PROCESSED_INPUT;
+                }
+                SetConsoleMode(inHandle, newInMode);
+            }
+            const outHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+            const outMode = new Uint32Array(1);
+            if (GetConsoleMode(outHandle, outMode)) {
+                SetConsoleMode(outHandle, outMode[0]
+                    | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                    | DISABLE_NEWLINE_AUTO_RETURN);
+            }
+        }
+        catch {
+            // koffi not available — VT input/output sequences won't be enabled
+        }
+    }`,
+    },
+    // Patch stop() to restore the original Win32 console mode when raw mode
+    // was set via koffi (because setRawMode was unavailable).
+    {
+      rel: '@mariozechner/pi-tui/dist/terminal.js',
+      search: `        // Restore raw mode state
+        if (process.stdin.setRawMode) {
+            process.stdin.setRawMode(this.wasRaw);
+        }
+    }`,
+      replace: `        // Restore raw mode state
+        if (process.stdin.setRawMode) {
+            process.stdin.setRawMode(this.wasRaw);
+        }
+        else if (this._savedWinConsoleMode !== undefined) {
+            try {
+                const koffi = cjsRequire("koffi");
+                const k32 = koffi.load("kernel32.dll");
+                const GetStdHandle = k32.func("void* __stdcall GetStdHandle(int)");
+                const SetConsoleMode = k32.func("bool __stdcall SetConsoleMode(void*, uint32_t)");
+                SetConsoleMode(GetStdHandle(-10), this._savedWinConsoleMode);
+                this._savedWinConsoleMode = undefined;
+            }
+            catch { /* koffi not available */ }
+        }
+    }`,
+    },
   ];
 
   let count = 0;
