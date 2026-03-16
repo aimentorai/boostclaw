@@ -10,7 +10,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import sessionApi from "./sessionApi";
 import defaultConfig, { getDefaultConfig } from "./OptionsPanel/defaultConfig";
 import Weather from "./Weather";
-import { getApiToken, getApiUrl } from "../../api/config";
+import { getApiUrl } from "../../api/config";
+import { buildAuthHeaders, requestRaw } from "../../api/request";
 import { providerApi } from "../../api/modules/provider";
 import ModelSelector from "./ModelSelector";
 import "./index.module.less";
@@ -209,18 +210,22 @@ export default function ChatPage() {
         ...biz_params,
       };
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      const token = getApiToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      return fetch(defaultConfig?.api?.baseURL || getApiUrl("/agent/process"), {
+      const defaultProcessUrl = getApiUrl("/agent/process");
+      const processUrl = defaultConfig?.api?.baseURL || defaultProcessUrl;
+      const requestOptions: RequestInit = {
         method: "POST",
-        headers,
+        headers: buildAuthHeaders("POST", {
+          "Content-Type": "application/json",
+        }),
         body: JSON.stringify(requestBody),
         signal: data.signal,
-      });
+      };
+
+      if (processUrl === defaultProcessUrl) {
+        return requestRaw("/agent/process", requestOptions);
+      }
+
+      return fetch(processUrl, requestOptions);
     },
     [],
   );

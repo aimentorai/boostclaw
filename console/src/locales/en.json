@@ -567,7 +567,41 @@
     "docs": "Doc",
     "tutorial": "Tutorial",
     "faq": "FAQ",
-    "github": "GitHub"
+    "github": "GitHub",
+    "logout": "Logout"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Enter your phone number and SMS verification code to sign in. New users will be registered automatically.",
+    "registerTitle": "Register",
+    "registerSubtitle": "Use your phone and SMS code to create or sign in to your account.",
+    "countryCode": "Country code",
+    "countryCodeRequired": "Please select a country code",
+    "countryCodeOptions": {
+      "cn": "China ({{code}})",
+      "us": "United States ({{code}})",
+      "jp": "Japan ({{code}})",
+      "it": "Italy ({{code}})"
+    },
+    "phone": "Phone",
+    "phonePlaceholder": "Enter phone number",
+    "phoneRequired": "Please enter phone number",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "passwordRequired": "Please enter password",
+    "smsCode": "SMS code",
+    "smsCodePlaceholder": "Enter SMS code",
+    "smsCodeRequired": "Please enter SMS code",
+    "sendCode": "Send code",
+    "sendCodeSuccess": "SMS code sent successfully",
+    "sendCodeFailed": "Failed to send SMS code",
+    "resendCodeIn": "Resend in {{seconds}}s",
+    "signIn": "Sign in",
+    "register": "Register",
+    "switchToLogin": "Use password login",
+    "switchToRegister": "Use SMS register/login",
+    "loginFailed": "Login failed",
+    "registerFailed": "Registration failed"
   },
   "sidebar": {
     "newVersion": "New version available: v{{version}}, click to upgrade",

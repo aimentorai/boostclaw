@@ -15,6 +15,7 @@ from .tools import router as tools_router
 from ..crons.api import router as cron_router
 from ..runner.api import router as runner_router
 from .console import router as console_router
+from .proboost_auth import router as proboost_auth_router
 from .token_usage import router as token_usage_router
 
 
@@ -23,6 +24,7 @@ router = APIRouter()
 router.include_router(agent_router)
 router.include_router(config_router)
 router.include_router(console_router)
+router.include_router(proboost_auth_router)
 router.include_router(cron_router)
 router.include_router(local_models_router)
 router.include_router(mcp_router)

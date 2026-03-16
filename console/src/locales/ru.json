@@ -566,7 +566,41 @@
     "docs": "Документация",
     "tutorial": "Руководство",
     "faq": "FAQ",
-    "github": "GitHub"
+    "github": "GitHub",
+    "logout": "Выйти"
+  },
+  "auth": {
+    "title": "Вход",
+    "subtitle": "Введите номер телефона и код из SMS для входа. Новые пользователи будут зарегистрированы автоматически.",
+    "registerTitle": "Регистрация",
+    "registerSubtitle": "Используйте телефон и SMS-код для регистрации или входа.",
+    "countryCode": "Код страны",
+    "countryCodeRequired": "Выберите код страны",
+    "countryCodeOptions": {
+      "cn": "Китай ({{code}})",
+      "us": "США ({{code}})",
+      "jp": "Япония ({{code}})",
+      "it": "Италия ({{code}})"
+    },
+    "phone": "Телефон",
+    "phonePlaceholder": "Введите номер телефона",
+    "phoneRequired": "Введите номер телефона",
+    "password": "Пароль",
+    "passwordPlaceholder": "Введите пароль",
+    "passwordRequired": "Введите пароль",
+    "smsCode": "SMS-код",
+    "smsCodePlaceholder": "Введите SMS-код",
+    "smsCodeRequired": "Введите SMS-код",
+    "sendCode": "Отправить код",
+    "sendCodeSuccess": "SMS-код отправлен",
+    "sendCodeFailed": "Не удалось отправить SMS-код",
+    "resendCodeIn": "Повтор через {{seconds}}с",
+    "signIn": "Войти",
+    "register": "Зарегистрироваться и войти",
+    "switchToLogin": "Войти по паролю",
+    "switchToRegister": "Регистрация/вход по SMS",
+    "loginFailed": "Ошибка входа",
+    "registerFailed": "Ошибка регистрации"
   },
   "sidebar": {
     "newVersion": "Доступна новая версия: v{{version}}, нажмите для обновления",

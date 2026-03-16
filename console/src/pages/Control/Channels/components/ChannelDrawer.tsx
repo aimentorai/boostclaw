@@ -365,7 +365,7 @@ export function ChannelDrawer({
               <Input.Password placeholder="Mattermost bot token" />
             </Form.Item>
             <Form.Item name="media_dir" label="Media Dir">
-              <Input placeholder="~/.copaw/media/mattermost" />
+              <Input placeholder="~/.boostclaw/media/mattermost" />
             </Form.Item>
             <Form.Item
               name="show_typing"

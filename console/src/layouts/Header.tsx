@@ -3,10 +3,13 @@ import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 import {
   BookOutlined,
+  LogoutOutlined,
   QuestionCircleOutlined,
 } from "@ant-design/icons";
 import { Button, Tooltip } from "@agentscope-ai/design";
 import styles from "./index.module.less";
+import { useAuth } from "../auth/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const { Header: AntHeader } = Layout;
 
@@ -41,11 +44,18 @@ interface HeaderProps {
 
 export default function Header({ selectedKey }: HeaderProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   const handleNavClick = (url: string) => {
     if (url) {
       // Check if running in pywebview environment
-      const pywebview = (window as any).pywebview;
+      const pywebview = window.pywebview;
       if (pywebview && pywebview.api) {
         // Use pywebview API to open external link in system browser
         pywebview.api.open_external_link(url);
@@ -78,6 +88,11 @@ export default function Header({ selectedKey }: HeaderProps) {
             onClick={() => handleNavClick(NAV_URLS.faq)}
           >
             {t("header.faq")}
+          </Button>
+        </Tooltip>
+        <Tooltip title={t("header.logout")}>
+          <Button icon={<LogoutOutlined />} type="text" onClick={handleLogout}>
+            {t("header.logout")}
           </Button>
         </Tooltip>
         <LanguageSwitcher />

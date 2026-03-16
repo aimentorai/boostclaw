@@ -561,7 +561,41 @@
     "docs": "ドキュメント",
     "tutorial": "チュートリアル",
     "faq": "よくある質問",
-    "github": "GitHub"
+    "github": "GitHub",
+    "logout": "ログアウト"
+  },
+  "auth": {
+    "title": "ログイン",
+    "subtitle": "電話番号とSMS認証コードでログインします。未登録の場合は自動的に登録されます。",
+    "registerTitle": "登録",
+    "registerSubtitle": "電話番号とSMSコードで登録またはログインしてください。",
+    "countryCode": "国/地域コード",
+    "countryCodeRequired": "国/地域コードを選択してください",
+    "countryCodeOptions": {
+      "cn": "中国（{{code}}）",
+      "us": "アメリカ合衆国（{{code}}）",
+      "jp": "日本（{{code}}）",
+      "it": "イタリア（{{code}}）"
+    },
+    "phone": "電話番号",
+    "phonePlaceholder": "電話番号を入力",
+    "phoneRequired": "電話番号を入力してください",
+    "password": "パスワード",
+    "passwordPlaceholder": "パスワードを入力",
+    "passwordRequired": "パスワードを入力してください",
+    "smsCode": "SMSコード",
+    "smsCodePlaceholder": "SMSコードを入力",
+    "smsCodeRequired": "SMSコードを入力してください",
+    "sendCode": "コードを送信",
+    "sendCodeSuccess": "SMSコードを送信しました",
+    "sendCodeFailed": "SMSコードの送信に失敗しました",
+    "resendCodeIn": "{{seconds}}秒後に再送",
+    "signIn": "ログイン",
+    "register": "登録してログイン",
+    "switchToLogin": "パスワードでログイン",
+    "switchToRegister": "SMSで登録/ログイン",
+    "loginFailed": "ログインに失敗しました",
+    "registerFailed": "登録に失敗しました"
   },
   "sidebar": {
     "newVersion": "新しいバージョンが利用可能です: v{{version}}、クリックしてアップグレード",

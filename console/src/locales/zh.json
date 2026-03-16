@@ -567,7 +567,41 @@
     "docs": "文档",
     "tutorial": "教程",
     "faq": "常见问题",
-    "github": "GitHub"
+    "github": "GitHub",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "title": "登录",
+    "subtitle": "输入手机号和短信验证码即可登录，未注册将自动完成注册。",
+    "registerTitle": "注册",
+    "registerSubtitle": "请输入手机号和短信验证码完成注册或登录。",
+    "countryCode": "国家/地区码",
+    "countryCodeRequired": "请选择国家/地区码",
+    "countryCodeOptions": {
+      "cn": "中国（{{code}}）",
+      "us": "美国（{{code}}）",
+      "jp": "日本（{{code}}）",
+      "it": "意大利（{{code}}）"
+    },
+    "phone": "手机号",
+    "phonePlaceholder": "请输入手机号",
+    "phoneRequired": "请输入手机号",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "passwordRequired": "请输入密码",
+    "smsCode": "短信验证码",
+    "smsCodePlaceholder": "请输入短信验证码",
+    "smsCodeRequired": "请输入短信验证码",
+    "sendCode": "发送验证码",
+    "sendCodeSuccess": "验证码发送成功",
+    "sendCodeFailed": "验证码发送失败",
+    "resendCodeIn": "{{seconds}} 秒后重发",
+    "signIn": "登录",
+    "register": "注册并登录",
+    "switchToLogin": "使用密码登录",
+    "switchToRegister": "使用验证码注册/登录",
+    "loginFailed": "登录失败",
+    "registerFailed": "注册失败"
   },
   "sidebar": {
     "newVersion": "发现新版本 v{{version}}，点击前往升级",
