@@ -184,7 +184,7 @@ def _get_blocked_history_path() -> Path:
 
         return WORKING_DIR / _BLOCKED_HISTORY_FILE
     except Exception:
-        return Path.home() / ".copaw" / _BLOCKED_HISTORY_FILE
+        return Path.home() / ".boostclaw" / _BLOCKED_HISTORY_FILE
 
 
 @dataclass

@@ -194,7 +194,7 @@ def init_cmd(
     click.echo("✓ Default workspace initialized")
 
     # Get default workspace path for subsequent operations
-    default_workspace = Path("~/.copaw/workspaces/default").expanduser()
+    default_workspace = Path("~/.boostclaw/workspaces/default").expanduser()
 
     # --- config.json ---
     write_config = True
