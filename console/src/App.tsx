@@ -1,12 +1,21 @@
 import { createGlobalStyle } from "antd-style";
 import { ConfigProvider, bailianTheme } from "@agentscope-ai/design";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import zhCN from "antd/locale/zh_CN";
+import enUS from "antd/locale/en_US";
+import jaJP from "antd/locale/ja_JP";
+import ruRU from "antd/locale/ru_RU";
+import type { Locale } from "antd/es/locale";
 import MainLayout from "./layouts/MainLayout";
 import LoginPage from "./pages/Auth/Login";
 import { AuthProvider } from "./auth/context";
 import RequireAuth from "./auth/RequireAuth";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import "./styles/layout.css";
 import "./styles/form-override.css";
+import dayjs from "dayjs";
 
 const antdLocaleMap: Record<string, Locale> = {
   zh: zhCN,
@@ -36,10 +45,10 @@ function getRouterBasename(pathname: string): string | undefined {
 function AppInner() {
   const basename = getRouterBasename(window.location.pathname);
   const { i18n } = useTranslation();
-  const { isDark } = useTheme();
   const lang = i18n.resolvedLanguage || i18n.language || "en";
+  const shortLang = lang.split("-")[0];
   const [antdLocale, setAntdLocale] = useState<Locale>(
-    antdLocaleMap[lang] ?? enUS,
+    antdLocaleMap[shortLang] ?? enUS,
   );
 
   useEffect(() => {
@@ -49,19 +58,25 @@ function AppInner() {
       dayjs.locale(dayjsLocaleMap[shortLng] ?? "en");
     };
 
-    // Set initial dayjs locale
-    dayjs.locale(dayjsLocaleMap[lang.split("-")[0]] ?? "en");
+    // Sync both date and Ant Design locale with current language.
+    setAntdLocale(antdLocaleMap[shortLang] ?? enUS);
+    dayjs.locale(dayjsLocaleMap[shortLang] ?? "en");
 
     i18n.on("languageChanged", handleLanguageChanged);
     return () => {
       i18n.off("languageChanged", handleLanguageChanged);
     };
-  }, [i18n]);
+  }, [i18n, shortLang]);
 
   return (
     <BrowserRouter basename={basename}>
       <GlobalStyle />
-      <ConfigProvider {...bailianTheme} prefix="copaw" prefixCls="copaw">
+      <ConfigProvider
+        {...bailianTheme}
+        locale={antdLocale}
+        prefix="copaw"
+        prefixCls="copaw"
+      >
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
