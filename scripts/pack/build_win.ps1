@@ -23,37 +23,39 @@ $CondaUnpackAffectedPackages = @(
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 
 Write-Host "== Building wheel (includes console frontend) =="
-# Skip wheel_build if dist already has a wheel for current version
 $VersionFile = Join-Path $RepoRoot "src\copaw\__version__.py"
 $CurrentVersion = ""
 if (Test-Path $VersionFile) {
   $m = (Get-Content $VersionFile -Raw) -match '__version__\s*=\s*"([^"]+)"'
   if ($m) { $CurrentVersion = $Matches[1] }
 }
-$RunWheelBuild = $true
 if ($CurrentVersion) {
   $wheelGlob = Join-Path $Dist "boostclaw-$CurrentVersion-*.whl"
   $existingWheels = Get-ChildItem -Path $wheelGlob -ErrorAction SilentlyContinue
   if ($existingWheels.Count -gt 0) {
-    Write-Host "dist/ already has wheel for version $CurrentVersion, skipping."
-    $RunWheelBuild = $false
+    Write-Host "[build_win] dist/ already has wheel for version ${CurrentVersion}:"
+    $existingWheels | ForEach-Object { Write-Host "  - existing wheel: $($_.Name)" }
+    Write-Host "[build_win] Rebuilding wheel anyway to ensure latest console/auth UI is packaged."
   } else {
     # Clean up old wheels to avoid confusion
     $oldWheels = Get-ChildItem -Path (Join-Path $Dist "boostclaw-*.whl") -ErrorAction SilentlyContinue
     if ($oldWheels.Count -gt 0) {
-      Write-Host "Removing old wheel files: $($oldWheels | ForEach-Object { $_.Name })"
+      Write-Host "[build_win] Removing old wheel files: $($oldWheels | ForEach-Object { $_.Name })"
       $oldWheels | Remove-Item -Force
     }
   }
+} else {
+  Write-Host "[build_win] __version__ not found, building wheel with unknown version."
 }
-if ($RunWheelBuild) {
-  $WheelBuildScript = Join-Path $RepoRoot "scripts\wheel_build.ps1"
-  if (-not (Test-Path $WheelBuildScript)) {
-    throw "wheel_build.ps1 not found: $WheelBuildScript"
-  }
-  & $WheelBuildScript
-  if ($LASTEXITCODE -ne 0) { throw "wheel_build.ps1 failed with exit code $LASTEXITCODE" }
+
+$WheelBuildScript = Join-Path $RepoRoot "scripts\wheel_build.ps1"
+if (-not (Test-Path $WheelBuildScript)) {
+  throw "wheel_build.ps1 not found: $WheelBuildScript"
 }
+Write-Host "[build_win] Running wheel_build.ps1 (this will rebuild console frontend)..."
+& $WheelBuildScript
+if ($LASTEXITCODE -ne 0) { throw "wheel_build.ps1 failed with exit code $LASTEXITCODE" }
+Write-Host "[build_win] wheel_build.ps1 completed successfully."
 
 Write-Host "== Building conda-packed env =="
 # Ensure CONDA_EXE is set so build_common.py can find conda (required on Windows)
@@ -197,9 +199,9 @@ if defined CERT_FILE (
 )
 
 if not exist "%BOOSTCLAW_WORKING_DIR%\config.json" (
-  "%~dp0python.exe" -u -m boostclaw init --defaults --accept-security
+  "%~dp0python.exe" -u -m copaw init --defaults --accept-security
 )
-"%~dp0python.exe" -u -m boostclaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
+"%~dp0python.exe" -u -m copaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
 "@ | Set-Content -Path $LauncherBat -Encoding ASCII
 
 # Debug launcher .bat (shows console)
@@ -252,12 +254,12 @@ echo CURL_CA_BUNDLE: %CURL_CA_BUNDLE%
 echo.
 if not exist "%BOOSTCLAW_WORKING_DIR%\config.json" (
   echo [Init] Creating config...
-  "%~dp0python.exe" -u -m boostclaw init --defaults --accept-security
+  "%~dp0python.exe" -u -m copaw init --defaults --accept-security
 )
 echo [Launch] Starting boostclaw desktop with log-level=%BOOSTCLAW_LOG_LEVEL%...
 echo Press Ctrl+C to stop
 echo.
-"%~dp0python.exe" -u -m boostclaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
+"%~dp0python.exe" -u -m copaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
 echo.
 echo [Exit] boostclaw desktop closed
 pause

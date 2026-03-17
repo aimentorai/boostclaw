@@ -11,10 +11,10 @@
 #   2. Downloaded via https://astral.sh/uv/install.ps1
 #   3. Downloaded via GitHub Releases if astral.sh is unreachable (e.g. in China)
 #
-# The entire script is wrapped in & { ... } @args so that `irm | iex` works
-# correctly (param() is only valid inside a scriptblock/function/file scope).
+# Works with both `.\install.ps1 -Help` and `irm <url>/install.ps1 | iex`.
+# param() at file scope handles .\install.ps1; the `irm | iex` path
+# triggers the Invoke-Expression fallback at the bottom of this file.
 
-& {
 param(
     [string]$Version   = "",
     [switch]$FromSource,
@@ -222,8 +222,16 @@ function Prepare-Console {
     $consoleSrc  = Join-Path $RepoDir "console\dist"
     $consoleDest = Join-Path $RepoDir "src\copaw\console"
 
+    Write-Info "Checking console frontend assets in: $RepoDir"
+    Write-Info "  console source: $consoleSrc"
+    Write-Info "  console dest:   $consoleDest"
+
     # Already populated
-    if (Test-Path (Join-Path $consoleDest "index.html")) { $script:ConsoleAvailable = $true; return }
+    if (Test-Path (Join-Path $consoleDest "index.html")) {
+        Write-Info "Console frontend already present in src/copaw/console (index.html found)."
+        $script:ConsoleAvailable = $true
+        return
+    }
 
     # Copy pre-built assets if available
     if ((Test-Path $consoleSrc) -and (Test-Path (Join-Path $consoleSrc "index.html"))) {
@@ -232,30 +240,37 @@ function Prepare-Console {
         Copy-Item -Path "$consoleSrc\*" -Destination $consoleDest -Recurse -Force
         $script:ConsoleCopied   = $true
         $script:ConsoleAvailable = $true
+        Write-Info "Console frontend copied from console/dist (index.html + assets)."
         return
     }
 
     # Try to build if npm is available
     $packageJson = Join-Path $RepoDir "console\package.json"
     if (-not (Test-Path $packageJson)) {
-        Write-Warn "Console source not found - the web UI won't be available."
+        Write-Warn "Console source not found at console/ - the web UI (including auth UI) won't be available."
         return
     }
 
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
         Write-Warn "npm not found - skipping console frontend build."
         Write-Warn "Install Node.js from https://nodejs.org/ then re-run this installer,"
-        Write-Warn "or run 'cd console && npm ci && npm run build' manually."
+        Write-Warn "or run 'cd console && npm ci && npm run build' manually to restore console/auth UI."
         return
     }
 
-    Write-Info "Building console frontend (npm ci && npm run build)..."
+    Write-Info "Building console frontend (npm ci && npm run build, includes auth UI)..."
     Push-Location (Join-Path $RepoDir "console")
     try {
         npm ci
-        if ($LASTEXITCODE -ne 0) { Write-Warn "npm ci failed - the web UI won't be available."; return }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "npm ci failed - the web UI (including auth UI) won't be available."
+            return
+        }
         npm run build
-        if ($LASTEXITCODE -ne 0) { Write-Warn "npm run build failed - the web UI won't be available."; return }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "npm run build failed - the web UI (including auth UI) won't be available."
+            return
+        }
     } finally {
         Pop-Location
     }
@@ -264,11 +279,11 @@ function Prepare-Console {
         Copy-Item -Path "$consoleSrc\*" -Destination $consoleDest -Recurse -Force
         $script:ConsoleCopied   = $true
         $script:ConsoleAvailable = $true
-        Write-Info "Console frontend built successfully"
+        Write-Info "Console frontend built and copied successfully (index.html + assets, including auth UI)."
         return
     }
 
-    Write-Warn "Console build completed but index.html not found - the web UI won't be available."
+    Write-Warn "Console build completed but index.html not found - the web UI (including auth UI) won't be available."
 }
 
 function Cleanup-Console {
@@ -335,43 +350,45 @@ if (-not $script:ConsoleAvailable) {
 New-Item -ItemType Directory -Path $BoostclawBin -Force | Out-Null
 
 $wrapperPath = Join-Path $BoostclawBin "boostclaw.ps1"
-$wrapperContent = @'
-# BoostClaw CLI wrapper — delegates to the uv-managed environment.
-$ErrorActionPreference = "Stop"
-
-$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } elseif ($env:COPAW_HOME) { $env:COPAW_HOME } else { Join-Path $HOME ".boostclaw" }
-$RealBin   = Join-Path $BoostclawHome "venv\Scripts\boostclaw.exe"
-
-if (-not (Test-Path $RealBin)) {
-    Write-Error "BoostClaw environment not found at $BoostclawHome\venv"
-    Write-Error "Please reinstall: irm <install-url> | iex"
-    exit 1
-}
-
-& $RealBin @args
-'@
+$wrapperLines = @(
+    '# BoostClaw CLI wrapper - delegates to the uv-managed environment.'
+    '$ErrorActionPreference = "Stop"'
+    ''
+    '$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } elseif ($env:COPAW_HOME) { $env:COPAW_HOME } else { Join-Path $HOME ".boostclaw" }'
+    '$RealBin = Join-Path $BoostclawHome "venv\Scripts\boostclaw.exe"'
+    ''
+    'if (-not (Test-Path $RealBin)) {'
+    '    Write-Error "BoostClaw environment not found at $BoostclawHome\venv"'
+    '    Write-Error "Please reinstall: irm <install-url> | iex"'
+    '    exit 1'
+    '}'
+    ''
+    '& $RealBin @args'
+)
+$wrapperContent = $wrapperLines -join "`r`n"
 
 Set-Content -Path $wrapperPath -Value $wrapperContent -Encoding UTF8
 Write-Info "Wrapper created at $wrapperPath"
 
 # Also create a .cmd wrapper for use from cmd.exe
 $cmdWrapperPath = Join-Path $BoostclawBin "boostclaw.cmd"
-$cmdWrapperContent = @"
-@echo off
-REM BoostClaw CLI wrapper — delegates to the uv-managed environment.
-set "BOOSTCLAW_HOME=%BOOSTCLAW_HOME%"
-if "%BOOSTCLAW_HOME%"=="" if not "%COPAW_HOME%"=="" set "BOOSTCLAW_HOME=%COPAW_HOME%"
-if "%BOOSTCLAW_HOME%"=="" set "BOOSTCLAW_HOME=%USERPROFILE%\.boostclaw"
-set "REAL_BIN=%BOOSTCLAW_HOME%\venv\Scripts\boostclaw.exe"
-if not exist "%REAL_BIN%" (
-    echo Error: BoostClaw environment not found at %BOOSTCLAW_HOME%\venv >&2
-    echo Please reinstall: irm ^<install-url^> ^| iex >&2
-    exit /b 1
+$cmdWrapperLines = @(
+    '@echo off'
+    'REM BoostClaw CLI wrapper - delegates to the uv-managed environment.'
+    'set "BOOSTCLAW_HOME=%BOOSTCLAW_HOME%"'
+    'if "%BOOSTCLAW_HOME%"=="" if not "%COPAW_HOME%"=="" set "BOOSTCLAW_HOME=%COPAW_HOME%"'
+    'if "%BOOSTCLAW_HOME%"=="" set "BOOSTCLAW_HOME=%USERPROFILE%\.boostclaw"'
+    'set "REAL_BIN=%BOOSTCLAW_HOME%\venv\Scripts\boostclaw.exe"'
+    'if not exist "%REAL_BIN%" ('
+    '    echo Error: BoostClaw environment not found at %BOOSTCLAW_HOME%\venv 1>&2'
+    '    echo Please reinstall: irm ^<install-url^> ^| iex 1>&2'
+    '    exit /b 1'
+    ')'
+    '"%REAL_BIN%" %*'
 )
-"%REAL_BIN%" %*
-"@
+$cmdWrapperContent = $cmdWrapperLines -join "`r`n"
 
-Set-Content -Path $cmdWrapperPath -Value $cmdWrapperContent -Encoding UTF8
+[System.IO.File]::WriteAllText($cmdWrapperPath, $cmdWrapperContent, (New-Object System.Text.UTF8Encoding $false))
 Write-Info "CMD wrapper created at $cmdWrapperPath"
 
 # ──Step 5: Update PATH via User Environment Variable ────────────────────────
@@ -412,7 +429,7 @@ if (-not $isAlreadyAdded) {
         }
 
         # 写入注册表
-        SetItemProperty -Path $registryPath -Name $registryName -Value $newUserPath
+        Set-ItemProperty -Path $registryPath -Name $registryName -Value $newUserPath
 
         # 更新当前进程的环境变量，使当前终端立即生效
         $env:Path = "$targetPath;$env:Path"
@@ -441,11 +458,8 @@ if (-not $isAlreadyAdded) {
         Write-Host "   6. CLOSE and REOPEN your terminal."
         Write-Host ""
 
-        # 即使注册表写入失败，也尝试更新当前会话以便用户测试（如果不报错的话）
-        # 注意：如果策略极严，这行也可能无效，但尝试一下无害
-        try {
-            $env:Path = "$targetPath;$env:Path"
-        } catch {}
+        # 即使注册表写入失败，也尝试更新当前会话以便用户测试
+        $env:Path = "$targetPath;$env:Path"
     }
 } else {
     Write-Info "$targetPath is already in your User PATH"
@@ -474,5 +488,3 @@ Write-Host ""
 Write-Host "To upgrade later, re-run this installer."
 Write-Host "To uninstall, run: " -NoNewline
 Write-Host "boostclaw uninstall" -ForegroundColor White
-
-} @args
