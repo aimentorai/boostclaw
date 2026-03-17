@@ -29,8 +29,14 @@ const GlobalStyle = createGlobalStyle`
 }
 `;
 
-function App() {
+function getRouterBasename(pathname: string): string | undefined {
+  return /^\/console(?:\/|$)/.test(pathname) ? "/console" : undefined;
+}
+
+function AppInner() {
+  const basename = getRouterBasename(window.location.pathname);
   const { i18n } = useTranslation();
+  const { isDark } = useTheme();
   const lang = i18n.resolvedLanguage || i18n.language || "en";
   const [antdLocale, setAntdLocale] = useState<Locale>(
     antdLocaleMap[lang] ?? enUS,
@@ -53,7 +59,7 @@ function App() {
   }, [i18n]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <GlobalStyle />
       <ConfigProvider {...bailianTheme} prefix="copaw" prefixCls="copaw">
         <AuthProvider>
@@ -68,6 +74,14 @@ function App() {
         </AuthProvider>
       </ConfigProvider>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }
 
