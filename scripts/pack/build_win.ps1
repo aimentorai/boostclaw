@@ -56,6 +56,41 @@ if ($RunWheelBuild) {
 }
 
 Write-Host "== Building conda-packed env =="
+# Ensure CONDA_EXE is set so build_common.py can find conda (required on Windows)
+if (-not $env:CONDA_EXE -or -not (Test-Path -LiteralPath $env:CONDA_EXE)) {
+  $condaExe = $null
+  $cmds = Get-Command conda -ErrorAction SilentlyContinue
+  if ($cmds) {
+    $condaPath = $cmds.Source
+    if ($condaPath -match '\.bat$') {
+      $condaExe = Join-Path (Split-Path $condaPath) "conda.exe"
+      if (Test-Path -LiteralPath $condaExe) { $env:CONDA_EXE = $condaExe }
+    } else {
+      $env:CONDA_EXE = $condaPath
+    }
+  }
+  if (-not $env:CONDA_EXE) {
+    $searchDirs = @(
+      (Join-Path $env:ProgramData "miniconda3"),
+      (Join-Path $env:ProgramData "anaconda3"),
+      (Join-Path $env:LOCALAPPDATA "Programs\miniconda3"),
+      (Join-Path $env:LOCALAPPDATA "Programs\anaconda3"),
+      (Join-Path $env:USERPROFILE "miniconda3"),
+      (Join-Path $env:USERPROFILE "anaconda3")
+    )
+    foreach ($dir in $searchDirs) {
+      foreach ($sub in @("Scripts\conda.exe", "condabin\conda.exe")) {
+        $c = Join-Path $dir $sub
+        if (Test-Path -LiteralPath $c) { $env:CONDA_EXE = $c; break }
+      }
+      if ($env:CONDA_EXE) { break }
+    }
+  }
+  if (-not $env:CONDA_EXE) {
+    throw "Conda not found. Install Miniconda or Anaconda, or run this script from an Anaconda/Miniconda Prompt. You can also set CONDA_EXE to the path of conda.exe."
+  }
+  Write-Host "[build_win] Using conda: $env:CONDA_EXE"
+}
 & python $PackDir\build_common.py --output $Archive --format zip --cache-wheels
 if ($LASTEXITCODE -ne 0) {
   throw "build_common.py failed with exit code $LASTEXITCODE"
@@ -259,20 +294,34 @@ $nsiArgs = @(
   $NsiPath
 )
 
-# Debug: Check if makensis is available
+# Resolve makensis (NSIS); search common install locations if not on PATH
 Write-Host "=== Checking makensis availability ==="
+$MakensisExe = $null
 try {
-  $makensisPath = (Get-Command makensis -ErrorAction Stop).Source
-  Write-Host "[build_win] makensis found at: $makensisPath"
+  $MakensisExe = (Get-Command makensis -ErrorAction Stop).Source
 } catch {
-  throw "makensis not found in PATH. Please install NSIS and ensure makensis.exe is in PATH."
+  $searchDirs = @(
+    (Join-Path ${env:ProgramFiles(x86)} "NSIS"),
+    (Join-Path $env:ProgramFiles "NSIS")
+  )
+  foreach ($dir in $searchDirs) {
+    $c = Join-Path $dir "makensis.exe"
+    if (Test-Path -LiteralPath $c) {
+      $MakensisExe = $c
+      break
+    }
+  }
 }
+if (-not $MakensisExe) {
+  throw "makensis not found. Install NSIS (https://nsis.sourceforge.io/Download) and add its folder to PATH, or install to the default location (e.g. Program Files (x86)\NSIS)."
+}
+Write-Host "[build_win] Using makensis: $MakensisExe"
 
 Write-Host "[build_win] Running: makensis $($nsiArgs -join ' ')"
 Write-Host "=== NSIS will compile from: $NsiPath ==="
 Write-Host "=== NSIS unpacked source: $UnpackedFull ==="
 Write-Host "=== NSIS output installer: $OutputExeNsi ==="
-$nsisOutput = & makensis @nsiArgs 2>&1 | Out-String
+$nsisOutput = & $MakensisExe @nsiArgs 2>&1 | Out-String
 Write-Host "=== NSIS Output Begin ==="
 Write-Host $nsisOutput
 Write-Host "=== NSIS Output End ==="

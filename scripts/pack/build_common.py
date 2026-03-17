@@ -14,6 +14,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+if sys.platform == "win32":
+    import shutil
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PREFIX = "boostclaw_pack_"
 
@@ -32,8 +35,42 @@ CONDA_UNPACK_AFFECTED_PACKAGES = [
 def _conda_exe() -> str:
     """Resolve conda executable (required on Windows where 'conda' is a batch)."""
     exe = os.environ.get("CONDA_EXE")
-    if exe:
+    if exe and os.path.isfile(exe):
         return exe
+    if sys.platform == "win32":
+        # On Windows, subprocess.run(["conda", ...]) fails when only conda.bat
+        # is on PATH; resolve to conda.exe in the same directory.
+        for name in ("conda.exe", "conda"):
+            found = shutil.which(name)
+            if not found:
+                continue
+            p = Path(found).resolve()
+            if p.suffix.lower() == ".bat":
+                exe_in_same_dir = p.parent / "conda.exe"
+                if exe_in_same_dir.is_file():
+                    return str(exe_in_same_dir)
+            if p.is_file():
+                return str(p)
+        # Fallback: common install locations when conda is not on PATH.
+        for base in (
+            os.environ.get("ProgramData", ""),
+            os.environ.get("LOCALAPPDATA", ""),
+            os.environ.get("USERPROFILE", ""),
+        ):
+            if not base:
+                continue
+            base_path = Path(base)
+            for mid in ("miniconda3", "anaconda3", "Programs/miniconda3", "Programs/anaconda3"):
+                for exe_rel in ("Scripts/conda.exe", "condabin/conda.exe"):
+                    cand = base_path / mid / exe_rel
+                    if cand.is_file():
+                        return str(cand.resolve())
+        raise FileNotFoundError(
+            "Conda not found. On Windows, either run this script from an "
+            "Anaconda/Miniconda Prompt (so CONDA_EXE is set), set CONDA_EXE to "
+            "the path of conda.exe, or install Miniconda/Anaconda in a standard "
+            "location (e.g. %ProgramData%\\miniconda3 or %USERPROFILE%\\miniconda3)."
+        )
     return "conda"
 
 
