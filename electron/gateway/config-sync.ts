@@ -9,7 +9,13 @@ import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-re
 import { getOpenClawDir, getOpenClawEntryPath, isOpenClawPresent } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { listConfiguredChannels } from '../utils/channel-config';
-import { syncGatewayTokenToConfig, syncBrowserConfigToOpenClaw, syncSessionIdleMinutesToOpenClaw, sanitizeOpenClawConfig } from '../utils/openclaw-auth';
+import {
+  reconcileOpenClawProviderModelsFromAgentModelsJson,
+  sanitizeOpenClawConfig,
+  syncBrowserConfigToOpenClaw,
+  syncGatewayTokenToConfig,
+  syncSessionIdleMinutesToOpenClaw,
+} from '../utils/openclaw-auth';
 import { buildProxyEnv, resolveProxySettings } from '../utils/proxy';
 import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
 import { logger } from '../utils/logger';
@@ -157,6 +163,12 @@ export async function syncGatewayConfigBeforeLaunch(
     await syncSessionIdleMinutesToOpenClaw();
   } catch (err) {
     logger.warn('Failed to sync session idle minutes to openclaw.json:', err);
+  }
+
+  try {
+    await reconcileOpenClawProviderModelsFromAgentModelsJson();
+  } catch (err) {
+    logger.warn('Failed to reconcile provider model metadata from models.json:', err);
   }
 }
 

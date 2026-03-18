@@ -93,6 +93,25 @@ interface AuthProfilesStore {
   lastGood?: Record<string, string>;
 }
 
+interface ModelEntryConfig extends Record<string, unknown> {
+  id?: string;
+  name?: string;
+  input?: unknown;
+  reasoning?: unknown;
+  contextWindow?: unknown;
+  maxTokens?: unknown;
+  cost?: unknown;
+  api?: unknown;
+}
+
+interface ProviderModelConfig extends Record<string, unknown> {
+  models?: unknown;
+}
+
+interface ModelsJsonDocument extends Record<string, unknown> {
+  providers?: unknown;
+}
+
 // ── Auth Profiles I/O ────────────────────────────────────────────
 
 function getAuthProfilesPath(agentId = 'main'): string {
@@ -185,6 +204,182 @@ async function writeOpenClawJson(config: Record<string, unknown>): Promise<void>
   config.commands = commands;
 
   await writeJsonFile(OPENCLAW_CONFIG_PATH, config);
+}
+
+function normalizeProviderLookupKey(providerKey: string): string {
+  const trimmed = providerKey.trim();
+  const wrapped = /^"(.+)"$/.exec(trimmed);
+  return wrapped ? wrapped[1].trim() : trimmed;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
+function toPositiveFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function sanitizeCost(value: unknown): Record<string, number> | undefined {
+  if (!isObjectRecord(value)) return undefined;
+  const allowedKeys = ['input', 'output', 'cacheRead', 'cacheWrite'] as const;
+  const next: Record<string, number> = {};
+
+  for (const key of allowedKeys) {
+    const amount = value[key];
+    if (typeof amount === 'number' && Number.isFinite(amount)) {
+      next[key] = amount;
+    }
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function indexProviderModelsById(models: unknown): Map<string, ModelEntryConfig> {
+  const out = new Map<string, ModelEntryConfig>();
+  if (!Array.isArray(models)) return out;
+
+  for (const model of models) {
+    if (!isObjectRecord(model)) continue;
+    const id = typeof model.id === 'string' ? model.id.trim() : '';
+    if (!id) continue;
+    out.set(id, model as ModelEntryConfig);
+  }
+
+  return out;
+}
+
+function reconcileModelMetadata(
+  targetModels: unknown,
+  sourceModels: unknown,
+): boolean {
+  if (!Array.isArray(targetModels) || targetModels.length === 0) return false;
+  const sourceById = indexProviderModelsById(sourceModels);
+  if (sourceById.size === 0) return false;
+
+  let changed = false;
+
+  for (const target of targetModels) {
+    if (!isObjectRecord(target)) continue;
+    const id = typeof target.id === 'string' ? target.id.trim() : '';
+    if (!id) continue;
+    const source = sourceById.get(id);
+    if (!source) continue;
+
+    if (isStringArray(source.input)) {
+      const normalizedInput = source.input.map((entry) => entry.trim()).filter(Boolean);
+      if (normalizedInput.length > 0 && JSON.stringify(target.input) !== JSON.stringify(normalizedInput)) {
+        target.input = normalizedInput;
+        changed = true;
+      }
+    }
+
+    if (typeof source.reasoning === 'boolean' && target.reasoning !== source.reasoning) {
+      target.reasoning = source.reasoning;
+      changed = true;
+    }
+
+    const contextWindow = toPositiveFiniteNumber(source.contextWindow);
+    if (contextWindow !== undefined && target.contextWindow !== contextWindow) {
+      target.contextWindow = contextWindow;
+      changed = true;
+    }
+
+    const maxTokens = toPositiveFiniteNumber(source.maxTokens);
+    if (maxTokens !== undefined && target.maxTokens !== maxTokens) {
+      target.maxTokens = maxTokens;
+      changed = true;
+    }
+
+    const cost = sanitizeCost(source.cost);
+    if (cost && JSON.stringify(target.cost) !== JSON.stringify(cost)) {
+      target.cost = cost;
+      changed = true;
+    }
+
+    if (typeof source.api === 'string' && source.api.trim() && target.api !== source.api.trim()) {
+      target.api = source.api.trim();
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+function resolveProviderRecordByKey(
+  providers: Record<string, unknown>,
+  providerKey: string,
+): ProviderModelConfig | null {
+  const direct = providers[providerKey];
+  if (isObjectRecord(direct)) return direct as ProviderModelConfig;
+
+  const normalizedKey = normalizeProviderLookupKey(providerKey);
+  if (!normalizedKey) return null;
+
+  for (const [key, value] of Object.entries(providers)) {
+    if (!isObjectRecord(value)) continue;
+    if (normalizeProviderLookupKey(key) === normalizedKey) {
+      return value as ProviderModelConfig;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Reconciles rich model metadata from agent models.json back into openclaw.json.
+ *
+ * OpenClaw rewrites models.json from openclaw.json on Gateway startup. If users
+ * manually enrich model metadata (e.g. input modalities), preserve those
+ * capability fields by lifting matched model metadata into openclaw.json before
+ * startup.
+ */
+export async function reconcileOpenClawProviderModelsFromAgentModelsJson(): Promise<void> {
+  await withConfigLock(async () => {
+    const config = await readOpenClawJson();
+    const modelsSection = (config.models && typeof config.models === 'object'
+      ? config.models as Record<string, unknown>
+      : null);
+    const openClawProviders = (modelsSection?.providers && typeof modelsSection.providers === 'object'
+      ? modelsSection.providers as Record<string, unknown>
+      : null);
+
+    if (!openClawProviders || Object.keys(openClawProviders).length === 0) {
+      return;
+    }
+
+    const configuredAgentIds = await listConfiguredAgentIds().catch(() => ['main']);
+    const candidateAgentIds = [...new Set(['main', ...configuredAgentIds])];
+    let modified = false;
+
+    for (const agentId of candidateAgentIds) {
+      const modelsPath = join(homedir(), '.openclaw', 'agents', agentId, 'agent', 'models.json');
+      const modelsDoc = await readJsonFile<ModelsJsonDocument>(modelsPath);
+      if (!modelsDoc || !isObjectRecord(modelsDoc.providers)) {
+        continue;
+      }
+
+      const agentProviders = modelsDoc.providers as Record<string, unknown>;
+      for (const [providerKey, providerValue] of Object.entries(openClawProviders)) {
+        if (!isObjectRecord(providerValue)) continue;
+        const providerEntry = providerValue as ProviderModelConfig;
+        const agentProvider = resolveProviderRecordByKey(agentProviders, providerKey);
+        if (!agentProvider) continue;
+
+        const changed = reconcileModelMetadata(providerEntry.models, agentProvider.models);
+        if (changed) {
+          modified = true;
+        }
+      }
+    }
+
+    if (!modified) return;
+    await writeOpenClawJson(config);
+  });
 }
 
 // ── Exported Functions (all async) ───────────────────────────────
@@ -623,6 +818,7 @@ export async function syncProviderConfigToOpenClaw(
         apiKeyEnv: override.apiKeyEnv,
         headers: override.headers,
         modelIds: modelId ? [modelId] : [],
+        mergeExistingModels: true,
       });
     }
 

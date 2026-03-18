@@ -36,6 +36,18 @@ async function writeOpenClawJson(config: unknown): Promise<void> {
   await writeFile(join(openclawDir, 'openclaw.json'), JSON.stringify(config, null, 2), 'utf8');
 }
 
+async function readOpenClawJson(): Promise<Record<string, unknown>> {
+  const content = await readFile(join(testHome, '.openclaw', 'openclaw.json'), 'utf8');
+  return JSON.parse(content) as Record<string, unknown>;
+}
+
+async function writeAgentModelsJson(agentId: string, data: unknown | string): Promise<void> {
+  const modelsDir = join(testHome, '.openclaw', 'agents', agentId, 'agent');
+  await mkdir(modelsDir, { recursive: true });
+  const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  await writeFile(join(modelsDir, 'models.json'), content, 'utf8');
+}
+
 async function readAuthProfiles(agentId: string): Promise<Record<string, unknown>> {
   const content = await readFile(join(testHome, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), 'utf8');
   return JSON.parse(content) as Record<string, unknown>;
@@ -109,5 +121,185 @@ describe('saveProviderKeyToOpenClaw', () => {
     );
 
     logSpy.mockRestore();
+  });
+});
+
+describe('reconcileOpenClawProviderModelsFromAgentModelsJson', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    await rm(testHome, { recursive: true, force: true });
+    await rm(testUserData, { recursive: true, force: true });
+  });
+
+  it('lifts rich model metadata from models.json into openclaw.json', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'custom-custom06': {
+            baseUrl: 'https://api.siliconflow.cn/v1',
+            api: 'openai-completions',
+            models: [
+              {
+                id: 'Pro/moonshotai/Kimi-K2.5',
+                name: 'Pro/moonshotai/Kimi-K2.5',
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await writeAgentModelsJson('main', {
+      providers: {
+        'custom-custom06': {
+          models: [
+            {
+              id: 'Pro/moonshotai/Kimi-K2.5',
+              name: 'Pro/moonshotai/Kimi-K2.5',
+              input: ['text', 'image'],
+              reasoning: true,
+              contextWindow: 200000,
+              maxTokens: 8192,
+              cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const { reconcileOpenClawProviderModelsFromAgentModelsJson } = await import('@electron/utils/openclaw-auth');
+    await reconcileOpenClawProviderModelsFromAgentModelsJson();
+
+    const openclaw = await readOpenClawJson();
+    const providers = ((openclaw.models as Record<string, unknown>)?.providers ?? {}) as Record<string, unknown>;
+    const provider = providers['custom-custom06'] as Record<string, unknown>;
+    const models = provider.models as Array<Record<string, unknown>>;
+    const model = models[0];
+
+    expect(model.input).toEqual(['text', 'image']);
+    expect(model.reasoning).toBe(true);
+    expect(model.contextWindow).toBe(200000);
+    expect(model.maxTokens).toBe(8192);
+    expect(model.cost).toEqual({
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    });
+  });
+
+  it('preserves existing rich metadata during provider sync updates', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'custom-custom06': {
+            baseUrl: 'https://api.siliconflow.cn/v1',
+            api: 'openai-completions',
+            models: [
+              {
+                id: 'Pro/moonshotai/Kimi-K2.5',
+                name: 'Pro/moonshotai/Kimi-K2.5',
+                input: ['text', 'image'],
+                contextWindow: 200000,
+                maxTokens: 8192,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const { syncProviderConfigToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncProviderConfigToOpenClaw('custom-custom06', 'Pro/moonshotai/Kimi-K2.5', {
+      baseUrl: 'https://api.siliconflow.cn/v1',
+      api: 'openai-completions',
+    });
+
+    const openclaw = await readOpenClawJson();
+    const providers = ((openclaw.models as Record<string, unknown>)?.providers ?? {}) as Record<string, unknown>;
+    const provider = providers['custom-custom06'] as Record<string, unknown>;
+    const models = provider.models as Array<Record<string, unknown>>;
+    const model = models.find((entry) => entry.id === 'Pro/moonshotai/Kimi-K2.5');
+
+    expect(model?.input).toEqual(['text', 'image']);
+    expect(model?.contextWindow).toBe(200000);
+    expect(model?.maxTokens).toBe(8192);
+  });
+
+  it('no-ops when providers or model IDs do not match', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'custom-custom06': {
+            baseUrl: 'https://api.siliconflow.cn/v1',
+            api: 'openai-completions',
+            models: [
+              {
+                id: 'Pro/moonshotai/Kimi-K2.5',
+                name: 'Pro/moonshotai/Kimi-K2.5',
+                input: ['text'],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await writeAgentModelsJson('main', {
+      providers: {
+        'custom-other': {
+          models: [
+            {
+              id: 'another-model',
+              input: ['text', 'image'],
+            },
+          ],
+        },
+      },
+    });
+
+    const { reconcileOpenClawProviderModelsFromAgentModelsJson } = await import('@electron/utils/openclaw-auth');
+    await reconcileOpenClawProviderModelsFromAgentModelsJson();
+
+    const openclaw = await readOpenClawJson();
+    const providers = ((openclaw.models as Record<string, unknown>)?.providers ?? {}) as Record<string, unknown>;
+    const model = ((providers['custom-custom06'] as Record<string, unknown>).models as Array<Record<string, unknown>>)[0];
+    expect(model.input).toEqual(['text']);
+  });
+
+  it('handles malformed models.json gracefully', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'custom-custom06': {
+            baseUrl: 'https://api.siliconflow.cn/v1',
+            api: 'openai-completions',
+            models: [
+              {
+                id: 'Pro/moonshotai/Kimi-K2.5',
+                name: 'Pro/moonshotai/Kimi-K2.5',
+                input: ['text'],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await writeAgentModelsJson('main', '{ not-json ');
+    const { reconcileOpenClawProviderModelsFromAgentModelsJson } = await import('@electron/utils/openclaw-auth');
+
+    await expect(reconcileOpenClawProviderModelsFromAgentModelsJson()).resolves.toBeUndefined();
+
+    const openclaw = await readOpenClawJson();
+    const providers = ((openclaw.models as Record<string, unknown>)?.providers ?? {}) as Record<string, unknown>;
+    const model = ((providers['custom-custom06'] as Record<string, unknown>).models as Array<Record<string, unknown>>)[0];
+    expect(model.input).toEqual(['text']);
   });
 });
