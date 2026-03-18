@@ -169,6 +169,9 @@ The wizard preselects your system language when it is supported, and falls back 
 
 > Note for Moonshot (Kimi): ClawX keeps Kimi web search enabled by default.  
 > When Moonshot is configured, ClawX also syncs Kimi web search to the China endpoint (`https://api.moonshot.cn/v1`) in OpenClaw config.
+>
+> Model registry note: OpenClaw regenerates `~/.openclaw/agents/<agentId>/agent/models.json` from `openclaw.json` when the Gateway starts.  
+> To avoid capability metadata regressions after restart, ClawX now reconciles matched model fields (`input`, `reasoning`, `contextWindow`, `maxTokens`, `cost`) from existing `models.json` entries back into `openclaw.json` before launch.
 
 ### Proxy Settings
 

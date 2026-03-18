@@ -169,6 +169,9 @@ pnpm dev
 
 > Moonshot（Kimi）说明：ClawX 默认保持开启 Kimi 的 web search。  
 > 当配置 Moonshot 后，ClawX 也会将 OpenClaw 配置中的 Kimi web search 同步到中国区端点（`https://api.moonshot.cn/v1`）。
+>
+> 模型注册表说明：OpenClaw 在 Gateway 启动时会根据 `openclaw.json` 重新生成 `~/.openclaw/agents/<agentId>/agent/models.json`。  
+> 为避免重启后模型能力元数据回退，ClawX 现在会在启动前把已存在 `models.json` 中可匹配模型的字段（`input`、`reasoning`、`contextWindow`、`maxTokens`、`cost`）回填到 `openclaw.json`。
 
 ### 代理设置
 
