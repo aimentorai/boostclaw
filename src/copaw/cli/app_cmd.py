@@ -61,14 +61,13 @@ def app_cmd(
 ) -> None:
     """Run CoPaw FastAPI app."""
     write_last_api(host, port)
-    # Set both prefixes so BOOSTCLAW_* and COPAW_* consumers see the same level
-    os.environ["BOOSTCLAW_LOG_LEVEL"] = log_level
+    # Set BOOSTCLAW_LOG_LEVEL (only prefix supported now)
     os.environ[LOG_LEVEL_ENV] = log_level
 
     if reload:
-        os.environ["COPAW_RELOAD_MODE"] = "1"
+        os.environ["BOOSTCLAW_RELOAD_MODE"] = "1"
     else:
-        os.environ.pop("COPAW_RELOAD_MODE", None)
+        os.environ.pop("BOOSTCLAW_RELOAD_MODE", None)
 
     setup_logger(log_level)
     if log_level in ("debug", "trace"):

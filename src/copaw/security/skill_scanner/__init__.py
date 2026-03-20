@@ -98,9 +98,9 @@ def _load_scanner_config() -> Any:
 def _get_scan_mode(cfg: Any = None) -> str:
     """Return the effective scan mode: ``block``, ``warn``, or ``off``.
 
-    Priority: env ``COPAW_SKILL_SCAN_MODE`` > config > default ``warn``.
+    Priority: env ``BOOSTCLAW_SKILL_SCAN_MODE`` > config > default ``warn``.
     """
-    env = os.environ.get("COPAW_SKILL_SCAN_MODE")
+    env = os.environ.get("BOOSTCLAW_SKILL_SCAN_MODE")
     if env is not None:
         val = env.lower().strip()
         if val in _VALID_MODES:

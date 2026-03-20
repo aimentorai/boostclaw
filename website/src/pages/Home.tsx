@@ -2,13 +2,13 @@ import type { SiteConfig } from "../config";
 import { type Lang } from "../i18n";
 import { Nav } from "../components/Nav";
 import { Hero } from "../components/Hero";
-import { FollowUs } from "../components/FollowUs";
+//import { FollowUs } from "../components/FollowUs";
 import { Features } from "../components/Features";
 import { UseCases } from "../components/UseCases";
 import { Testimonials } from "../components/Testimonials";
 import { QuickStart } from "../components/QuickStart";
-import { BrandStory } from "../components/BrandStory";
-import { Footer } from "../components/Footer";
+//import { BrandStory } from "../components/BrandStory";
+//import { Footer } from "../components/Footer";
 
 interface HomeProps {
   config: SiteConfig;
@@ -39,10 +39,7 @@ export function Home({ config, lang, onLangClick }: HomeProps) {
         <Features lang={lang} />
         <UseCases lang={lang} />
         {config.showTestimonials !== false && <Testimonials lang={lang} />}
-        <FollowUs lang={lang} />
-        <BrandStory lang={lang} />
       </main>
-      <Footer lang={lang} />
     </>
   );
 }

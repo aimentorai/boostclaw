@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 # Rotating file handler limits (idempotent add avoids duplicate handlers)
-_COPAW_LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MiB
-_COPAW_LOG_BACKUP_COUNT = 3
+_BOOSTCLAW_LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MiB
+_BOOSTCLAW_LOG_BACKUP_COUNT = 3
 
 
 _LEVEL_MAP = {
@@ -171,8 +171,8 @@ def add_copaw_file_handler(log_path: Path) -> None:
         file_handler = logging.handlers.RotatingFileHandler(
             log_path,
             encoding="utf-8",
-            maxBytes=_COPAW_LOG_MAX_BYTES,
-            backupCount=_COPAW_LOG_BACKUP_COUNT,
+            maxBytes=_BOOSTCLAW_LOG_MAX_BYTES,
+            backupCount=_BOOSTCLAW_LOG_BACKUP_COUNT,
         )
 
     if platform.system() == "Windows":

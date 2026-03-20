@@ -1,9 +1,9 @@
 ---
 name: guidance
-description: "回答用户关于 CoPaw 安装与配置的问题：优先定位并阅读本地文档，再提炼答案；若本地信息不足，兜底访问官网文档。"
+description: "回答用户关于 boostclaw 安装与配置的问题：优先定位并阅读本地文档，再提炼答案；若本地信息不足，兜底访问官网文档。"
 metadata:
   {
-    "copaw":
+    "boostclaw":
       {
         "emoji": "🧭",
         "requires": {}
@@ -11,9 +11,9 @@ metadata:
   }
 ---
 
-# CoPaw 安装与配置问答指南
+# boostclaw 安装与配置问答指南
 
-当用户询问 **CoPaw 的安装、初始化、环境配置、依赖要求、常见配置项** 时，使用本 skill。
+当用户询问 **boostclaw 的安装、初始化、环境配置、依赖要求、常见配置项** 时，使用本 skill。
 
 核心原则：
 
@@ -39,37 +39,37 @@ DOC_DIR=$(find ~/.boostclaw/memory/ -type d -name "docs")
 
 **检查项目源码中的文档目录**
 
-执行以下脚本逻辑来获取变量 $COPAW_ROOT：
+执行以下脚本逻辑来获取变量 $BOOSTCLAW_ROOT：
 
 ```bash
 # 获取二进制绝对路径
-COP_PATH=$(which copaw 2>/dev/null || whereis copaw | awk '{print $2}')
+BC_PATH=$(which boostclaw 2>/dev/null || whereis boostclaw | awk '{print $2}')
 
-# 逻辑推导：如果路径包含 .copaw/bin/copaw，则根目录在其上三层
-# 例如：/path/to/CoPaw/.copaw/bin/copaw -> /path/to/CoPaw
-if [[ "$COP_PATH" == *".copaw/bin/copaw" ]]; then
-    COPAW_ROOT=$(echo "$COP_PATH" | sed 's/\/\.copaw\/bin\/copaw//')
+# 逻辑推导：如果路径包含 .boostclaw/bin/boostclaw，则根目录在其上三层
+# 例如：/path/to/boostclaw/.boostclaw/bin/boostclaw -> /path/to/boostclaw
+if [[ "$BC_PATH" == *".boostclaw/bin/boostclaw" ]]; then
+    BC_ROOT=$(echo "$BC_PATH" | sed 's/\/\.boostclaw\/bin\/boostclaw//')
 else
     # 兜底：尝试获取所在目录的父目录
-    COPAW_ROOT=$(dirname $(dirname "$COP_PATH") 2>/dev/null || echo ".")
+    BC_ROOT=$(dirname $(dirname "$BC_PATH") 2>/dev/null || echo ".")
 fi
 
-echo "Detected CoPaw Root: $COPAW_ROOT"
+echo "Detected boostclaw Root: $BC_ROOT"
 ```
 
 验证并列出文档目录：
-使用推导出的 $COPAW_ROOT 定位文档：
+使用推导出的 $BC_ROOT 定位文档：
 
 ```bash
 # 组合标准文档路径
-="$COPAW_ROOT/website/public/docs/"
+DOC_DIR="$BC_ROOT/website/public/docs/"
 
 # 检查路径是否存在并列出文件
 if [ -d "$DOC_DIR" ]; then
     find "$DOC_DIR" -type f -name "*.md" | head -n 100
 else
     # 如果推导路径不对，执行全局模糊搜索
-    find "$COPAW_ROOT" -type d -name "docs" | grep "website/public/docs"
+    find "$BC_ROOT" -type d -name "docs" | grep "website/public/docs"
 fi
 ```
 **如果项目文档不存在，搜索工作目录**

@@ -30,13 +30,13 @@ def _detect_install_method() -> str:
     """Detect how CoPaw was installed based on environment signals."""
     import os
 
-    if os.environ.get("COPAW_RUNNING_IN_CONTAINER", "").lower() in (
-        "1",
-        "true",
-        "yes",
-    ):
+    if (
+        os.environ.get("BOOSTCLAW_RUNNING_IN_CONTAINER", "")
+    ).lower() in ("1", "true", "yes"):
         return "docker"
-    if os.environ.get("COPAW_DESKTOP_APP", "").lower() in (
+    if (
+        os.environ.get("BOOSTCLAW_DESKTOP_APP", "")
+    ).lower() in (
         "1",
         "true",
         "yes",

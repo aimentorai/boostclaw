@@ -5,8 +5,8 @@ import time
 
 from .utils.logging import setup_logger
 
-# Key used when CLI sets log level (we set both BOOSTCLAW_LOG_LEVEL and COPAW_LOG_LEVEL).
-LOG_LEVEL_ENV = "COPAW_LOG_LEVEL"
+# Key used when CLI sets log level (primary: BOOSTCLAW_LOG_LEVEL).
+LOG_LEVEL_ENV = "BOOSTCLAW_LOG_LEVEL"
 
 _bootstrap_err: Exception | None = None
 try:

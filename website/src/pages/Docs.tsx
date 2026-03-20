@@ -33,8 +33,6 @@ import {
   Shield,
   CircleHelp,
   Users,
-  GitBranch,
-  Map,
   Menu,
   Cpu,
   ChevronRight,
@@ -194,9 +192,6 @@ const DOC_SLUG_ICONS: Record<string, LucideIcon> = {
   security: Shield,
   cli: Terminal,
   faq: CircleHelp,
-  community: Users,
-  contributing: GitBranch,
-  roadmap: Map,
 };
 
 const DOC_SLUGS: DocEntry[] = [
@@ -223,9 +218,6 @@ const DOC_SLUGS: DocEntry[] = [
   { slug: "security", titleKey: "docs.security" },
   { slug: "cli", titleKey: "docs.cli" },
   { slug: "faq", titleKey: "docs.faq" },
-  { slug: "community", titleKey: "docs.community" },
-  { slug: "contributing", titleKey: "docs.contributing" },
-  { slug: "roadmap", titleKey: "docs.roadmap" },
 ];
 
 /** Collect all valid slugs (parents + children). */
@@ -256,9 +248,6 @@ const DOC_TITLES: Record<Lang, Record<string, string>> = {
     "docs.config": "配置与工作目录",
     "docs.commands": "魔法命令",
     "docs.faq": "FAQ 常见问题",
-    "docs.community": "问题反馈与交流",
-    "docs.contributing": "开源与贡献",
-    "docs.roadmap": "路线图",
   },
   en: {
     "docs.intro": "Introduction",
@@ -278,9 +267,6 @@ const DOC_TITLES: Record<Lang, Record<string, string>> = {
     "docs.config": "Config & working dir",
     "docs.commands": "Magic commands",
     "docs.faq": "FAQ",
-    "docs.community": "Bug reports & community",
-    "docs.contributing": "Open source & contribution",
-    "docs.roadmap": "Roadmap",
   },
 };
 

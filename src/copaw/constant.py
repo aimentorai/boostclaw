@@ -89,7 +89,7 @@ HEARTBEAT_DEFAULT_TARGET = "main"
 HEARTBEAT_TARGET_LAST = "last"
 
 # Env key for app log level (used by CLI when setting level). Reading uses get_app_log_level().
-LOG_LEVEL_ENV = "COPAW_LOG_LEVEL"
+LOG_LEVEL_ENV = "BOOSTCLAW_LOG_LEVEL"
 
 RUNNING_IN_CONTAINER = get_app_env_bool("RUNNING_IN_CONTAINER", False)
 MODEL_PROVIDER_CHECK_TIMEOUT = get_app_env_float(
@@ -109,6 +109,9 @@ CUSTOMIZED_SKILLS_DIR = WORKING_DIR / "customized_skills"
 
 # Memory directory
 MEMORY_DIR = WORKING_DIR / "memory"
+
+# Shared default media directory for channels that persist downloaded/uploaded files.
+DEFAULT_MEDIA_DIR = WORKING_DIR / "media"
 
 # Custom channel modules (installed via `copaw channels install`); manager
 # loads BaseChannel subclasses from here.
@@ -148,5 +151,5 @@ except (TypeError, ValueError):
 
 
 def get_app_log_level() -> str:
-    """Return effective log level from BOOSTCLAW_LOG_LEVEL or COPAW_LOG_LEVEL."""
+    """Return effective log level from BOOSTCLAW_LOG_LEVEL."""
     return get_app_env("LOG_LEVEL", "info")

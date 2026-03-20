@@ -11,6 +11,7 @@ DIST="${DIST:-dist}"
 ARCHIVE="${DIST}/boostclaw-env.tar.gz"
 APP_NAME="boostclaw"
 APP_DIR="${DIST}/${APP_NAME}.app"
+set CREATE_ZIP=1
 
 echo "== Building wheel (includes console frontend) =="
 # Rebuild wheel when source is newer than an existing same-version wheel.
@@ -96,10 +97,8 @@ LOG="$HOME/.boostclaw/desktop.log"
 unset PYTHONPATH
 export PYTHONHOME="$ENV_DIR"
 export BOOSTCLAW_DESKTOP_APP=1
-export COPAW_DESKTOP_APP=1
 export BOOSTCLAW_LOG_LEVEL=debug
-export BOOSTCLAW_WORKING_DIR="${BOOSTCLAW_WORKING_DIR:-${COPAW_WORKING_DIR:-$HOME/.boostclaw}}"
-export COPAW_WORKING_DIR="$BOOSTCLAW_WORKING_DIR"
+export BOOSTCLAW_WORKING_DIR="${BOOSTCLAW_WORKING_DIR:-$HOME/.boostclaw}"
 
 # Preserve system PATH for accessing system commands (e.g. imsg, brew)
 # Prepend packaged env/bin so packaged Python takes precedence
@@ -119,8 +118,8 @@ fi
 
 cd "$HOME" || true
 
-# Log level: prefer BOOSTCLAW_LOG_LEVEL, fallback to COPAW_LOG_LEVEL, else "info"
-LOG_LEVEL="${BOOSTCLAW_LOG_LEVEL:-${COPAW_LOG_LEVEL:-info}}"
+# Log level: use BOOSTCLAW_LOG_LEVEL, else "info"
+LOG_LEVEL="${BOOSTCLAW_LOG_LEVEL:-info}"
 
 if [ ! -t 2 ]; then
   mkdir -p "$BOOSTCLAW_WORKING_DIR"

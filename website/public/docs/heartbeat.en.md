@@ -1,9 +1,9 @@
 # Heartbeat
 
-In CoPaw, **heartbeat** means: on a fixed interval, ask CoPaw the
-“questions” you wrote in a file, and optionally send the CoPaw’s reply to
+In boostclaw, **heartbeat** means: on a fixed interval, ask boostclaw the
+“questions” you wrote in a file, and optionally send the boostclaw’s reply to
 **the channel where you last chatted**. Good for “regular check-ins, daily
-digests, scheduled reminders” — CoPaw runs without you sending a
+digests, scheduled reminders" — boostclaw runs without you sending a
 message.
 
 If you haven’t read [Introduction](./intro), skim the short “terms” there
@@ -14,16 +14,16 @@ If you haven’t read [Introduction](./intro), skim the short “terms” there
 ## How heartbeat works
 
 1. You have a file **HEARTBEAT.md** (by default under the working dir
-   `~/.boostclaw/`). Its content is **what to ask CoPaw each time** (one
-   block of text; CoPaw sees it as one user message).
+   `~/.boostclaw/`). Its content is **what to ask boostclaw each time** (one
+   block of text; boostclaw sees it as one user message).
 2. The system runs on your **interval** (e.g. every 30 minutes): read
-   HEARTBEAT.md → send that as the user message → CoPaw replies.
+   HEARTBEAT.md → send that as the user message → boostclaw replies.
 3. **Whether the reply is sent to a channel** is controlled by **target** in
    config:
-   - **main** — Run CoPaw only; do not send the reply anywhere (e.g. for
+   - **main** — Run boostclaw only; do not send the reply anywhere (e.g. for
      local check-ins or logs).
-   - **last** — Send the CoPaw’s reply to **the channel/session where you
-     last talked to CoPaw** (e.g. if you last used DingTalk, the
+   - **last** — Send the boostclaw’s reply to **the channel/session where you
+     last talked to boostclaw** (e.g. if you last used DingTalk, the
      heartbeat reply goes to DingTalk).
 
 You can also set **active hours**: heartbeat runs only in that time window each
@@ -47,7 +47,7 @@ Example (customize as you like):
 - Light check-in if quiet for 8h
 ```
 
-If you ran `copaw init` without `--defaults`, you were prompted to edit
+If you ran `boostclaw init` without `--defaults`, you were prompted to edit
 HEARTBEAT.md; the default editor would open. You can also edit the file anytime;
 the next heartbeat run will use the new content.
 
@@ -105,7 +105,7 @@ setups may require a restart).
 | **Delivery** | Optional: send to last channel or don't send | Each job specifies its own channel and user             |
 | **Best for** | One fixed check-in / digest                  | Multiple jobs at different times with different content |
 
-> Need "send Good morning at 9am" or "every 2h ask todos and send to DingTalk"? Use [CLI](./cli) `copaw cron create` (cron jobs), not heartbeat.
+> Need "send Good morning at 9am" or "every 2h ask todos and send to DingTalk"? Use [CLI](./cli) `boostclaw cron create` (cron jobs), not heartbeat.
 
 ---
 

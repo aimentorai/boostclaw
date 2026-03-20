@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # to avoid NotImplementedError with asyncio.create_subprocess_exec.
 # On other platforms or without reload, use async Playwright for better performance.
 _USE_SYNC_PLAYWRIGHT = (
-    sys.platform == "win32" and os.environ.get("COPAW_RELOAD_MODE") == "1"
+    sys.platform == "win32" and os.environ.get("BOOSTCLAW_RELOAD_MODE") == "1"
 )
 
 if _USE_SYNC_PLAYWRIGHT:
@@ -235,9 +235,8 @@ def _sync_browser_launch(headless: bool):
     """Launch browser using sync Playwright (for hybrid mode)."""
     sync_playwright = _ensure_playwright_sync()
     pw = sync_playwright().start()  # Start without context manager
-    use_default = not is_running_in_container() and os.environ.get(
-        "COPAW_BROWSER_USE_DEFAULT",
-        "1",
+    use_default = not is_running_in_container() and (
+        os.environ.get("BOOSTCLAW_BROWSER_USE_DEFAULT", "1")
     ).strip().lower() in ("1", "true", "yes")
     default_kind, default_path = (
         get_system_default_browser() if use_default else (None, None)
@@ -746,9 +745,8 @@ async def _ensure_browser() -> bool:  # pylint: disable=too-many-branches
             async_playwright = _ensure_playwright_async()
             pw = await async_playwright().start()
             # Prefer OS default browser when available (e.g. user's default Chrome/Safari).
-            use_default = not is_running_in_container() and os.environ.get(
-                "COPAW_BROWSER_USE_DEFAULT",
-                "1",
+            use_default = not is_running_in_container() and (
+                os.environ.get("BOOSTCLAW_BROWSER_USE_DEFAULT", "1")
             ).strip().lower() in ("1", "true", "yes")
             default_kind, default_path = (
                 get_system_default_browser() if use_default else (None, None)
@@ -856,9 +854,8 @@ async def _action_start(
         else:
             async_playwright = _ensure_playwright_async()
             pw = await async_playwright().start()
-            use_default = not is_running_in_container() and os.environ.get(
-                "COPAW_BROWSER_USE_DEFAULT",
-                "1",
+            use_default = not is_running_in_container() and (
+                os.environ.get("BOOSTCLAW_BROWSER_USE_DEFAULT", "1")
             ).strip().lower() in ("1", "true", "yes")
             default_kind, default_path = (
                 get_system_default_browser() if use_default else (None, None)

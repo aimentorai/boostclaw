@@ -170,17 +170,9 @@ REM Preserve system PATH for accessing system commands
 REM Prepend packaged env to PATH so packaged Python takes precedence
 set "PATH=%~dp0;%~dp0Scripts;%PATH%"
 
-REM Workspace/log level: prefer BOOSTCLAW_* and mirror to COPAW_* for compatibility
+REM Workspace/log level (only BOOSTCLAW_*)
 if not defined BOOSTCLAW_WORKING_DIR set "BOOSTCLAW_WORKING_DIR=%USERPROFILE%\.boostclaw"
-set "COPAW_WORKING_DIR=%BOOSTCLAW_WORKING_DIR%"
-if not defined BOOSTCLAW_LOG_LEVEL (
-  if defined COPAW_LOG_LEVEL (
-    set "BOOSTCLAW_LOG_LEVEL=%COPAW_LOG_LEVEL%"
-  ) else (
-    set "BOOSTCLAW_LOG_LEVEL=info"
-  )
-)
-set "COPAW_LOG_LEVEL=%BOOSTCLAW_LOG_LEVEL%"
+if not defined BOOSTCLAW_LOG_LEVEL set "BOOSTCLAW_LOG_LEVEL=info"
 
 REM Set SSL certificate paths for packaged environment
 REM Use temp file to avoid for /f blocking issue in bat scripts
@@ -212,17 +204,9 @@ REM Preserve system PATH for accessing system commands
 REM Prepend packaged env to PATH so packaged Python takes precedence
 set "PATH=%~dp0;%~dp0Scripts;%PATH%"
 
-REM Workspace/log level: prefer BOOSTCLAW_* and mirror to COPAW_* for compatibility
+REM Workspace and log level setup (BOOSTCLAW_* only)
 if not defined BOOSTCLAW_WORKING_DIR set "BOOSTCLAW_WORKING_DIR=%USERPROFILE%\.boostclaw"
-set "COPAW_WORKING_DIR=%BOOSTCLAW_WORKING_DIR%"
-if not defined BOOSTCLAW_LOG_LEVEL (
-  if defined COPAW_LOG_LEVEL (
-    set "BOOSTCLAW_LOG_LEVEL=%COPAW_LOG_LEVEL%"
-  ) else (
-    set "BOOSTCLAW_LOG_LEVEL=debug"
-  )
-)
-set "COPAW_LOG_LEVEL=%BOOSTCLAW_LOG_LEVEL%"
+if not defined BOOSTCLAW_LOG_LEVEL set "BOOSTCLAW_LOG_LEVEL=info"
 
 REM Set SSL certificate paths for packaged environment
 REM Use temp file to avoid for /f blocking issue in bat scripts
@@ -301,13 +285,13 @@ if (-not $Version) {
 }
 if (-not $Version) { $Version = "0.0.0"; Write-Host "[build_win] WARN: Using fallback version 0.0.0" }
 Write-Host "[build_win] Version determined: $Version"
-Write-Host "[build_win] COPAW_VERSION=$Version OUTPUT_EXE will be under $Dist"
+Write-Host "[build_win] BOOSTCLAW_VERSION=$Version OUTPUT_EXE will be under $Dist"
 $OutInstaller = Join-Path (Join-Path $RepoRoot $Dist) "boostclaw-setup-$Version.exe"
 # Pass absolute paths to NSIS (keep backslashes).
 $UnpackedFull = (Resolve-Path $EnvRoot).Path
 $OutputExeNsi = [System.IO.Path]::GetFullPath($OutInstaller)
 $nsiArgs = @(
-  "/DCOPAW_VERSION=$Version",
+  "/DBOOSTCLAW_VERSION=$Version",
   "/DOUTPUT_EXE=$OutputExeNsi",
   "/DUNPACKED=$UnpackedFull",
   $NsiPath

@@ -1,14 +1,14 @@
 # 多智能体工作区
 
-CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运行多个独立的 AI 智能体，每个智能体拥有自己的配置、记忆、技能和对话历史。
+boostclaw 支持**多智能体工作区**，允许您在同一个 boostclaw 实例中运行多个独立的 AI 智能体，每个智能体拥有自己的配置、记忆、技能和对话历史。
 
-> 本功能在 **v0.1.0** 中引入。
+> 本功能在 **v0.0.1** 中引入。
 
 ---
 
 ## 什么是多智能体？
 
-简单来说，**多智能体**就是让您可以在一个 CoPaw 中运行多个"分身"，每个分身：
+简单来说，**多智能体**就是让您可以在一个 boostclaw 中运行多个"分身"，每个分身：
 
 - 有自己的**性格和专长**（通过不同的人设文件配置）
 - 记住**各自的对话**（互不干扰）
@@ -33,7 +33,7 @@ CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运
 
 ### 场景二：按平台分离
 
-您可能在多个平台使用 CoPaw：
+您可能在多个平台使用 boostclaw：
 
 - **钉钉** - 工作相关对话
 - **Discord** - 社区讨论
@@ -58,7 +58,7 @@ CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运
 
 #### 1. 查看和切换智能体
 
-启动 CoPaw 后，在控制台**右上角**可以看到**智能体切换器**：
+启动 boostclaw 后，在控制台**右上角**可以看到**智能体切换器**：
 
 ```
 ┌───────────────────────────────────┐
@@ -219,7 +219,7 @@ CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运
 
 ## 从单智能体升级
 
-如果您之前使用 CoPaw **v0.0.x**，升级到 **v0.1.0** 时会**自动迁移**：
+如果您之前使用 boostclaw **v0.0.x**，升级到 **v0.1.0** 时会**自动迁移**：
 
 1. **首次启动时自动迁移**
 
@@ -228,7 +228,7 @@ CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运
 
 2. **验证迁移**
 
-   - 启动 CoPaw 后，在控制台查看智能体列表
+   - 启动 boostclaw 后，在控制台查看智能体列表
    - 应该能看到一个名为"默认智能体"的智能体
    - 您的旧对话和配置都应该还在
 
@@ -250,12 +250,12 @@ CoPaw 支持**多智能体工作区**，允许您在同一个 CoPaw 实例中运
 
 ```bash
 # 查看特定智能体的配置
-copaw channels list --agent-id abc123
-copaw cron list --agent-id abc123
-copaw skills list --agent-id abc123
+boostclaw channels list --agent-id abc123
+boostclaw cron list --agent-id abc123
+boostclaw skills list --agent-id abc123
 
 # 为特定智能体创建定时任务
-copaw cron create \
+boostclaw cron create \
   --agent-id abc123 \
   --type agent \
   --name "检查待办" \
@@ -268,18 +268,18 @@ copaw cron create \
 
 **支持 `--agent-id` 的命令**：
 
-- `copaw channels` - 频道管理
-- `copaw cron` - 定时任务
-- `copaw daemon` - 运行状态
-- `copaw chats` - 对话管理
-- `copaw skills` - 技能管理
+- `boostclaw channels` - 频道管理
+- `boostclaw cron` - 定时任务
+- `boostclaw daemon` - 运行状态
+- `boostclaw chats` - 对话管理
+- `boostclaw skills` - 技能管理
 
 **不支持 `--agent-id` 的命令**（全局操作）：
 
-- `copaw init` - 初始化
-- `copaw providers` - 模型提供商
-- `copaw models` - 模型配置
-- `copaw env` - 环境变量
+- `boostclaw init` - 初始化
+- `boostclaw providers` - 模型提供商
+- `boostclaw models` - 模型配置
+- `boostclaw env` - 环境变量
 
 ### REST API
 
@@ -326,7 +326,7 @@ curl -X POST http://localhost:7860/api/cron/jobs \
 #### 旧结构（v0.0.x）
 
 ```
-~/.copaw/
+~/.boostclaw/
 ├── config.json          # 包含所有配置
 ├── chats.json
 ├── jobs.json

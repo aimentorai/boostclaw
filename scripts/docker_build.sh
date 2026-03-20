@@ -6,7 +6,7 @@
 #
 # By default the Docker image excludes imessage.
 # Override via:
-#   COPAW_ENABLED_CHANNELS=imessage,discord,telegram,dingtalk,feishu,qq,console \
+#   BOOSTCLAW_ENABLED_CHANNELS=imessage,discord,telegram,dingtalk,feishu,qq,console \
 #       bash scripts/docker_build.sh
 set -e
 
@@ -18,11 +18,11 @@ TAG="${1:-copaw:latest}"
 shift || true
 
 # Channels to include in the image (default: exclude imessage).
-ENABLED_CHANNELS="${COPAW_ENABLED_CHANNELS:-discord,telegram,dingtalk,feishu,qq,console}"
+ENABLED_CHANNELS="${BOOSTCLAW_ENABLED_CHANNELS:-discord,telegram,dingtalk,feishu,qq,console}"
 
 echo "[docker_build] Building image: $TAG (Dockerfile: $DOCKERFILE)"
 docker build -f "$DOCKERFILE" \
-    --build-arg COPAW_ENABLED_CHANNELS="$ENABLED_CHANNELS" \
+    --build-arg BOOSTCLAW_ENABLED_CHANNELS="$ENABLED_CHANNELS" \
     -t "$TAG" "$@" .
 echo "[docker_build] Done."
 echo "[docker_build] boostclaw app port: 8088 (default). Override with -e BOOSTCLAW_PORT=<port>."

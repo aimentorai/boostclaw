@@ -5,8 +5,6 @@ import {
   Copy,
   Check,
   Download,
-  Cloud,
-  Container,
   Package,
   Monitor,
   ExternalLink,
@@ -16,34 +14,24 @@ import { motion } from "motion/react";
 import type { SiteConfig } from "../config";
 import { t, type Lang } from "../i18n";
 
-const DOCKER_IMAGE = "agentscope/copaw:latest";
-const MODELSCOPE_URL =
-  "https://modelscope.cn/studios/fork?target=AgentScope/CoPaw";
-const ALIYUN_ECS_URL =
-  "https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceId=service-1ed84201799f40879884";
-const ALIYUN_DOC_URL = "https://developer.aliyun.com/article/1713682";
 const DESKTOP_RELEASES_URL = "https://github.com/aimentorai/boostclaw/releases";
 
 const COMMANDS = {
-  pip: ["pip install copaw", "copaw init --defaults", "copaw app"],
+  pip: ["pip install boostclaw", "boostclaw init --defaults", "boostclaw app"],
   scriptMac: [
-    "curl -fsSL https://copaw.agentscope.io/install.sh | bash",
-    "copaw init --defaults",
-    "copaw app",
+    "curl -fsSL https://www.boostclaw.com/install.sh | bash",
+    "boostclaw init --defaults",
+    "boostclaw app",
   ],
   scriptWinCmd: [
-    "curl -fsSL https://copaw.agentscope.io/install.bat -o install.bat && install.bat",
-    "copaw init --defaults",
-    "copaw app",
+    "curl -fsSL https://www.boostclaw.com/install.bat -o install.bat && install.bat",
+    "boostclaw init --defaults",
+    "boostclaw app",
   ],
   scriptWinPs: [
-    "irm https://copaw.agentscope.io/install.ps1 | iex",
-    "copaw init --defaults",
-    "copaw app",
-  ],
-  docker: [
-    `docker pull ${DOCKER_IMAGE}`,
-    `docker run -p 127.0.0.1:8088:8088 -v copaw-data:/app/working -v copaw-secrets:/app/working.secret ${DOCKER_IMAGE}`,
+    "irm https://www.boostclaw.com/install.ps1 | iex",
+    "boostclaw init --defaults",
+    "boostclaw app",
   ],
 } as const;
 
@@ -52,10 +40,9 @@ interface QuickStartProps {
   lang: Lang;
 }
 
-type InstallMethod = "pip" | "script" | "docker" | "cloud" | "desktop";
+type InstallMethod = "pip" | "script" | "desktop";
 type ScriptPlatform = "mac" | "windows";
 type ScriptWindowsVariant = "cmd" | "ps";
-type CloudVariant = "aliyun" | "modelscope";
 
 interface CodeBlockProps {
   lines: readonly string[];
@@ -137,7 +124,6 @@ export function QuickStart({ config, lang }: QuickStartProps) {
   const [scriptPlatform, setScriptPlatform] = useState<ScriptPlatform>("mac");
   const [scriptWinVariant, setScriptWinVariant] =
     useState<ScriptWindowsVariant>("cmd");
-  const [cloudVariant, setCloudVariant] = useState<CloudVariant>("aliyun");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const docsBase = config.docsPath.replace(/\/$/, "") || "/docs";
   const channelsDocPath = `${docsBase}/channels`;
@@ -165,16 +151,6 @@ export function QuickStart({ config, lang }: QuickStartProps) {
       icon: Terminal,
       label: t(lang, "quickstart.method.script"),
       desc: t(lang, "quickstart.desc.script"),
-    },
-    docker: {
-      icon: Container,
-      label: t(lang, "quickstart.method.docker"),
-      desc: t(lang, "quickstart.desc.docker"),
-    },
-    cloud: {
-      icon: Cloud,
-      label: t(lang, "quickstart.method.cloud"),
-      desc: t(lang, "quickstart.desc.cloud"),
     },
     desktop: {
       icon: Monitor,
@@ -441,91 +417,6 @@ export function QuickStart({ config, lang }: QuickStartProps) {
                 }
                 lang={lang}
               />
-            </div>
-          )}
-
-          {/* Docker 内容 */}
-          {selectedMethod === "docker" && (
-            <CodeBlock
-              lines={COMMANDS.docker}
-              copied={copiedId === "docker"}
-              onCopy={() => handleCopy(COMMANDS.docker.join("\n"), "docker")}
-              lang={lang}
-            />
-          )}
-
-          {/* 云部署内容 */}
-          {selectedMethod === "cloud" && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--space-3)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: "var(--space-2)",
-                  padding: "var(--space-1)",
-                  background: "var(--bg)",
-                  borderRadius: "0.5rem",
-                }}
-              >
-                {(["aliyun", "modelscope"] as const).map((variant) => (
-                  <button
-                    key={variant}
-                    type="button"
-                    onClick={() => setCloudVariant(variant)}
-                    aria-pressed={cloudVariant === variant}
-                    className={`quickstart-tab quickstart-tab-small ${
-                      cloudVariant === variant ? "active" : ""
-                    }`}
-                  >
-                    {t(lang, `quickstart.cloud.${variant}`)}
-                  </button>
-                ))}
-              </div>
-              {cloudVariant === "aliyun" ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "var(--space-2)",
-                  }}
-                >
-                  <a
-                    href={ALIYUN_ECS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="quickstart-link quickstart-link-primary"
-                  >
-                    <Cloud size={16} strokeWidth={1.5} />
-                    {t(lang, "quickstart.cloud.aliyunDeploy")}
-                    <ExternalLink size={14} strokeWidth={1.5} />
-                  </a>
-                  <a
-                    href={ALIYUN_DOC_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="quickstart-link quickstart-link-secondary"
-                  >
-                    <ExternalLink size={14} strokeWidth={1.5} />
-                    {t(lang, "quickstart.cloud.aliyunDoc")}
-                  </a>
-                </div>
-              ) : (
-                <a
-                  href={MODELSCOPE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="quickstart-link quickstart-link-primary"
-                >
-                  <Cloud size={16} strokeWidth={1.5} />
-                  {t(lang, "quickstart.cloud.modelscopeGo")}
-                  <ExternalLink size={14} strokeWidth={1.5} />
-                </a>
-              )}
             </div>
           )}
 

@@ -27,7 +27,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } elseif ($env:COPAW_HOME) { $env:COPAW_HOME } else { Join-Path $HOME ".boostclaw" }
+$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } else { Join-Path $HOME ".boostclaw" }
 $BoostclawVenv = Join-Path $BoostclawHome "venv"
 $BoostclawBin  = Join-Path $BoostclawHome "bin"
 $PythonVersion = "3.12"
@@ -57,7 +57,6 @@ Options:
 
 Environment:
   BOOSTCLAW_HOME        Installation directory (default: ~/.boostclaw)
-  COPAW_HOME            Legacy alias for BOOSTCLAW_HOME
 "@
     exit 0
 }
@@ -339,7 +338,7 @@ $wrapperContent = @'
 # BoostClaw CLI wrapper — delegates to the uv-managed environment.
 $ErrorActionPreference = "Stop"
 
-$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } elseif ($env:COPAW_HOME) { $env:COPAW_HOME } else { Join-Path $HOME ".boostclaw" }
+$BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } else { Join-Path $HOME ".boostclaw" }
 $RealBin   = Join-Path $BoostclawHome "venv\Scripts\boostclaw.exe"
 
 if (-not (Test-Path $RealBin)) {
@@ -360,7 +359,6 @@ $cmdWrapperContent = @"
 @echo off
 REM BoostClaw CLI wrapper — delegates to the uv-managed environment.
 set "BOOSTCLAW_HOME=%BOOSTCLAW_HOME%"
-if "%BOOSTCLAW_HOME%"=="" if not "%COPAW_HOME%"=="" set "BOOSTCLAW_HOME=%COPAW_HOME%"
 if "%BOOSTCLAW_HOME%"=="" set "BOOSTCLAW_HOME=%USERPROFILE%\.boostclaw"
 set "REAL_BIN=%BOOSTCLAW_HOME%\venv\Scripts\boostclaw.exe"
 if not exist "%REAL_BIN%" (
