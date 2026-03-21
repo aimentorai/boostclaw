@@ -45,6 +45,7 @@ def _load_builtin_channels() -> dict[str, type[BaseChannel]]:
     A single optional dependency failure should not break CLI startup.
     """
     out: dict[str, type[BaseChannel]] = {}
+    skipped: dict[str, str] = {}
     for key, (module_name, class_name) in _BUILTIN_SPECS.items():
         try:
             mod = importlib.import_module(module_name, package=__package__)
@@ -57,7 +58,7 @@ def _load_builtin_channels() -> dict[str, type[BaseChannel]]:
                 raise TypeError(
                     f"{module_name}.{class_name} is not a BaseChannel subtype",
                 )
-        except Exception:
+        except Exception as exc:
             if key in _REQUIRED_CHANNEL_KEYS:
                 logger.error(
                     'failed to load required built-in channel "%s"',
@@ -65,13 +66,22 @@ def _load_builtin_channels() -> dict[str, type[BaseChannel]]:
                     exc_info=True,
                 )
                 raise
-            logger.debug(
-                "built-in channel unavailable: %s",
+            skipped[key] = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "built-in channel unavailable: %s (%s)",
                 key,
-                exc_info=True,
+                skipped[key],
             )
             continue
         out[key] = cls
+    if skipped:
+        logger.warning(
+            "built-in channels loaded=%s skipped=%s",
+            sorted(out.keys()),
+            {k: skipped[k] for k in sorted(skipped.keys())},
+        )
+    else:
+        logger.info("built-in channels loaded=%s", sorted(out.keys()))
     return out
 
 

@@ -24,7 +24,7 @@ graph TB
 
 ## Context Structure
 
-CoPaw divides the context into three zones:
+boostclaw divides the context into three zones:
 
 ```mermaid
 graph LR
@@ -73,13 +73,6 @@ graph LR
     CC -->|Exceeds limit| CM[compact_memory<br>Generate summary]
 ```
 
-### Related Code
-
-- [MemoryCompactionHook](https://github.com/aimentorai/boostclaw/blob/main/src/copaw/agents/hooks/memory_compaction.py)
-- [compact_tool_result](https://github.com/agentscope-ai/ReMe/blob/v0.3.0.6b2/reme/memory/file_based/components/tool_result_compactor.py)
-- [check_context](https://github.com/agentscope-ai/ReMe/blob/v0.3.0.6b2/reme/memory/file_based/components/context_checker.py)
-- [compact_memory](https://github.com/agentscope-ai/ReMe/blob/v0.3.0.6b2/reme/memory/file_based/components/compactor.py)
-
 ### Execution Flow
 
 ```mermaid
@@ -102,7 +95,7 @@ graph LR
 
 ## Compaction Mechanism
 
-When the context approaches its limit, CoPaw automatically triggers compaction, condensing old conversations into a structured summary.
+When the context approaches its limit, boostclaw automatically triggers compaction, condensing old conversations into a structured summary.
 
 ### 1. compact_tool_result — Tool Result Compaction
 

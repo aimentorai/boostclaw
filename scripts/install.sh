@@ -24,7 +24,7 @@ error() { printf "${RED}[boostclaw]${RESET} %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-BOOSTCLAW_HOME="${BOOSTCLAW_HOME:-${COPAW_HOME:-$HOME/.boostclaw}}"
+BOOSTCLAW_HOME="${BOOSTCLAW_HOME:-$HOME/.boostclaw}"
 BOOSTCLAW_VENV="$BOOSTCLAW_HOME/venv"
 BOOSTCLAW_BIN="$BOOSTCLAW_HOME/bin"
 PYTHON_VERSION="3.12"
@@ -85,7 +85,6 @@ Options:
 
 Environment:
   BOOSTCLAW_HOME    Installation directory (default: ~/.boostclaw)
-  COPAW_HOME        Legacy alias for BOOSTCLAW_HOME
 EOF
             exit 0 ;;
         *)
@@ -311,7 +310,7 @@ cat > "$BOOSTCLAW_BIN/boostclaw" << 'WRAPPER'
 # BoostClaw CLI wrapper — delegates to the uv-managed environment.
 set -euo pipefail
 
-BOOSTCLAW_HOME="${BOOSTCLAW_HOME:-${COPAW_HOME:-$HOME/.boostclaw}}"
+BOOSTCLAW_HOME="${BOOSTCLAW_HOME:-$HOME/.boostclaw}"
 REAL_BIN="$BOOSTCLAW_HOME/venv/bin/boostclaw"
 
 if [ ! -x "$REAL_BIN" ]; then

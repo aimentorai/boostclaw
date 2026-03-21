@@ -16,8 +16,6 @@ REM   3. Downloaded via GitHub Releases if astral.sh is unreachable (e.g. in Chi
 REM ── Defaults ──────────────────────────────────────────────────────────────────
 if defined BOOSTCLAW_HOME (
     set "BOOSTCLAW_HOME=%BOOSTCLAW_HOME%"
-) else if defined COPAW_HOME (
-    set "BOOSTCLAW_HOME=%COPAW_HOME%"
 ) else (
     set "BOOSTCLAW_HOME=%USERPROFILE%\.boostclaw"
 )
@@ -92,7 +90,6 @@ echo   -Help                 Show this help
 echo.
 echo Environment:
 echo   BOOSTCLAW_HOME        Installation directory (default: %%USERPROFILE%%\.boostclaw)
-echo   COPAW_HOME            Legacy alias for BOOSTCLAW_HOME
 exit /b 0
 
 REM ──── Helper functions ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -477,7 +474,7 @@ set "WRAPPER_PS1=%BOOSTCLAW_BIN%\boostclaw.ps1"
 echo # boostclaw CLI wrapper -- delegates to the uv-managed environment. > "%WRAPPER_PS1%"
 echo $ErrorActionPreference = "Stop" >> "%WRAPPER_PS1%"
 echo. >> "%WRAPPER_PS1%"
-echo $BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } elseif ($env:COPAW_HOME) { $env:COPAW_HOME } else { Join-Path $HOME ".boostclaw" } >> "%WRAPPER_PS1%"
+echo $BoostclawHome = if ($env:BOOSTCLAW_HOME) { $env:BOOSTCLAW_HOME } else { Join-Path $HOME ".boostclaw" } >> "%WRAPPER_PS1%"
 echo $RealBin = Join-Path $BoostclawHome "venv\Scripts\boostclaw.exe" >> "%WRAPPER_PS1%"
 echo. >> "%WRAPPER_PS1%"
 echo if (-not (Test-Path $RealBin)) { >> "%WRAPPER_PS1%"
@@ -494,7 +491,6 @@ set "WRAPPER_CMD=%BOOSTCLAW_BIN%\boostclaw.cmd"
 echo @echo off > "%WRAPPER_CMD%"
 echo REM boostclaw CLI wrapper -- delegates to the uv-managed environment. >> "%WRAPPER_CMD%"
 echo set "BOOSTCLAW_HOME=%%BOOSTCLAW_HOME%%" >> "%WRAPPER_CMD%"
-echo if "%%BOOSTCLAW_HOME%%"=="" if not "%%COPAW_HOME%%"=="" set "BOOSTCLAW_HOME=%%COPAW_HOME%%" >> "%WRAPPER_CMD%"
 echo if "%%BOOSTCLAW_HOME%%"=="" set "BOOSTCLAW_HOME=%%USERPROFILE%%\.boostclaw" >> "%WRAPPER_CMD%"
 echo set "REAL_BIN=%%BOOSTCLAW_HOME%%\venv\Scripts\boostclaw.exe" >> "%WRAPPER_CMD%"
 echo if not exist "%%REAL_BIN%%" ( >> "%WRAPPER_CMD%"

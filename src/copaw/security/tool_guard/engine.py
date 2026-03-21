@@ -34,9 +34,9 @@ _TRUE_STRINGS = {"true", "1", "yes"}
 def _guard_enabled() -> bool:
     """Return whether tool-call guarding is enabled.
 
-    Priority: env var > config.json > default (True).
+    Priority: env var (BOOSTCLAW_TOOL_GUARD_ENABLED) > config.json > default (True).
     """
-    env_val = os.environ.get("COPAW_TOOL_GUARD_ENABLED")
+    env_val = os.environ.get("BOOSTCLAW_TOOL_GUARD_ENABLED")
     if env_val is not None:
         return env_val.lower() in _TRUE_STRINGS
 
@@ -58,7 +58,7 @@ class ToolGuardEngine:
         Explicit list of guardians.  If *None* the default set
         (rule-based) is used.
     enabled:
-        Override ``COPAW_TOOL_GUARD_ENABLED`` env var.
+        Override ``BOOSTCLAW_TOOL_GUARD_ENABLED`` env var.
     """
 
     def __init__(

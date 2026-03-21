@@ -288,13 +288,13 @@ def get_system_default_browser() -> Tuple[Optional[str], Optional[str]]:
 
 def get_available_channels() -> Tuple[str, ...]:
     """Return channel keys enabled for this run (built-in + entry point
-    copaw.channels), filtered by COPAW_ENABLED_CHANNELS when set.
+    boostclaw.channels), filtered by BOOSTCLAW_ENABLED_CHANNELS when set.
     """
     from ..app.channels.registry import get_channel_registry
 
     registry = get_channel_registry()
     all_keys = tuple(registry.keys())
-    raw = os.environ.get("COPAW_ENABLED_CHANNELS", "").strip()
+    raw = os.environ.get("BOOSTCLAW_ENABLED_CHANNELS", "").strip()
     if not raw:
         return all_keys
     enabled = tuple(ch.strip() for ch in raw.split(",") if ch.strip())
@@ -303,7 +303,7 @@ def get_available_channels() -> Tuple[str, ...]:
 
 def is_running_in_container() -> bool:
     """Return True if running inside a container (Docker/Kubernetes).
-    Prefer env COPAW_RUNNING_IN_CONTAINER (1/true/yes) at call time so
+    Prefer env BOOSTCLAW_RUNNING_IN_CONTAINER (1/true/yes) at call time so
     supervisord child gets correct value; else check /.dockerenv and cgroup.
     """
     if RUNNING_IN_CONTAINER:

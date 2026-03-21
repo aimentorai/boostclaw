@@ -1,16 +1,16 @@
 # Console
 
-The **Console** is CoPaw's built-in web interface. After running `copaw app`,
+The **Console** is boostclaw's built-in web interface. After running `boostclaw app`,
 open `http://127.0.0.1:8088/` in your browser to enter the Console.
 
 **In the Console, you can:**
 
-- Chat with CoPaw in real time
+- Chat with boostclaw in real time
 - Enable/disable messaging channels
 - View and manage all chat sessions
 - Manage scheduled jobs
-- Edit CoPaw's persona and behavior files
-- Enable/disable skills to extend CoPaw's capabilities
+- Edit boostclaw's persona and behavior files
+- Enable/disable skills to extend boostclaw's capabilities
 - Manage MCP clients
 - Modify runtime configuration
 - Configure LLM providers and select active models
@@ -30,14 +30,14 @@ through each feature in order.
 
 > Sidebar: **Chat → Chat**
 
-This is where you talk to CoPaw. It is the default page when the Console
+This is where you talk to boostclaw. It is the default page when the Console
 opens.
 
 ![Chat](https://img.alicdn.com/imgextra/i4/O1CN01iuGyNc1mNwsUU5NQI_!!6000000004943-2-tps-3822-2070.png)
 
 **Send a message:**
 Type in the input box at the bottom, then press **Enter** or click the send
-button (↑). CoPaw replies in real time.
+button (↑). boostclaw replies in real time.
 
 **Create a new session:**
 Click the **+ New Chat** button at the top of the chat sidebar to start a new
@@ -114,15 +114,15 @@ Select rows → click **Batch Delete** → confirm.
 
 > Sidebar: **Control → Cron Jobs**
 
-Create and manage scheduled jobs that CoPaw runs automatically by time.
+Create and manage scheduled jobs that boostclaw runs automatically by time.
 
 ![Cron Jobs](https://img.alicdn.com/imgextra/i3/O1CN01JET1Aw1C9SAvXuIpk_!!6000000000038-2-tps-3822-2070.png)
 
 **Create a new job:**
 
-> If the cron job fails to be created, please refer to the **Troubleshooting Scheduled (Cron) Tasks** section in the [FAQ](https://copaw.agentscope.io/docs/faq) to identify the cause.
+> If the cron job fails to be created, please refer to the **Troubleshooting Scheduled (Cron) Tasks** section in the [FAQ](https://boostclaw.com/docs/faq) to identify the cause.
 
-The **simplest way to create a cron job is to chat directly with CoPaw** and let it handle the creation for you. For example, if you want to receive a reminder to drink water on DingTalk, simply message CoPaw on DingTalk: "Help me create a cron job to remind me to drink water every 5 minutes." Once created, you can view the new task on the Cron Jobs page in the console.
+The **simplest way to create a cron job is to chat directly with boostclaw** and let it handle the creation for you. For example, if you want to receive a reminder to drink water on DingTalk, simply message boostclaw on DingTalk: "Help me create a cron job to remind me to drink water every 5 minutes." Once created, you can view the new task on the Cron Jobs page in the console.
 
 Alternatively, you can create tasks directly via the Console interface:
 
@@ -135,7 +135,7 @@ Alternatively, you can create tasks directly via the Console interface:
    - **Schedule** — Cron expression (e.g. `0 9 * * *` = 9:00 AM daily) and
      timezone (defaults to your configured user timezone)
    - **Task Type & Content** — **Text** (fixed message) or **Agent** (ask
-     CoPaw and forward reply), then the content
+     boostclaw and forward reply), then the content
    - **Delivery** — Target channel (Console, DingTalk, etc.), target user & session id, and
      mode (**Stream** = real-time, **Final** = one complete response)
    - **Advanced** — Max concurrency, timeout, misfire grace time
@@ -159,12 +159,12 @@ Click **Delete** → confirm.
 
 > Sidebar: **Agent → Workspace**
 
-Edit files that define CoPaw's persona and behavior, such as `SOUL.md`,
+Edit files that define boostclaw's persona and behavior, such as `SOUL.md`,
 `AGENTS.md`, and `HEARTBEAT.md`, directly in the browser.
 
-> **Multi-Agent Workspace:** Starting from **v0.1.0**, CoPaw supports
+> **Multi-Agent Workspace:** Starting from **v0.1.0**, boostclaw supports
 > **multi-agent workspace** functionality. You can run multiple independent
-> agents in a single CoPaw instance, each with its own workspace, configuration,
+> agents in a single boostclaw instance, each with its own workspace, configuration,
 > memory, and conversation history. Use the agent switcher at the top of the
 > console to change the active agent. See [Multi-Agent Workspace](./multi-agent)
 > for details.
@@ -194,7 +194,7 @@ will be replaced. Useful for migration and backup restore.
 
 > Sidebar: **Agent → Skills**
 
-Manage skills that extend CoPaw's capabilities (for example: PDF reading,
+Manage skills that extend boostclaw's capabilities (for example: PDF reading,
 Word document creation, news retrieval).
 
 ![Skills](https://img.alicdn.com/imgextra/i1/O1CN01ZF4kVc1Yz8PlPdiM6_!!6000000003129-2-tps-3822-2070.png)
@@ -260,8 +260,8 @@ Adjust **Max iterations** and **Max input length** here; click **Save** after ch
 
 > Sidebar: **Settings → Models**
 
-Configure LLM providers and choose the model CoPaw uses. CoPaw supports both
-cloud providers (API key required) and local providers (no API key required).
+Configure LLM providers and choose the model boostclaw uses. boostclaw supports
+cloud providers (API key required).
 
 ![Models](https://img.alicdn.com/imgextra/i2/O1CN01Kd3lg91HdkS5SaLoF_!!6000000000781-2-tps-3822-2070.png)
 
@@ -282,105 +282,15 @@ Open the provider settings dialog and click **Revoke Authorization**. API key
 data is cleared. If this provider is currently active, model selection is also
 cleared.
 
-### Local providers (llama.cpp / MLX)
-
-Local providers show a purple **Local** tag. Install backend dependencies
-first (`pip install 'boostclaw[llamacpp]'` or `pip install 'boostclaw[mlx]'`).
-
-**Download a model:**
-
-1. Click **Manage Models** on a local provider card.
-2. Click **Download Model**, then fill:
-   - **Repo ID** (required) — e.g. `Qwen/Qwen3-4B-GGUF`
-   - **Filename** (optional) — leave empty for auto-selection
-   - **Source** — Hugging Face (default) or ModelScope
-3. Click **Download** and wait for completion.
-
-**View and delete models:**
-Downloaded models are listed with file size, source badge (**HF** / **MS**),
-and delete button.
-
-### Ollama provider
-
-The Ollama provider integrates with your local Ollama daemon and dynamically
-loads models from it.
-
-**Prerequisites:**
-
-- Install Ollama from [ollama.com](https://ollama.com)
-- Install the Ollama SDK: `pip install 'boostclaw[ollama]'` (or re-run the installer with `--extras ollama`)
-
-**Download a model:**
-
-1. Click **Settings** on the Ollama provider card.
-2. In **API Key**, enter a value (for example `ollama`), then click **Save**.
-3. Click **Manage Models** on the Ollama card, click **Download Model**, and
-   enter a model name (e.g. `mistral:7b`, `qwen3:8b`).
-4. Click **Download Model** and wait for completion.
-
-**Cancel a download:**
-During download, click **✕** next to the progress indicator to cancel.
-
-**View and delete models:**
-Downloaded models are listed with size and delete button. The list updates
-automatically when models are added/removed via Ollama CLI or Console.
-
-**How it differs from local providers:**
-
-- Models come from the Ollama daemon (not downloaded directly by CoPaw)
-- Model list is auto-synced with Ollama
-- Popular model examples: `mistral:7b`, `qwen3:8b`
-
-> You can also manage Ollama models via CLI: `copaw models ollama-pull`,
-> `copaw models ollama-list`, `copaw models ollama-remove`. See
-> [CLI](./cli#ollama-models).
-
-> ⚠️ **Before running CoPaw, you must set the context length to 32K or higher**
->
-> To run CoPaw properly, you must set the model context length to
-> **32K or higher**. Note that this can consume substantial compute resources,
-> so make sure your local machine can handle it.
->
-> ![Ollama context length configuration](https://img.alicdn.com/imgextra/i3/O1CN01JrqRjE1l6FxuO3IMl_!!6000000004769-2-tps-699-656.png)
-
-### LM Studio provider
-
-The LM Studio provider connects to the LM Studio desktop application's
-OpenAI-compatible local server to discover and use loaded models.
-
-**Prerequisites:**
-
-- Install LM Studio from [lmstudio.ai](https://lmstudio.ai)
-- Load a model and start the local server in LM Studio (default: `http://localhost:1234`)
-
-**Configure:**
-
-1. Click **Settings** on the LM Studio provider card.
-2. The default Base URL is `http://localhost:1234/v1`. Adjust if needed, then
-   click **Save**.
-3. Click **Manage Models** to see models loaded in LM Studio. You can also
-   manually add model IDs.
-4. Select **LM Studio** in the **Provider** dropdown and pick a model.
-
-> LM Studio does not require an API key by default. Models must be loaded
-> in LM Studio before they appear in CoPaw.
-
-> ⚠️ **Before running CoPaw, you must set the context length to 32K or higher**
->
-> To run CoPaw properly, you must set the model context length to
-> **32K or higher**. Note that this can consume substantial compute resources,
-> so make sure your local machine can handle it.
->
-> ![LM Studio context length configuration](https://img.alicdn.com/imgextra/i4/O1CN01LWyG6o21E4Zovqv4G_!!6000000006952-2-tps-923-618.png)
 
 ### Choose the active model
 
 1. In the **LLM Config** section, select a **Provider** from the dropdown
-   (only authorized providers or local providers with downloaded models appear).
+   (only authorized providers appear).
 2. Select a **Model** from the model dropdown.
 3. Click **Save**.
 
-> **Note:** Cloud API key validity is your responsibility. CoPaw does not
+> **Note:** Cloud API key validity is your responsibility. boostclaw does not
 > verify key correctness.
 >
 > For provider details, see [Config — LLM Providers](./config#llm-providers).
@@ -391,7 +301,7 @@ OpenAI-compatible local server to discover and use loaded models.
 
 > Sidebar: **Settings → Environment Variables**
 
-Manage runtime environment variables needed by CoPaw tools and skills
+Manage runtime environment variables needed by boostclaw tools and skills
 (for example, `TAVILY_API_KEY`).
 
 ![Environments](https://img.alicdn.com/imgextra/i1/O1CN01jNMeBA1nMP9tQdTmU_!!6000000005075-2-tps-3822-2070.png)
@@ -412,7 +322,7 @@ Click the **🗑** icon on a row, then confirm if prompted.
 **Batch delete:**
 Select rows → click **Delete** in the toolbar → confirm.
 
-> **Note:** Variable validity is your responsibility. CoPaw only stores and
+> **Note:** Variable validity is your responsibility. boostclaw only stores and
 > loads values.
 >
 > See [Config — Environment Variables](./config#environment-variables) for more.
@@ -433,9 +343,9 @@ View LLM token consumption over a time range, aggregated by date and model.
 
 **Query via chat:**
 
-Ask CoPaw directly, e.g. "How many tokens have I used recently?" or "Show me token usage." The agent will call the `get_token_usage` tool and return the summary.
+Ask boostclaw directly, e.g. "How many tokens have I used recently?" or "Show me token usage." The agent will call the `get_token_usage` tool and return the summary.
 
-> Data is stored in `~/.boostclaw/token_usage.json`. You can override the filename with the `COPAW_TOKEN_USAGE_FILE` environment variable. See [Config — Environment Variables](./config#environment-variables).
+> Data is stored in `~/.boostclaw/token_usage.json`. You can override the filename with the `BOOSTCLAW_TOKEN_USAGE_FILE` environment variable. See [Config — Environment Variables](./config#environment-variables).
 
 ---
 
@@ -443,7 +353,7 @@ Ask CoPaw directly, e.g. "How many tokens have I used recently?" or "Show me tok
 
 | Page                  | Sidebar path                     | What you can do                                                |
 | --------------------- | -------------------------------- | -------------------------------------------------------------- |
-| Chat                  | Chat → Chat                      | Talk with CoPaw, manage sessions                               |
+| Chat                  | Chat → Chat                      | Talk with boostclaw, manage sessions                               |
 | Channels              | Control → Channels               | Enable/disable channels, configure credentials                 |
 | Sessions              | Control → Sessions               | Filter, rename, delete sessions                                |
 | Cron Jobs             | Control → Cron Jobs              | Create/edit/delete jobs, run immediately                       |
@@ -451,7 +361,7 @@ Ask CoPaw directly, e.g. "How many tokens have I used recently?" or "Show me tok
 | Skills                | Agent → Skills                   | Enable/disable/create/delete skills                            |
 | MCP                   | Agent → MCP                      | Enable/disable/create/delete MCP clients                       |
 | Runtime Config        | Agent → Runtime Config           | Modify runtime configuration                                   |
-| Models                | Settings → Models                | Configure providers, manage local/Ollama/LM Studio, pick model |
+| Models                | Settings → Models                | Configure providers, manage models, pick model                 |
 | Environment Variables | Settings → Environment Variables | Add/edit/delete environment variables                          |
 | Token Usage           | Settings → Token Usage           | View LLM token usage by date and model                         |
 

@@ -253,8 +253,8 @@ if CORS_ORIGINS:
     )
 
 
-# Console static dir: env, or copaw package data (console), or cwd.
-_CONSOLE_STATIC_ENV = "COPAW_CONSOLE_STATIC_DIR"
+# Console static dir env var (BOOSTCLAW_CONSOLE_STATIC_DIR only)
+_CONSOLE_STATIC_ENV = "BOOSTCLAW_CONSOLE_STATIC_DIR"
 
 
 def _resolve_console_static_dir() -> str:

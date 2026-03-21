@@ -179,7 +179,7 @@
 
 ## Daemon 命令（运维）
 
-在对话中发送 `/daemon <子命令>` 或在终端执行 `copaw daemon <子命令>`，可查看状态、最近日志、版本等，无需经过 Agent。支持短名（如
+在对话中发送 `/daemon <子命令>` 或在终端执行 `boostclaw daemon <子命令>`，可查看状态、最近日志、版本等，无需经过 Agent。支持短名（如
 `/status` 等价于 `/daemon status`）。
 
 | 命令                                | 说明                                                                   |
@@ -193,7 +193,7 @@
 终端中可直接使用：
 
 ```bash
-copaw daemon status
-copaw daemon version
-copaw daemon logs -n 50
+boostclaw daemon status
+boostclaw daemon version
+boostclaw daemon logs -n 50
 ```

@@ -91,8 +91,6 @@ _PROTECTED_BOOTSTRAP_KEYS = frozenset(
     {
         "BOOSTCLAW_WORKING_DIR",
         "BOOSTCLAW_SECRET_DIR",
-        "COPAW_WORKING_DIR",
-        "COPAW_SECRET_DIR",
     },
 )
 

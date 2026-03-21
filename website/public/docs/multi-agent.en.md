@@ -1,6 +1,6 @@
 # Multi-Agent Workspace
 
-CoPaw supports **multi-agent workspace**, allowing you to run multiple independent AI agents in a single CoPaw instance, each with its own configuration, memory, skills, and conversation history.
+boostclaw supports **multi-agent workspace**, allowing you to run multiple independent AI agents in a single boostclaw instance, each with its own configuration, memory, skills, and conversation history.
 
 > This feature was introduced in **v0.1.0**.
 
@@ -8,7 +8,7 @@ CoPaw supports **multi-agent workspace**, allowing you to run multiple independe
 
 ## What is Multi-Agent?
 
-Simply put, **multi-agent** lets you run multiple "personas" in one CoPaw, where each persona:
+Simply put, **multi-agent** lets you run multiple "personas" in one boostclaw, where each persona:
 
 - Has its own **personality and specialization** (configured via different persona files)
 - Remembers **its own conversations** (no cross-talk)
@@ -33,7 +33,7 @@ Each agent focuses on its domain without interference.
 
 ### Use Case 2: Platform Separation
 
-You might use CoPaw across multiple platforms:
+You might use boostclaw across multiple platforms:
 
 - **DingTalk** - work-related conversations
 - **Discord** - community discussions
@@ -58,7 +58,7 @@ You might need:
 
 #### 1. View and Switch Agents
 
-After starting CoPaw, you'll see the **Agent Selector** in the **top-right corner** of the console:
+After starting boostclaw, you'll see the **Agent Selector** in the **top-right corner** of the console:
 
 ```
 ┌───────────────────────────────────┐
@@ -219,7 +219,7 @@ Not recommended. The `default` agent is the system's default fallback; deleting 
 
 ## Upgrading from Single-Agent
 
-If you previously used CoPaw **v0.0.x**, upgrading to **v0.1.0** will **automatically migrate**:
+If you previously used boostclaw **v0.0.x**, upgrading to **v0.1.0** will **automatically migrate**:
 
 1. **Automatic Migration on First Start**
 
@@ -228,7 +228,7 @@ If you previously used CoPaw **v0.0.x**, upgrading to **v0.1.0** will **automati
 
 2. **Verify Migration**
 
-   - After starting CoPaw, check the agent list in console
+   - After starting boostclaw, check the agent list in console
    - You should see an agent named "Default Agent"
    - Your old conversations and configs should still be there
 
@@ -250,12 +250,12 @@ All multi-agent-aware CLI commands accept the `--agent-id` parameter (defaults t
 
 ```bash
 # View specific agent's configuration
-copaw channels list --agent-id abc123
-copaw cron list --agent-id abc123
-copaw skills list --agent-id abc123
+boostclaw channels list --agent-id abc123
+boostclaw cron list --agent-id abc123
+boostclaw skills list --agent-id abc123
 
 # Create cron job for specific agent
-copaw cron create \
+boostclaw cron create \
   --agent-id abc123 \
   --type agent \
   --name "Check Todos" \
@@ -268,18 +268,18 @@ copaw cron create \
 
 **Commands Supporting `--agent-id`**:
 
-- `copaw channels` - channel management
-- `copaw cron` - cron jobs
-- `copaw daemon` - runtime status
-- `copaw chats` - chat management
-- `copaw skills` - skill management
+- `boostclaw channels` - channel management
+- `boostclaw cron` - cron jobs
+- `boostclaw daemon` - runtime status
+- `boostclaw chats` - chat management
+- `boostclaw skills` - skill management
 
 **Commands NOT Supporting `--agent-id`** (global operations):
 
-- `copaw init` - initialization
-- `copaw providers` - model providers
-- `copaw models` - model configuration
-- `copaw env` - environment variables
+- `boostclaw init` - initialization
+- `boostclaw providers` - model providers
+- `boostclaw models` - model configuration
+- `boostclaw env` - environment variables
 
 ### REST API
 
@@ -323,18 +323,7 @@ API endpoints supporting `X-Agent-Id`:
 
 If you need to directly edit configuration files:
 
-#### Old Structure (v0.0.x)
-
-```
-~/.copaw/
-├── config.json          # All config
-├── chats.json
-├── jobs.json
-├── AGENTS.md
-└── ...
-```
-
-#### New Structure (v0.1.0+)
+#### Structure (v0.0.1+)
 
 ```
 ~/.boostclaw/

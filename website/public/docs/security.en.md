@@ -1,6 +1,6 @@
 # Security
 
-CoPaw includes built-in security features to protect your agent from malicious inputs and unsafe skills. These are configured in the Console under **Settings → Security**, or via `config.json`.
+boostclaw includes built-in security features to protect your agent from malicious inputs and unsafe skills. These are configured in the Console under **Settings → Security**, or via `config.json`.
 
 ---
 
@@ -71,7 +71,7 @@ The **Skill Scanner** automatically scans skills for security threats (command i
 | **Warn** (default) | Scan and record findings, but allow the skill to proceed. A warning is shown. |
 | **Off**            | Disable scanning entirely.                                                    |
 
-Set the mode in Console (**Settings → Security → Skill Scanner → Scanner Mode**) or via the environment variable `COPAW_SKILL_SCAN_MODE` (`block`, `warn`, or `off`). The environment variable takes precedence over the config file.
+Set the mode in Console (**Settings → Security → Skill Scanner → Scanner Mode**) or via the environment variable `BOOSTCLAW_SKILL_SCAN_MODE` (`block`, `warn`, or `off`). The environment variable takes precedence over the config file.
 
 ### Scan Alerts
 

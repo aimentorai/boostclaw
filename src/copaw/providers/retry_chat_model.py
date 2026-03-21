@@ -5,9 +5,9 @@ Transparently retries LLM API calls on transient errors (rate-limit,
 timeout, connection) with configurable exponential back-off.
 
 Configuration via environment variables (or use defaults from constant.py):
-    COPAW_LLM_MAX_RETRIES   – max retry attempts (default 3)
-    COPAW_LLM_BACKOFF_BASE  – base delay in seconds (default 1.0)
-    COPAW_LLM_BACKOFF_CAP   – max delay cap in seconds (default 10.0)
+    BOOSTCLAW_LLM_MAX_RETRIES   – max retry attempts (default 3)
+    BOOSTCLAW_LLM_BACKOFF_BASE  – base delay in seconds (default 1.0)
+    BOOSTCLAW_LLM_BACKOFF_CAP   – max delay cap in seconds (default 10.0)
 """
 
 from __future__ import annotations

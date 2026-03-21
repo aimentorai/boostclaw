@@ -1,45 +1,52 @@
-# Branding and CoPaw compatibility
+# Branding: BoostClaw (Breaking Change v1.0+)
 
-BoostClaw is a fork of [CoPaw](https://github.com/agentscope-ai/CoPaw). This document describes naming and compatibility choices.
+BoostClaw is a fork of [CoPaw](https://github.com/agentscope-ai/CoPaw). Starting from v1.0, all legacy `COPAW_*` compatibility has been removed.
 
-## Constraints
+## Breaking Change: Environment Variables
 
-1. **Package name is not changed**: The Python package remains `copaw` (directory `src/copaw`, imports `from copaw...`). We do not rename it to avoid a large diff and to ease merging upstream.
-2. **No COPAW_HOME / legacy install compatibility**: We do not preserve compatibility with environments that rely on `COPAW_HOME` or the old CoPaw install paths. Install scripts and defaults use BoostClaw naming only.
+**Starting from v1.0, only `BOOSTCLAW_*` prefix is supported.** The `COPAW_*` prefix is no longer recognized.
+
+### Migration Guide (v0.x → v1.0+)
+
+If you have existing deployments using `COPAW_*` environment variables, you **must** rename them:
+
+| Old (v0.x)                       | New (v1.0+)                      |
+| -------------------------------- | -------------------------------- |
+| `COPAW_WORKING_DIR`              | `BOOSTCLAW_WORKING_DIR`          |
+| `COPAW_SECRET_DIR`               | `BOOSTCLAW_SECRET_DIR`           |
+| `COPAW_LOG_LEVEL`                | `BOOSTCLAW_LOG_LEVEL`            |
+| `COPAW_ENABLED_CHANNELS`         | `BOOSTCLAW_ENABLED_CHANNELS`     |
+| `COPAW_CONSOLE_STATIC_DIR`       | `BOOSTCLAW_CONSOLE_STATIC_DIR`   |
+| `COPAW_RELOAD_MODE`              | `BOOSTCLAW_RELOAD_MODE`          |
+| `COPAW_RUNNING_IN_CONTAINER`     | `BOOSTCLAW_RUNNING_IN_CONTAINER` |
+| `COPAW_DESKTOP_APP`              | `BOOSTCLAW_DESKTOP_APP`          |
+| `COPAW_SKILL_SCAN_MODE`          | `BOOSTCLAW_SKILL_SCAN_MODE`      |
+| `COPAW_TOOL_GUARD_*`             | `BOOSTCLAW_TOOL_GUARD_*`         |
+| `COPAW_SKILLS_HUB_*`             | `BOOSTCLAW_SKILLS_HUB_*`         |
+| `COPAW_HOME`                     | `BOOSTCLAW_HOME`                 |
 
 ## What is BoostClaw
 
 - **Project name**: `boostclaw` in `pyproject.toml`
 - **CLI entry point**: `boostclaw` (e.g. `boostclaw app`, `boostclaw init`)
-- **Install scripts**: Use `BOOSTCLAW_HOME` only (default `~/.boostclaw`). Wrapper and PATH use `boostclaw` and `~/.boostclaw/bin`.
-- **Default working directory**: `~/.boostclaw` (config, data, venv, bin all under this directory by default).
+- **Default working directory**: `~/.boostclaw`
+- **Default install directory**: `~/.boostclaw`
+- **Environment variable prefix**: `BOOSTCLAW_*` (only)
 
-## Environment variables: dual prefix (app config only)
+## Installation
 
-We support **both** prefixes so that:
+All install scripts (`install.sh`, `install.ps1`, `install.bat`) use `BOOSTCLAW_HOME` exclusively. There is no `COPAW_HOME` fallback.
 
-- New deployments can use `BOOSTCLAW_*` (e.g. `BOOSTCLAW_WORKING_DIR`, `BOOSTCLAW_LOG_LEVEL`).
-- Existing configs and scripts that set `COPAW_*` continue to work.
-
-**Resolution order**: for each app-level variable we read `BOOSTCLAW_<SUFFIX>` first; if unset, we use `COPAW_<SUFFIX>`, then the default.
-
-Implemented in:
-
-- `src/copaw/_env_compat.py` — helpers `get_app_env()`, `get_app_env_bool()`, `get_app_env_int()`, `get_app_env_float()`.
-- `src/copaw/constant.py` — all path, log level, CORS, LLM retry, tool guard timeout, memory compaction, etc., use these helpers.
-- `src/copaw/envs/store.py` — bootstrap working/secret dir resolution and protected-keys set (both prefixes excluded from envs.json persistence).
-
-**Examples:**
-
-- `BOOSTCLAW_WORKING_DIR` or `COPAW_WORKING_DIR` → working directory (default `~/.boostclaw`).
-- `BOOSTCLAW_LOG_LEVEL` or `COPAW_LOG_LEVEL` → log level (default `info`).
-- Same pattern for `SECRET_DIR`, `LOG_LEVEL`, `CORS_ORIGINS`, `RUNNING_IN_CONTAINER`, `OPENAPI_DOCS`, `LLM_MAX_RETRIES`, `MEMORY_COMPACT_*`, `TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS`, etc.
-
-**Not yet dual-prefix:** Some modules still read only `COPAW_*` (e.g. channel config, skills hub, tool guard allow/deny lists, reload mode). They remain compatible because `COPAW_*` is still honored; adding `BOOSTCLAW_*` fallback there is optional and can be done incrementally.
+Example:
+```bash
+export BOOSTCLAW_HOME=$HOME/my-boostclaw
+bash scripts/install.sh
+```
 
 ## Summary
 
-- **Package name**: Unchanged; remains `copaw`.
-- **Install / default paths**: `BOOSTCLAW_HOME` and default working dir `~/.boostclaw`; no `COPAW_HOME` or legacy CoPaw install compatibility.
-- **App env vars**: Dual prefix (`BOOSTCLAW_*` preferred, `COPAW_*` fallback) for app config.
-- **User-facing branding**: Use “BoostClaw” and the `boostclaw` CLI everywhere in docs and install scripts; env vars can be either prefix.
+- **Package name**: Unchanged; remains `copaw` (internal; use `boostclaw` CLI).
+- **Install / default paths**: `BOOSTCLAW_HOME`, `~/.boostclaw` (only; no legacy aliases).
+- **App env vars**: `BOOSTCLAW_*` prefix **only** (breaking change).
+- **User-facing branding**: "BoostClaw" and the `boostclaw` CLI everywhere.
+

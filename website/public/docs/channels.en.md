@@ -1,12 +1,12 @@
 # Channels
 
-A **channel** is where you talk to CoPaw: connect DingTalk and it replies
+A **channel** is where you talk to boostclaw: connect DingTalk and it replies
 in DingTalk; same for QQ, etc. If that term is new, see [Introduction](./intro).
 
 Two ways to configure channels:
 
 - **Console** (recommended) — In the [Console](./console) under **Control → Channels**, click a channel card, enable it and fill in credentials in the drawer. Changes take effect when you save.
-- **Edit `config.json` directly** — Default `~/.boostclaw/config.json` (created by `copaw init`), set `enabled: true` and fill in that platform's credentials. Saving triggers a reload without restarting the app.
+- **Edit `config.json` directly** — Default `~/.boostclaw/config.json` (created by `boostclaw init`), set `enabled: true` and fill in that platform's credentials. Saving triggers a reload without restarting the app.
 
 All channels have common fields below:
 
@@ -58,7 +58,7 @@ Step-by-step:
 
    ![client](https://img.alicdn.com/imgextra/i3/O1CN01JsRrwx1hJImLfM7O1_!!6000000004256-2-tps-2809-1585.png)
 
-7. (Optional) **Add your server's IP to the whitelist** — this is required for features that call the DingTalk Open API (e.g. downloading images and files sent by users). Go to **"Security & Compliance → IP Whitelist"** in your app settings and add the public IP of the machine running CoPaw. You can find your public IP by running `curl ifconfig.me` in a terminal. If the IP is not whitelisted, image and file downloads will fail with a `Forbidden.AccessDenied.IpNotInWhiteList` error.
+7. (Optional) **Add your server's IP to the whitelist** — this is required for features that call the DingTalk Open API (e.g. downloading images and files sent by users). Go to **"Security & Compliance → IP Whitelist"** in your app settings and add the public IP of the machine running boostclaw. You can find your public IP by running `curl ifconfig.me` in a terminal. If the IP is not whitelisted, image and file downloads will fail with a `Forbidden.AccessDenied.IpNotInWhiteList` error.
 
 ### Link the app
 
@@ -87,7 +87,7 @@ In `config.json`, find `channels.dingtalk` and fill in the corresponding informa
 - Set `filter_tool_messages: true` if you want to hide tool execution details in the chat.
 
 Save the file; if the app is already running, the channel will reload. Otherwise run
-`copaw app`.
+`boostclaw app`.
 
 ### Find the created app
 
@@ -131,7 +131,7 @@ The Feishu channel receives messages via **WebSocket long connection** (no publi
 
 3. Fill **App ID** and **App Secret** in `config.json` (see "Fill config.json" below) and save
 
-4. Run **`copaw app`** to start CoPAW
+4. Run **`boostclaw app`** to start boostclaw
 
 5. Back in the Feishu console, enable **Bot** under **Add Features**
 
@@ -171,7 +171,7 @@ The Feishu channel receives messages via **WebSocket long connection** (no publi
 
 7. Under **Events & Callbacks**, click **Event configuration**, and choose **Receive events through persistent connection** as the subscription mode (no public IP needed)
 
-> **Note:** Follow this order: Configure App ID/Secret → start `copaw app` → then configure the long connection in the Feishu console. If errors persist, try stopping the copaw service and restarting `copaw app`.
+> **Note:** Follow this order: Configure App ID/Secret → start `boostclaw app` → then configure the long connection in the Feishu console. If errors persist, try stopping the boostclaw service and restarting `boostclaw app`.
 
 ![WebSocket](https://img.alicdn.com/imgextra/i3/O1CN01XdU7hK1fVY8gIDhZK_!!6000000004012-2-tps-4082-2126.png)
 
@@ -206,9 +206,9 @@ Find `channels.feishu`（default as `~/.boostclaw/config.json`） in `config.jso
 }
 ```
 
-Other fields (encrypt_key, verification_token, media_dir) are optional; with WebSocket mode you can omit them (defaults apply). Then `pip install lark-oapi` and run `copaw app`. If your environment uses a SOCKS proxy, also install `python-socks` (for example, `pip install python-socks`), otherwise you may see: `python-socks is required to use a SOCKS proxy`.
+Other fields (encrypt_key, verification_token, media_dir) are optional; with WebSocket mode you can omit them (defaults apply). Then `pip install lark-oapi` and run `boostclaw app`. If your environment uses a SOCKS proxy, also install `python-socks` (for example, `pip install python-socks`), otherwise you may see: `python-socks is required to use a SOCKS proxy`.
 
-> **Note:** You can also fill in **App ID** and **App Secret** in the Console UI, but you must restart the copaw service before continuing with the long-connection configuration.
+> **Note:** You can also fill in **App ID** and **App Secret** in the Console UI, but you must restart the boostclaw service before continuing with the long-connection configuration.
 > ![console](https://img.alicdn.com/imgextra/i1/O1CN01JInbHT1ei5MdfkMGv_!!6000000003904-2-tps-4082-2126.png)
 
 ### Recommended bot permissions
@@ -230,7 +230,7 @@ The JSON in step 6 grants the following permissions (app identity) for messaging
 | Get/upload image and file resources | im:resource                    | App     | -             |
 | **Read contact as app**             | **contact:user.base:readonly** | **App** | **See below** |
 
-> **User display name (recommended):** To show **user nicknames** in sessions and logs (e.g. "张三#1d1a" instead of "unknown#1d1a"), enable the contact read permission **Read contact as app** (`contact:user.base:readonly`). Without it, Feishu only returns identity fields (e.g. open_id) and not the user's name, so CoPAW cannot resolve nicknames. After enabling, publish or update the app version so the permission takes effect.
+> **User display name (recommended):** To show **user nicknames** in sessions and logs (e.g. "张三#1d1a" instead of "unknown#1d1a"), enable the contact read permission **Read contact as app** (`contact:user.base:readonly`). Without it, Feishu only returns identity fields (e.g. open_id) and not the user's name, so boostclaw cannot resolve nicknames. After enabling, publish or update the app version so the permission takes effect.
 
 ### Add the bot to favorites
 
@@ -274,7 +274,7 @@ The app polls the local iMessage database for new messages and sends replies on 
    > cp ./bin/imsg /usr/local/bin/
    > ```
 
-3. For CoPaw to read iMessage data, **Terminal** (or the app you use to run `copaw app`) and **Messages** need **Full Disk Access** (System Settings → Privacy & Security → Full Disk Access).
+3. For boostclaw to read iMessage data, **Terminal** (or the app you use to run `boostclaw app`) and **Messages** need **Full Disk Access** (System Settings → Privacy & Security → Full Disk Access).
 
 4. Set the iMessage database path. The default is `~/Library/Messages/chat.db`; use this unless you've moved the database. You can configure it in either of these ways:
 
@@ -400,7 +400,7 @@ If you need a proxy (e.g. for network restrictions):
 
 5. In **Developer settings**, get **AppID** and **AppSecret** (ClientSecret) and fill them into config (see below). Add your server’s **IP to the whitelist** — only whitelisted IPs can call the Open API outside sandbox.
 
-   > **Tip:** If you are using ModelScope Creative Space to deploy CoPaw, the IP whitelist for QQ channel should be: `47.92.200.108`
+   > **Tip:** If you are using ModelScope Creative Space to deploy boostclaw, the IP whitelist for QQ channel should be: `47.92.200.108`
 
 ![1](https://img.alicdn.com/imgextra/i4/O1CN012UQWI21cnvBAUcz54_!!6000000003646-2-tps-4082-2126.png)
 
@@ -631,7 +631,7 @@ JSON message format
 
 ## Matrix
 
-The Matrix channel connects CoPaw to any Matrix homeserver using the [matrix-nio](https://github.com/poljar/matrix-nio) library. It supports text messaging in both direct messages and group rooms.
+The Matrix channel connects boostclaw to any Matrix homeserver using the [matrix-nio](https://github.com/poljar/matrix-nio) library. It supports text messaging in both direct messages and group rooms.
 
 ### Create a Matrix bot account and get an access token
 
@@ -679,7 +679,7 @@ Find `channels.matrix` in `config.json`:
 }
 ```
 
-Save the file; the channel will reload automatically if CoPaw is already running.
+Save the file; the channel will reload automatically if boostclaw is already running.
 
 ### Chat with the bot
 
@@ -695,7 +695,7 @@ Invite the bot to a room or send it a direct message from any Matrix client (e.g
 
 ## XiaoYi
 
-The XiaoYi channel connects CoPaw via **A2A (Agent-to-Agent) protocol** over WebSocket to Huawei's AI assistant platform.
+The XiaoYi channel connects boostclaw via **A2A (Agent-to-Agent) protocol** over WebSocket to Huawei's AI assistant platform.
 
 ### Get credentials
 
@@ -779,148 +779,6 @@ With the app running you can read and update channel config; changes are written
 - `PUT /config/channels` — Replace all
 - `GET /config/channels/{channel_name}` — Get one (e.g. `dingtalk`, `imessage`)
 - `PUT /config/channels/{channel_name}` — Update one
-
----
-
-## Extending channels
-
-To add a new platform (e.g. WeCom, Slack), implement a subclass of **BaseChannel**; core code stays unchanged.
-
-### Data flow and queue
-
-- **ChannelManager** keeps one queue per channel that uses it. When a message arrives, the channel calls **`self._enqueue(payload)`** (injected by the manager at startup); the manager’s consumer loop then calls **`channel.consume_one(payload)`**.
-- The base class implements a **default `consume_one`**: turn payload into `AgentRequest`, run `_process`, call `send_message_content` for each completed message, and `_on_consume_error` on failure. Most channels only need to implement “incoming → request” and “response → outgoing”; they do not override `consume_one`.
-
-### Subclass must implement
-
-| Method                                                  | Purpose                                                                                                                                                            |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `build_agent_request_from_native(self, native_payload)` | Convert the channel’s native message to `AgentRequest` (using runtime `Message` / `TextContent` / `ImageContent` etc.) and set `request.channel_meta` for sending. |
-| `from_env` / `from_config`                              | Build instance from environment or config.                                                                                                                         |
-| `async start()` / `async stop()`                        | Lifecycle (connect, subscribe, cleanup).                                                                                                                           |
-| `async send(self, to_handle, text, meta=None)`          | Send one text (and optional attachments).                                                                                                                          |
-
-### What the base class provides
-
-- **Consume flow**: `_payload_to_request`, `get_to_handle_from_request` (default `user_id`), `get_on_reply_sent_args`, `_before_consume_process` (e.g. save receive_id), `_on_consume_error` (default: `send_content_parts`), and optional **`refresh_webhook_or_token`** (no-op; override when the channel needs to refresh tokens).
-- **Helpers**: `resolve_session_id`, `build_agent_request_from_user_content`, `_message_to_content_parts`, `send_message_content`, `send_content_parts`, `to_handle_from_target`.
-
-Override **`consume_one`** only when the flow differs (e.g. console printing, debounce). Override **`get_to_handle_from_request`** / **`get_on_reply_sent_args`** when the send target or callback args differ.
-
-### Example: minimal channel (text only)
-
-For text-only channels using the manager queue, you do not need to implement `consume_one`; the base default is enough:
-
-```python
-# my_channel.py
-from agentscope_runtime.engine.schemas.agent_schemas import TextContent, ContentType
-from copaw.app.channels.base import BaseChannel
-from copaw.app.channels.schema import ChannelType
-
-class MyChannel(BaseChannel):
-    channel: ChannelType = "my_channel"
-
-    def __init__(self, process, enabled=True, bot_prefix="", **kwargs):
-        super().__init__(process, on_reply_sent=kwargs.get("on_reply_sent"))
-        self.enabled = enabled
-        self.bot_prefix = bot_prefix
-
-    @classmethod
-    def from_config(cls, process, config, on_reply_sent=None, show_tool_details=True):
-        return cls(process=process, enabled=getattr(config, "enabled", True),
-                   bot_prefix=getattr(config, "bot_prefix", ""), on_reply_sent=on_reply_sent)
-
-    @classmethod
-    def from_env(cls, process, on_reply_sent=None):
-        return cls(process=process, on_reply_sent=on_reply_sent)
-
-    def build_agent_request_from_native(self, native_payload):
-        payload = native_payload if isinstance(native_payload, dict) else {}
-        channel_id = payload.get("channel_id") or self.channel
-        sender_id = payload.get("sender_id") or ""
-        meta = payload.get("meta") or {}
-        session_id = self.resolve_session_id(sender_id, meta)
-        text = payload.get("text", "")
-        content_parts = [TextContent(type=ContentType.TEXT, text=text)]
-        request = self.build_agent_request_from_user_content(
-            channel_id=channel_id, sender_id=sender_id, session_id=session_id,
-            content_parts=content_parts, channel_meta=meta,
-        )
-        request.channel_meta = meta
-        return request
-
-    async def start(self):
-        pass
-
-    async def stop(self):
-        pass
-
-    async def send(self, to_handle, text, meta=None):
-        # Call your HTTP API etc. to send
-        pass
-```
-
-When you receive a message, build a native dict and enqueue (`_enqueue` is injected by the manager):
-
-```python
-native = {
-    "channel_id": "my_channel",
-    "sender_id": "user_123",
-    "text": "Hello",
-    "meta": {},
-}
-self._enqueue(native)
-```
-
-### Example: multimodal (text + image / video / audio / file)
-
-In `build_agent_request_from_native`, parse attachments into runtime content and call `build_agent_request_from_user_content`:
-
-```python
-from agentscope_runtime.engine.schemas.agent_schemas import (
-    TextContent, ImageContent, VideoContent, AudioContent, FileContent, ContentType,
-)
-
-def build_agent_request_from_native(self, native_payload):
-    payload = native_payload if isinstance(native_payload, dict) else {}
-    channel_id = payload.get("channel_id") or self.channel
-    sender_id = payload.get("sender_id") or ""
-    meta = payload.get("meta") or {}
-    session_id = self.resolve_session_id(sender_id, meta)
-    content_parts = []
-    if payload.get("text"):
-        content_parts.append(TextContent(type=ContentType.TEXT, text=payload["text"]))
-    for att in payload.get("attachments") or []:
-        t = (att.get("type") or "file").lower()
-        url = att.get("url") or ""
-        if not url:
-            continue
-        if t == "image":
-            content_parts.append(ImageContent(type=ContentType.IMAGE, image_url=url))
-        elif t == "video":
-            content_parts.append(VideoContent(type=ContentType.VIDEO, video_url=url))
-        elif t == "audio":
-            content_parts.append(AudioContent(type=ContentType.AUDIO, data=url))
-        else:
-            content_parts.append(FileContent(type=ContentType.FILE, file_url=url))
-    if not content_parts:
-        content_parts = [TextContent(type=ContentType.TEXT, text="")]
-    request = self.build_agent_request_from_user_content(
-        channel_id=channel_id, sender_id=sender_id, session_id=session_id,
-        content_parts=content_parts, channel_meta=meta,
-    )
-    request.channel_meta = meta
-    return request
-```
-
-### Custom channel directory and CLI
-
-- **Directory**: Channels under the working dir at `custom_channels/` (default `~/.boostclaw/custom_channels/`) are loaded at runtime. The manager scans `.py` files and packages (subdirs with `__init__.py`), loads `BaseChannel` subclasses, and registers them by the class’s `channel` attribute.
-- **Install**: `copaw channels install <key>` creates a template `<key>.py` in `custom_channels/` for you to edit, or use `--path <local path>` / `--url <URL>` to copy a channel module from disk or the web. `copaw channels add <key>` does the same and also adds a default entry to config (with optional `--path`/`--url`).
-- **Remove**: `copaw channels remove <key>` deletes that channel’s module from `custom_channels/` (custom channels only; built-ins cannot be removed). By default it also removes the key from `channels` in `config.json`; use `--keep-config` to leave config unchanged.
-- **Config**: `ChannelConfig` uses `extra="allow"`, so any channel key can appear under `channels` in `config.json`. Use `copaw channels config` for interactive setup or edit config by hand.
-
----
 
 ## Related pages
 

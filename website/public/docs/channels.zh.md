@@ -1,11 +1,11 @@
 # 频道配置
 
-**频道** = 你和 CoPaw 在「哪里」对话：接钉钉就在钉钉里回，接 QQ 就在 QQ 里回。不熟悉这个词的话可以先看 [项目介绍](./intro)。
+**频道** = 你和 boostclaw 在「哪里」对话：接钉钉就在钉钉里回，接 QQ 就在 QQ 里回。不熟悉这个词的话可以先看 [项目介绍](./intro)。
 
 配置频道有两种方式：
 
 - **控制台**（推荐）— 在 [控制台](./console) 的 **Control → Channels** 页面，点击频道卡片，在抽屉里启用并填写鉴权信息，保存即生效。
-- **手动编辑 `config.json`** — 默认在 `~/.boostclaw/config.json` （由 `copaw init` 生成），将需要的频道设 `enabled: true` 并填好鉴权信息；保存后自动重载，无需重启。
+- **手动编辑 `config.json`** — 默认在 `~/.boostclaw/config.json` （由 `boostclaw init` 生成），将需要的频道设 `enabled: true` 并填好鉴权信息；保存后自动重载，无需重启。
 
 所有频道都有如下通用字段:
 
@@ -57,7 +57,7 @@
 
    ![client](https://img.alicdn.com/imgextra/i3/O1CN01JsRrwx1hJImLfM7O1_!!6000000004256-2-tps-2809-1585.png)
 
-7. （可选） **将服务器 IP 加入白名单** — 调用钉钉开放平台 API（如下载用户发送的图片和文件）时需要此配置。在应用设置中进入 **"安全设置→服务器出口 IP"**，添加运行 CoPaw 的机器的公网 IP。可在终端执行 `curl ifconfig.me` 查看公网 IP。若未配置白名单，图片和文件下载将报 `Forbidden.AccessDenied.IpNotInWhiteList` 错误。
+7. （可选） **将服务器 IP 加入白名单** — 调用钉钉开放平台 API（如下载用户发送的图片和文件）时需要此配置。在应用设置中进入 **"安全设置→服务器出口 IP"**，添加运行 boostclaw 的机器的公网 IP。可在终端执行 `curl ifconfig.me` 查看公网 IP。若未配置白名单，图片和文件下载将报 `Forbidden.AccessDenied.IpNotInWhiteList` 错误。
 
 ### 绑定应用
 
@@ -85,7 +85,7 @@
 
 - 若希望隐藏工具执行详情，可设置 `filter_tool_messages: true`。
 
-保存后若服务已运行会自动重载；未运行则执行 `copaw app` 启动。
+保存后若服务已运行会自动重载；未运行则执行 `boostclaw app` 启动。
 
 ### 找到创建的应用
 
@@ -129,7 +129,7 @@
 
 3. 在 `config.json` 中填写上述 **App ID** 和 **App Secret**（见下方「填写 config.json」），保存
 
-4. 执行 **`copaw app`** 启动 CoPAW 服务
+4. 执行 **`boostclaw app`** 启动 boostclaw 服务
 
 5. 回到飞书开放平台，在「能力」中启用 **机器人**
 
@@ -169,7 +169,7 @@
 
 7. 在「事件与回调」中，点击「事件配置」，选择订阅方式为**长连接（WebSocket）** 模式（无需公网 IP）
 
-> 注：**操作顺序**为先配置 App ID/Secret → 启动 `copaw app` → 再在开放平台配置长连接，如果此处仍显示错误，尝试先暂停 CoPaw 服务并重新启动 `copaw app`。
+> 注：**操作顺序**为先配置 App ID/Secret → 启动 `boostclaw app` → 再在开放平台配置长连接，如果此处仍显示错误，尝试先暂停 boostclaw 服务并重新启动 `boostclaw app`。
 
 ![websocket](https://img.alicdn.com/imgextra/i2/O1CN01LQwKON1x7QMNP41kC_!!6000000006396-2-tps-4082-2126.png)
 
@@ -202,9 +202,9 @@
 }
 ```
 
-其他字段（encrypt_key、verification_token、media_dir）可选，WebSocket 模式可不填，有默认值。依赖：`pip install lark-oapi`，然后 `copaw app`。如果你使用 SOCKS 代理联网，还需安装 `python-socks`（例如 `pip install python-socks`），否则可能报错：`python-socks is required to use a SOCKS proxy`。
+其他字段（encrypt_key、verification_token、media_dir）可选，WebSocket 模式可不填，有默认值。依赖：`pip install lark-oapi`，然后 `boostclaw app`。如果你使用 SOCKS 代理联网，还需安装 `python-socks`（例如 `pip install python-socks`），否则可能报错：`python-socks is required to use a SOCKS proxy`。
 
-> 注: **App ID** 和 **App Secret** 信息也可以在Console前端填写，但需重启 CoPaw 服务，才能继续配置长链接的操作。
+> 注: **App ID** 和 **App Secret** 信息也可以在Console前端填写，但需重启 boostclaw 服务，才能继续配置长链接的操作。
 > ![console](https://img.alicdn.com/imgextra/i2/O1CN01k7UVrP1E2hZBAn0oF_!!6000000000294-2-tps-4082-2126.png)
 
 ### 机器人权限建议
@@ -226,7 +226,7 @@
 | 获取与上传图片或文件资源       | im:resource                    | 应用身份     | -              |
 | **以应用身份读取通讯录**       | **contact:user.base:readonly** | **应用身份** | **见下方说明** |
 
-> **获取用户昵称（推荐）**：若希望会话和日志中显示**用户昵称**（如「张三#1d1a」）而非「unknown#1d1a」，需额外开通通讯录只读权限 **以应用身份读取通讯录**（`contact:user.base:readonly`）。未开通时，飞书仅返回 open_id 等身份字段，不返回姓名，CoPAW 无法解析昵称。开通后需重新发布/更新应用版本，权限生效后即可正常显示用户名称。
+> **获取用户昵称（推荐）**：若希望会话和日志中显示**用户昵称**（如「张三#1d1a」）而非「unknown#1d1a」，需额外开通通讯录只读权限 **以应用身份读取通讯录**（`contact:user.base:readonly`）。未开通时，飞书仅返回 open_id 等身份字段，不返回姓名，boostclaw 无法解析昵称。开通后需重新发布/更新应用版本，权限生效后即可正常显示用户名称。
 
 ### 将机器人添加到常用
 
@@ -270,7 +270,7 @@
    > cp ./bin/imsg /usr/local/bin/
    > ```
 
-3. 为了使 iMessage 中的信息能被获取，需要 **终端** （或你用来运行 CoPaw 的 app） 和 **消息** 有 **完全磁盘访问权限**（系统设置 → 隐私与安全性 → 完全磁盘访问权限）。
+3. 为了使 iMessage 中的信息能被获取，需要 **终端** （或你用来运行 boostclaw 的 app） 和 **消息** 有 **完全磁盘访问权限**（系统设置 → 隐私与安全性 → 完全磁盘访问权限）。
 
    ![权限](https://img.alicdn.com/imgextra/i2/O1CN01gCbMWX1S2c77mcoPo_!!6000000002189-2-tps-958-440.png)
 
@@ -398,7 +398,7 @@
 
 5. 在**开发管理**中获取**AppID**和**AppSecret**（即 ClientSecret），填入config，方式见下方填写config.json。在**IP白名单**中添加一个IP。
 
-   > **提示：** 如果使用魔搭创空间部署CoPaw，QQ频道的IP白名单应填写：`47.92.200.108`
+   > **提示：** 如果使用魔搭创空间部署boostclaw，QQ频道的IP白名单应填写：`47.92.200.108`
 
 ![1](https://img.alicdn.com/imgextra/i4/O1CN012UQWI21cnvBAUcz54_!!6000000003646-2-tps-4082-2126.png)
 
@@ -621,7 +621,7 @@ JSON消息格式
 
 ## Matrix
 
-Matrix 频道通过 [matrix-nio](https://github.com/poljar/matrix-nio) 库将 CoPaw 接入任意 Matrix 服务器，支持私聊和群聊房间中的文本消息收发。
+Matrix 频道通过 [matrix-nio](https://github.com/poljar/matrix-nio) 库将 boostclaw 接入任意 Matrix 服务器，支持私聊和群聊房间中的文本消息收发。
 
 ### 创建机器人账号并获取 Access Token
 
@@ -669,7 +669,7 @@ Matrix 频道通过 [matrix-nio](https://github.com/poljar/matrix-nio) 库将 Co
 }
 ```
 
-保存后，若 CoPaw 已在运行，频道会自动重载。
+保存后，若 boostclaw 已在运行，频道会自动重载。
 
 ### 开始聊天
 
@@ -763,143 +763,13 @@ Matrix 频道通过 [matrix-nio](https://github.com/poljar/matrix-nio) 库将 Co
 
 ---
 
-## 扩展渠道
-
-如需接入新平台（如企业微信、Slack 等），可基于 **BaseChannel** 实现子类，无需改核心源码。
-
-### 数据流与队列
-
-- **ChannelManager** 为每个启用队列的 channel 维护一个队列；收到消息时 channel 调用 **`self._enqueue(payload)`**（由 manager 启动时注入），manager 在消费循环中再调用 **`channel.consume_one(payload)`**。
-- 基类已实现 **默认 `consume_one`**：把 payload 转成 `AgentRequest`、跑 `_process`、对每条完成消息调用 `send_message_content`、错误时调用 `_on_consume_error`。多数渠道只需实现「入口→请求」和「回复→出口」，不必重写 `consume_one`。
-
-### 子类必须实现
-
-| 方法                                                    | 说明                                                                                                                                       |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `build_agent_request_from_native(self, native_payload)` | 将渠道原生消息转为 `AgentRequest`（使用 runtime 的 `Message`/`TextContent`/`ImageContent` 等），并设置 `request.channel_meta` 供发送使用。 |
-| `from_env` / `from_config`                              | 从环境变量或配置构建实例。                                                                                                                 |
-| `async start()` / `async stop()`                        | 生命周期（建连、订阅、清理等）。                                                                                                           |
-| `async send(self, to_handle, text, meta=None)`          | 发送一条文本（及可选附件）。                                                                                                               |
-
-### 基类提供的通用能力
-
-- **消费流程**：`_payload_to_request`（payload→AgentRequest）、`get_to_handle_from_request`（解析发送目标，默认 `user_id`）、`get_on_reply_sent_args`（回调参数）、`_before_consume_process`（处理前钩子，如保存 receive_id）、`_on_consume_error`（错误时发送，默认 `send_content_parts`）、可选 **`refresh_webhook_or_token`**（空实现，子类需刷新 token 时覆盖）。
-- **辅助**：`resolve_session_id`、`build_agent_request_from_user_content`、`_message_to_content_parts`、`send_message_content`、`send_content_parts`、`to_handle_from_target`。
-
-需要不同消费逻辑时（如控制台打印、钉钉合并去抖）再覆盖 **`consume_one`**；需要不同发送目标或回调参数时覆盖 **`get_to_handle_from_request`** / **`get_on_reply_sent_args`**。
-
-### 示例：最简渠道（仅文本）
-
-只处理文本、使用 manager 队列时，不必实现 `consume_one`，基类默认即可：
-
-```python
-# my_channel.py
-from agentscope_runtime.engine.schemas.agent_schemas import TextContent, ContentType
-from copaw.app.channels.base import BaseChannel
-from copaw.app.channels.schema import ChannelType
-
-class MyChannel(BaseChannel):
-    channel: ChannelType = "my_channel"
-
-    def __init__(self, process, enabled=True, bot_prefix="", **kwargs):
-        super().__init__(process, on_reply_sent=kwargs.get("on_reply_sent"))
-        self.enabled = enabled
-        self.bot_prefix = bot_prefix
-
-    @classmethod
-    def from_config(cls, process, config, on_reply_sent=None, show_tool_details=True):
-        return cls(process=process, enabled=getattr(config, "enabled", True),
-                   bot_prefix=getattr(config, "bot_prefix", ""), on_reply_sent=on_reply_sent)
-
-    @classmethod
-    def from_env(cls, process, on_reply_sent=None):
-        return cls(process=process, on_reply_sent=on_reply_sent)
-
-    def build_agent_request_from_native(self, native_payload):
-        payload = native_payload if isinstance(native_payload, dict) else {}
-        channel_id = payload.get("channel_id") or self.channel
-        sender_id = payload.get("sender_id") or ""
-        meta = payload.get("meta") or {}
-        session_id = self.resolve_session_id(sender_id, meta)
-        text = payload.get("text", "")
-        content_parts = [TextContent(type=ContentType.TEXT, text=text)]
-        request = self.build_agent_request_from_user_content(
-            channel_id=channel_id, sender_id=sender_id, session_id=session_id,
-            content_parts=content_parts, channel_meta=meta,
-        )
-        request.channel_meta = meta
-        return request
-
-    async def start(self):
-        pass
-
-    async def stop(self):
-        pass
-
-    async def send(self, to_handle, text, meta=None):
-        # 调用你的 HTTP API 等发送
-        pass
-```
-
-收到消息时组一个 native 字典并入队（`_enqueue` 由 manager 注入）：
-
-```python
-native = {
-    "channel_id": "my_channel",
-    "sender_id": "user_123",
-    "text": "你好",
-    "meta": {},
-}
-self._enqueue(native)
-```
-
-### 示例：多模态（文本 + 图片/视频/音频/文件）
-
-在 `build_agent_request_from_native` 里把附件解析成 runtime 的 content，再调用 `build_agent_request_from_user_content`：
-
-```python
-from agentscope_runtime.engine.schemas.agent_schemas import (
-    TextContent, ImageContent, VideoContent, AudioContent, FileContent, ContentType,
-)
-
-def build_agent_request_from_native(self, native_payload):
-    payload = native_payload if isinstance(native_payload, dict) else {}
-    channel_id = payload.get("channel_id") or self.channel
-    sender_id = payload.get("sender_id") or ""
-    meta = payload.get("meta") or {}
-    session_id = self.resolve_session_id(sender_id, meta)
-    content_parts = []
-    if payload.get("text"):
-        content_parts.append(TextContent(type=ContentType.TEXT, text=payload["text"]))
-    for att in payload.get("attachments") or []:
-        t = (att.get("type") or "file").lower()
-        url = att.get("url") or ""
-        if not url:
-            continue
-        if t == "image":
-            content_parts.append(ImageContent(type=ContentType.IMAGE, image_url=url))
-        elif t == "video":
-            content_parts.append(VideoContent(type=ContentType.VIDEO, video_url=url))
-        elif t == "audio":
-            content_parts.append(AudioContent(type=ContentType.AUDIO, data=url))
-        else:
-            content_parts.append(FileContent(type=ContentType.FILE, file_url=url))
-    if not content_parts:
-        content_parts = [TextContent(type=ContentType.TEXT, text="")]
-    request = self.build_agent_request_from_user_content(
-        channel_id=channel_id, sender_id=sender_id, session_id=session_id,
-        content_parts=content_parts, channel_meta=meta,
-    )
-    request.channel_meta = meta
-    return request
-```
 
 ### 自定义渠道目录与 CLI
 
 - **目录**：工作目录下的 `custom_channels/`（默认 `~/.boostclaw/custom_channels/`）用于存放自定义渠道模块。Manager 启动时会扫描该目录下的 `.py` 文件与包（含 `__init__.py` 的子目录），加载其中的 `BaseChannel` 子类，并按类的 `channel` 属性注册。
-- **安装**：`copaw channels install <key>` 会在 `custom_channels/` 下生成名为 `<key>.py` 的模板文件，可直接编辑实现；也可用 `--path <本地路径>` 或 `--url <URL>` 从本地/网络复制渠道模块。`copaw channels add <key>` 等价于安装后并写入 config 默认项，且可加 `--path`/`--url`。
-- **删除**：`copaw channels remove <key>` 会从 `custom_channels/` 中删除该渠道模块（仅支持自定义渠道，内置渠道不可删）；加 `--no-keep-config`（默认）会同时从 `config.json` 的 `channels` 中移除对应 key。
-- **Config**：`ChannelConfig` 使用 `extra="allow"`，`config.json` 的 `channels` 下可写任意 key；自定义渠道的配置会保存在 extra 中。配置方式与内置一致：`copaw channels config` 交互式配置，或直接编辑 config。
+- **安装**：`boostclaw channels install <key>` 会在 `custom_channels/` 下生成名为 `<key>.py` 的模板文件，可直接编辑实现；也可用 `--path <本地路径>` 或 `--url <URL>` 从本地/网络复制渠道模块。`boostclaw channels add <key>` 等价于安装后并写入 config 默认项，且可加 `--path`/`--url`。
+- **删除**：`boostclaw channels remove <key>` 会从 `custom_channels/` 中删除该渠道模块（仅支持自定义渠道，内置渠道不可删）；加 `--no-keep-config`（默认）会同时从 `config.json` 的 `channels` 中移除对应 key。
+- **Config**：`ChannelConfig` 使用 `extra="allow"`，`config.json` 的 `channels` 下可写任意 key；自定义渠道的配置会保存在 extra 中。配置方式与内置一致：`boostclaw channels config` 交互式配置，或直接编辑 config。
 
 ---
 

@@ -14,13 +14,13 @@ FROM agentscope-registry.ap-southeast-1.cr.aliyuncs.com/agentscope/node:slim
 # ENV variables
 ENV NODE_ENV=production
 ENV WORKSPACE_DIR=/app
-ENV COPAW_WORKING_DIR=/app/working
-ENV COPAW_SECRET_DIR=/app/working.secret
+ENV BOOSTCLAW_WORKING_DIR=/app/working
+ENV BOOSTCLAW_SECRET_DIR=/app/working.secret
 
 # Available channels for this image.
-# Override at runtime with -e COPAW_ENABLED_CHANNELS=... if needed.
-ARG COPAW_ENABLED_CHANNELS="discord,telegram,dingtalk,feishu,qq,console"
-ENV COPAW_ENABLED_CHANNELS=${COPAW_ENABLED_CHANNELS}
+# Override at runtime with -e BOOSTCLAW_ENABLED_CHANNELS=... if needed.
+ARG BOOSTCLAW_ENABLED_CHANNELS="discord,telegram,dingtalk,feishu,qq,console"
+ENV BOOSTCLAW_ENABLED_CHANNELS=${BOOSTCLAW_ENABLED_CHANNELS}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -73,7 +73,7 @@ ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 # Avoid Playwright downloading its own browser when executable_path is used.
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 # Indicate running in container (used e.g. for Chromium --no-sandbox).
-ENV COPAW_RUNNING_IN_CONTAINER=1
+ENV BOOSTCLAW_RUNNING_IN_CONTAINER=1
 
 WORKDIR ${WORKSPACE_DIR}
 

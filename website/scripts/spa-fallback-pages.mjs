@@ -23,8 +23,6 @@ const DOC_SLUGS = [
   "heartbeat",
   "config",
   "cli",
-  "community",
-  "contributing",
 ];
 
 async function main() {
