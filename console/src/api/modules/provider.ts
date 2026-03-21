@@ -12,8 +12,13 @@ import type {
   DiscoverModelsResponse,
 } from "../types";
 
+const HIDDEN_PROVIDER_IDS = new Set(["ollama", "lmstudio", "llamacpp", "mlx"]);
+
 export const providerApi = {
-  listProviders: () => request<ProviderInfo[]>("/models"),
+  listProviders: async () => {
+    const providers = await request<ProviderInfo[]>("/models");
+    return providers.filter((provider) => !HIDDEN_PROVIDER_IDS.has(provider.id));
+  },
 
   configureProvider: (providerId: string, body: ProviderConfigRequest) =>
     request<ProviderInfo>(`/models/${encodeURIComponent(providerId)}/config`, {
