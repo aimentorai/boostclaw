@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import webbrowser
+from pathlib import Path
 
 import click
 
@@ -18,6 +19,9 @@ try:
     import webview
 except ImportError:
     webview = None  # type: ignore[assignment]
+
+# Must match create_window(title=...); used for Win32 icon lookup on Windows.
+DESKTOP_WINDOW_TITLE = "BoostClaw"
 
 
 class WebViewAPI:
@@ -77,6 +81,73 @@ def _stream_reader(in_stream, out_stream) -> None:
             in_stream.close()
         except Exception:
             pass
+
+
+def _resolve_windows_desktop_icon_path() -> str | None:
+    """Path to .ico next to packaged python.exe (NSIS layout) or from env override."""
+    if sys.platform != "win32":
+        return None
+    env = (os.environ.get("BOOSTCLAW_DESKTOP_ICON") or "").strip()
+    if env and os.path.isfile(env):
+        return os.path.abspath(env)
+    candidate = Path(sys.executable).resolve().parent / "icon.ico"
+    if candidate.is_file():
+        return str(candidate)
+    return None
+
+
+def _spawn_windows_taskbar_icon_thread(window_title: str, ico_path: str) -> None:
+    """Set Win32 window/taskbar icon; pywebview WinForms still uses python.exe by default."""
+
+    def worker() -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        WM_SETICON = 0x0080
+        ICON_SMALL = 0
+        ICON_BIG = 1
+        IMAGE_ICON = 1
+        LR_LOADFROMFILE = 0x0010
+        abs_ico = os.path.abspath(ico_path)
+        found: list[bool] = [False]
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def enum_cb(hwnd: int, _lparam: int) -> bool:
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            buf = ctypes.create_unicode_buffer(512)
+            user32.GetWindowTextW(hwnd, buf, 512)
+            if buf.value != window_title:
+                return True
+            h_icon = user32.LoadImageW(
+                None,
+                abs_ico,
+                IMAGE_ICON,
+                0,
+                0,
+                LR_LOADFROMFILE,
+            )
+            if not h_icon:
+                return True
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, h_icon)
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, h_icon)
+            found[0] = True
+            return False
+
+        for _ in range(200):
+            found[0] = False
+            user32.EnumWindows(enum_cb, 0)
+            if found[0]:
+                _log_desktop("[desktop] Applied Windows window icon from .ico")
+                return
+            time.sleep(0.05)
+        _log_desktop(
+            "[desktop] WARN: Could not find webview HWND to set icon "
+            f"(title={window_title!r})",
+        )
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
 @click.command("desktop")
@@ -169,13 +240,19 @@ def desktop_cmd(
                 )
                 api = WebViewAPI()
                 webview.create_window(
-                    "BoostClaw",
+                    DESKTOP_WINDOW_TITLE,
                     url,
                     width=1280,
                     height=800,
                     text_select=True,
                     js_api=api,
                 )
+                win_icon = _resolve_windows_desktop_icon_path()
+                if win_icon:
+                    _spawn_windows_taskbar_icon_thread(
+                        DESKTOP_WINDOW_TITLE,
+                        win_icon,
+                    )
                 _log_desktop(
                     "[desktop] Calling webview.start() "
                     "(blocks until closed)...",

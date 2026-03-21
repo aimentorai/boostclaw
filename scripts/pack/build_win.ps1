@@ -189,9 +189,9 @@ if defined CERT_FILE (
 )
 
 if not exist "%BOOSTCLAW_WORKING_DIR%\config.json" (
-  "%~dp0python.exe" -u -m boostclaw init --defaults --accept-security
+  "%~dp0python.exe" -u -m copaw init --defaults --accept-security
 )
-"%~dp0python.exe" -u -m boostclaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
+"%~dp0python.exe" -u -m copaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
 "@ | Set-Content -Path $LauncherBat -Encoding ASCII
 
 # Debug launcher .bat (shows console)
@@ -236,12 +236,12 @@ echo CURL_CA_BUNDLE: %CURL_CA_BUNDLE%
 echo.
 if not exist "%BOOSTCLAW_WORKING_DIR%\config.json" (
   echo [Init] Creating config...
-  "%~dp0python.exe" -u -m boostclaw init --defaults --accept-security
+  "%~dp0python.exe" -u -m copaw init --defaults --accept-security
 )
 echo [Launch] Starting boostclaw desktop with log-level=%BOOSTCLAW_LOG_LEVEL%...
 echo Press Ctrl+C to stop
 echo.
-"%~dp0python.exe" -u -m boostclaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
+"%~dp0python.exe" -u -m copaw desktop --log-level %BOOSTCLAW_LOG_LEVEL%
 echo.
 echo [Exit] boostclaw desktop closed
 pause
