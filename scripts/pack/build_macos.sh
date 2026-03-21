@@ -11,7 +11,7 @@ DIST="${DIST:-dist}"
 ARCHIVE="${DIST}/boostclaw-env.tar.gz"
 APP_NAME="boostclaw"
 APP_DIR="${DIST}/${APP_NAME}.app"
-set CREATE_ZIP=1
+CREATE_ZIP=1
 
 echo "== Building wheel (includes console frontend) =="
 # Rebuild wheel when source is newer than an existing same-version wheel.
