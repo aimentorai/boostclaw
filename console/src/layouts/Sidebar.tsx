@@ -237,12 +237,12 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       ? "ru"
       : "en";
     const faqLang = lang === "zh" ? "zh" : "en";
-    const url = `https://boostclaw/docs/faq.${faqLang}.md`;
+    const url = `https://boostclaw.com/docs/faq.${faqLang}.md`;
     fetch(url, { cache: "no-cache" })
       .then((res) => (res.ok ? res.text() : Promise.reject()))
       .then((text) => {
-        const zhPattern = /###\s*BoosClaw如何更新[\s\S]*?(?=\n###|$)/;
-        const enPattern = /###\s*How to update CoPaw[\s\S]*?(?=\n###|$)/;
+        const zhPattern = /###\s*boostclaw如何更新[\s\S]*?(?=\n###|$)/;
+        const enPattern = /###\s*How to update boostclaw[\s\S]*?(?=\n###|$)/;
         const match = text.match(faqLang === "zh" ? zhPattern : enPattern);
         setUpdateMarkdown(
           match && lang !== "ru"
