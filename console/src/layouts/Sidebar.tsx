@@ -237,7 +237,7 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       ? "ru"
       : "en";
     const faqLang = lang === "zh" ? "zh" : "en";
-    const url = `https://boostclaw/docs/faq.${faqLang}.md`;
+    const url = `https://boostclaw.com/docs/faq.${faqLang}.md`;
     fetch(url, { cache: "no-cache" })
       .then((res) => (res.ok ? res.text() : Promise.reject()))
       .then((text) => {
