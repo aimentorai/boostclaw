@@ -34,6 +34,11 @@ export function RemoteModelManageModal({
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmAdd, setConfirmAdd] = useState<{
+    id: string;
+    name: string;
+    message: string;
+  } | null>(null);
   const [discovering, setDiscovering] = useState(false);
   const [testingModelId, setTestingModelId] = useState<string | null>(null);
   const [form] = Form.useForm();
@@ -66,27 +71,10 @@ export function RemoteModelManageModal({
       if (!testResult.success) {
         // Test failed – ask user whether to proceed anyway
         setSaving(false);
-        Modal.confirm({
-          title: t("models.testConnectionFailed"),
-          content: t("models.modelTestFailedConfirm", {
-            message: testResult.message || t("models.modelTestFailed"),
-          }),
-          okText: t("models.addModel"),
-          cancelText: t("models.cancel"),
-          onOk: async () => {
-            setSaving(true);
-            try {
-              await doAddModel(id, name);
-            } catch (error) {
-              const errMsg =
-                error instanceof Error
-                  ? error.message
-                  : t("models.modelAddFailed");
-              message.error(errMsg);
-            } finally {
-              setSaving(false);
-            }
-          },
+        setConfirmAdd({
+          id,
+          name,
+          message: testResult.message || t("models.modelTestFailed"),
         });
         return;
       }
@@ -153,6 +141,7 @@ export function RemoteModelManageModal({
 
   const handleClose = () => {
     setAdding(false);
+    setConfirmAdd(null);
     form.resetFields();
     onClose();
   };
@@ -202,6 +191,21 @@ export function RemoteModelManageModal({
     ...(provider.models ?? []),
     ...(provider.extra_models ?? []),
   ];
+
+  const handleConfirmAdd = async () => {
+    if (!confirmAdd) return;
+    setSaving(true);
+    try {
+      await doAddModel(confirmAdd.id, confirmAdd.name);
+    } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : t("models.modelAddFailed");
+      message.error(errMsg);
+    } finally {
+      setSaving(false);
+      setConfirmAdd(null);
+    }
+  };
 
   return (
     <Modal
@@ -347,6 +351,24 @@ export function RemoteModelManageModal({
           </Button>
         </div>
       )}
+      {/* Confirm add after failed connection test */}
+      <Modal
+        title={t("models.testConnectionFailed")}
+        open={confirmAdd !== null}
+        onOk={handleConfirmAdd}
+        onCancel={() => setConfirmAdd(null)}
+        okText={t("models.addModel")}
+        cancelText={t("models.cancel")}
+        confirmLoading={saving}
+      >
+        <p>
+          {confirmAdd &&
+            t("models.modelTestFailedConfirm", {
+              message: confirmAdd.message,
+            })}
+        </p>
+      </Modal>
+
     </Modal>
   );
 }

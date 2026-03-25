@@ -4,6 +4,10 @@ declare const TOKEN: string;
 
 const AUTH_STORAGE_KEY = "boostclaw.console.auth";
 
+function getPyWebViewApi() {
+  return typeof window !== "undefined" ? window.pywebview?.api : undefined;
+}
+
 function getEnvToken(): string {
   return TOKEN;
 }
@@ -34,11 +38,23 @@ export function loadAuthState(): AuthState {
 export function saveAuthState(state: AuthState): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+
+  // Also persist to disk via pywebview for desktop app survival across restarts.
+  const api = getPyWebViewApi();
+  if (api) {
+    void api.set_auth_state(JSON.stringify(state)).catch(() => undefined);
+  }
 }
 
 export function clearAuthState(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+
+  // Also clear persisted auth on disk.
+  const api = getPyWebViewApi();
+  if (api) {
+    void api.clear_auth_state().catch(() => undefined);
+  }
 }
 
 export function getStoredAuthToken(): string {
@@ -54,5 +70,29 @@ export function getStoredAuthToken(): string {
   }
 }
 
+/**
+ * Attempt to hydrate auth state from the desktop app's disk-persisted file.
+ * Returns the AuthState if found and valid, or null otherwise.
+ * This is only available when running inside pywebview (desktop app).
+ */
+export async function hydrateAuthStateFromDesktop(): Promise<AuthState | null> {
+  const api = getPyWebViewApi();
+  if (!api) return null;
 
+  try {
+    const raw = await api.get_auth_state();
+    if (!raw) return null;
 
+    const parsed = JSON.parse(raw) as Partial<AuthState>;
+    if (typeof parsed.token === "string" && parsed.token) {
+      return {
+        token: parsed.token,
+        user: parsed.user ?? null,
+      };
+    }
+  } catch {
+    // Ignore errors — desktop hydration is best-effort.
+  }
+
+  return null;
+}

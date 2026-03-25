@@ -1,10 +1,16 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { clearAuthState, loadAuthState, saveAuthState } from "./storage";
+import {
+  clearAuthState,
+  hydrateAuthStateFromDesktop,
+  loadAuthState,
+  saveAuthState,
+} from "./storage";
 import {
   logoutRequest,
   registerBySmsCode,
@@ -42,11 +48,42 @@ function getErrorMessage(error: unknown) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>(() => loadAuthState());
+  const [hydrated, setHydrated] = useState<boolean>(() => {
+    // If localStorage already has a token, we're immediately hydrated.
+    const initial = loadAuthState();
+    return Boolean(initial.token);
+  });
 
   const reportAuthDebugEvent = useCallback((payload: AuthDebugEventPayload) => {
     // Logging transport should never block auth flow.
     void consoleApi.reportAuthDebugEvent(payload).catch(() => undefined);
   }, []);
+
+  // On mount, if localStorage had no token, try to hydrate from desktop disk file.
+  useEffect(() => {
+    if (hydrated) return;
+
+    let cancelled = false;
+    hydrateAuthStateFromDesktop()
+      .then((desktopState) => {
+        if (cancelled) return;
+        if (desktopState && desktopState.token) {
+          setAuthState(desktopState);
+          // Backfill localStorage so subsequent reads are fast.
+          saveAuthState(desktopState);
+        }
+      })
+      .catch(() => {
+        // Desktop hydration is best-effort.
+      })
+      .finally(() => {
+        if (!cancelled) setHydrated(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
 
   const applyAuthSuccess = useCallback((data: ProBoostAuthData) => {
     const nextState: AuthState = {
@@ -139,11 +176,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: authState.token,
       isAuthenticated: Boolean(authState.token),
       userName: authState.user?.name || "",
+      hydrated,
       register,
       sendSmsCode,
       logout,
     }),
-    [authState.token, authState.user?.name, logout, register, sendSmsCode],
+    [authState.token, authState.user?.name, hydrated, logout, register, sendSmsCode],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

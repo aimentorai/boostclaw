@@ -12,6 +12,37 @@ export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "copaw-theme";
 
+function trimLeadingSlash(value: string): string {
+  return value.replace(/^\/+/, "");
+}
+
+function getAssetUrl(assetPath: string): string {
+  const baseUrl = import.meta.env.BASE_URL || "/";
+  return `${baseUrl}${trimLeadingSlash(assetPath)}`;
+}
+
+function updateFavicon(isDark: boolean): void {
+  const iconHref = isDark ? getAssetUrl("copaw-dark.png") : getAssetUrl("copaw-symbol.svg");
+  const iconType = isDark ? "image/png" : "image/svg+xml";
+  const bustingHref = `${iconHref}?theme=${isDark ? "dark" : "light"}`;
+
+  const head = document.head;
+  if (!head) return;
+
+  const existingLinks = Array.from(
+    head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
+  );
+  existingLinks.forEach((link) => {
+    head.removeChild(link);
+  });
+
+  const faviconLink = document.createElement("link");
+  faviconLink.rel = "icon";
+  faviconLink.type = iconType;
+  faviconLink.href = bustingHref;
+  head.appendChild(faviconLink);
+}
+
 interface ThemeContextValue {
   /** User selected preference: light / dark / system */
   themeMode: ThemeMode;
@@ -62,6 +93,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       html.classList.remove("dark-mode");
     }
+
+    updateFavicon(isDark);
   }, [isDark]);
 
   // Listen to system theme changes when mode is "system"

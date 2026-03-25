@@ -53,6 +53,8 @@ const DEFAULT_OPEN_KEYS = [
   "settings-group",
 ];
 
+const BASE_URL = import.meta.env.BASE_URL || "/";
+
 const KEY_TO_PATH: Record<string, string> = {
   chat: "/chat",
   channels: "/channels",
@@ -348,22 +350,24 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
         {!collapsed && (
           <div className={styles.logoWrapper}>
             <img
-              src={isDark ? "/dark-logo.png" : "/logo.png"}
+              src={isDark ? `${BASE_URL}dark-logo.png` : `${BASE_URL}logo.png`}
               alt="CoPaw"
               className={styles.logoImg}
             />
             {version && (
               <Badge dot={!!hasUpdate} color="red" offset={[4, 18]}>
-                <span
+                <button
+                  type="button"
                   className={`${styles.versionBadge} ${
                     hasUpdate
                       ? styles.versionBadgeClickable
                       : styles.versionBadgeDefault
                   }`}
                   onClick={() => hasUpdate && handleOpenUpdateModal()}
+                  disabled={!hasUpdate}
                 >
                   v{version}
-                </span>
+                </button>
               </Badge>
             )}
           </div>

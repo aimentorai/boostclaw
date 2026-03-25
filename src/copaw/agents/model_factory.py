@@ -9,7 +9,6 @@ Example:
     >>> model, formatter = create_model_and_formatter()
 """
 
-
 import logging
 from typing import Any, Optional, Sequence, Tuple, Type
 from functools import wraps
@@ -153,10 +152,7 @@ def _create_file_block_support_formatter(
                             reasoning_contents[id(msg)] = thinking
                         break
                 for block in msg.get_content_blocks():
-                    if (
-                        block.get("type") == "tool_use"
-                        and "extra_content" in block
-                    ):
+                    if block.get("type") == "tool_use" and "extra_content" in block:
                         extra_contents[block["id"]] = block["extra_content"]
 
             messages = await super()._format(msgs)
@@ -170,9 +166,7 @@ def _create_file_block_support_formatter(
 
             if reasoning_contents:
                 in_assistant = [m for m in msgs if m.role == "assistant"]
-                out_assistant = [
-                    m for m in messages if m.get("role") == "assistant"
-                ]
+                out_assistant = [m for m in messages if m.get("role") == "assistant"]
                 if len(in_assistant) != len(out_assistant):
                     logger.warning(
                         "Assistant message count mismatch after formatting "
@@ -225,8 +219,7 @@ def _create_file_block_support_formatter(
                 for block in output:
                     if not isinstance(block, dict) or "type" not in block:
                         raise ValueError(
-                            f"Invalid block: {block}, "
-                            "expected a dict with 'type' key",
+                            f"Invalid block: {block}, expected a dict with 'type' key",
                         ) from e
 
                     if block["type"] == "file":
@@ -282,6 +275,25 @@ def _strip_top_level_message_name(
     return messages
 
 
+def _should_promote_tool_result_images(
+    provider_id: str,
+    provider_base_url: str,
+) -> bool:
+    """Whether tool-result images should be promoted to multimodal blocks.
+
+    DeepSeek's OpenAI-compatible endpoint can reject ``image_url`` content blocks
+    for text-only requests. Keep image promotion disabled there to avoid
+    request-schema 400 errors.
+    """
+    normalized_provider_id = (provider_id or "").strip().lower()
+    normalized_base_url = (provider_base_url or "").strip().lower()
+    if normalized_provider_id == "deepseek":
+        return False
+    if "deepseek.com" in normalized_base_url:
+        return False
+    return True
+
+
 def create_model_and_formatter(
     agent_id: Optional[str] = None,
 ) -> Tuple[ChatModelBase, FormatterBase]:
@@ -320,6 +332,7 @@ def create_model_and_formatter(
             pass
 
     # Create chat model from agent-specific or global config
+    provider_base_url = ""
     if model_slot and model_slot.provider_id and model_slot.model:
         # Use agent-specific model
         manager = ProviderManager.get_instance()
@@ -339,15 +352,22 @@ def create_model_and_formatter(
         else:
             model = provider.get_chat_model_instance(model_slot.model)
         provider_id = model_slot.provider_id
+        provider_base_url = getattr(provider, "base_url", "") or ""
     else:
         # Fallback to global active model
+        manager = ProviderManager.get_instance()
         model = ProviderManager.get_active_chat_model()
-        provider_id = (
-            ProviderManager.get_instance().get_active_model().provider_id
-        )
+        active_model = manager.get_active_model()
+        provider_id = active_model.provider_id if active_model else ""
+        provider = manager.get_provider(provider_id) if provider_id else None
+        provider_base_url = getattr(provider, "base_url", "") or ""
 
     # Create the formatter based on the real model class
-    formatter = _create_formatter_instance(model.__class__)
+    formatter = _create_formatter_instance(
+        model.__class__,
+        provider_id=provider_id,
+        provider_base_url=provider_base_url,
+    )
 
     # Wrap with retry logic for transient LLM API errors
     wrapped_model = TokenRecordingModelWrapper(provider_id, model)
@@ -358,6 +378,8 @@ def create_model_and_formatter(
 
 def _create_formatter_instance(
     chat_model_class: Type[ChatModelBase],
+    provider_id: str = "",
+    provider_base_url: str = "",
 ) -> FormatterBase:
     """Create a formatter instance for the given chat model class.
 
@@ -375,7 +397,9 @@ def _create_formatter_instance(
         base_formatter_class,
     )
     kwargs: dict[str, Any] = {}
-    if issubclass(base_formatter_class, OpenAIChatFormatter):
+    if issubclass(base_formatter_class, OpenAIChatFormatter) and (
+        _should_promote_tool_result_images(provider_id, provider_base_url)
+    ):
         kwargs["promote_tool_result_images"] = True
     return formatter_class(**kwargs)
 

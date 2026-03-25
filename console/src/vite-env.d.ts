@@ -7,11 +7,14 @@ declare module "*.less" {
   export default classes;
 }
 
-interface PyWebViewAPI {
-  open_external_link: (url: string) => void;
-}
-
 declare global {
+  interface PyWebViewAPI {
+    open_external_link: (url: string) => void;
+    get_auth_state: () => Promise<string>;
+    set_auth_state: (state_json: string) => Promise<boolean>;
+    clear_auth_state: () => Promise<boolean>;
+  }
+
   interface Window {
     pywebview?: {
       api: PyWebViewAPI;
