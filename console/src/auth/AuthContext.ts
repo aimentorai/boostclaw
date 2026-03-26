@@ -11,6 +11,7 @@ export interface AuthContextValue {
   ) => Promise<void>;
   sendSmsCode: (phone: string, countryCode?: string) => Promise<void>;
   logout: () => Promise<void>;
+  hydrated: boolean;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

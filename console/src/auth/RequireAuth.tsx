@@ -2,8 +2,13 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
 export default function RequireAuth() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hydrated } = useAuth();
   const location = useLocation();
+
+  // Wait for desktop auth hydration before making redirect decisions.
+  if (!hydrated) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     const redirect = encodeURIComponent(

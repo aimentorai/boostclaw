@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 """CLI command: run CoPaw app on a free port in a native webview window."""
+
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 import webbrowser
 from pathlib import Path
 
 import click
 
-from ..constant import LOG_LEVEL_ENV
+from ..constant import LOG_LEVEL_ENV, SECRET_DIR, WORKING_DIR
+from ..config.utils import read_last_api
 
 try:
     import webview
@@ -22,16 +26,55 @@ except ImportError:
 
 # Must match create_window(title=...); used for Win32 icon lookup on Windows.
 DESKTOP_WINDOW_TITLE = "BoostClaw"
+DEFAULT_DESKTOP_PORT = 8088
+
+_AUTH_STATE_FILE = SECRET_DIR / "console_auth_state.json"
 
 
 class WebViewAPI:
-    """API exposed to the webview for handling external links."""
+    """API exposed to the webview for handling external links and auth persistence."""
 
     def open_external_link(self, url: str) -> None:
         """Open URL in system's default browser."""
         if not url.startswith(("http://", "https://")):
             return
         webbrowser.open(url)
+
+    def get_auth_state(self) -> str:
+        """Return persisted auth state JSON string, or empty string."""
+        try:
+            if _AUTH_STATE_FILE.is_file():
+                data = _AUTH_STATE_FILE.read_text(encoding="utf-8").strip()
+                if data:
+                    json.loads(data)  # validate JSON
+                    return data
+        except Exception:
+            pass
+        return ""
+
+    def set_auth_state(self, state_json: str) -> bool:
+        """Persist auth state JSON string to disk. Returns True on success."""
+        try:
+            parsed = json.loads(state_json)
+            if not isinstance(parsed, dict) or "token" not in parsed:
+                return False
+            _AUTH_STATE_FILE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            tmp = _AUTH_STATE_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(parsed), encoding="utf-8")
+            os.chmod(str(tmp), 0o600)
+            tmp.replace(_AUTH_STATE_FILE)
+            return True
+        except Exception:
+            return False
+
+    def clear_auth_state(self) -> bool:
+        """Remove persisted auth state file. Returns True on success."""
+        try:
+            if _AUTH_STATE_FILE.is_file():
+                _AUTH_STATE_FILE.unlink()
+            return True
+        except Exception:
+            return False
 
 
 def _find_free_port(host: str = "127.0.0.1") -> int:
@@ -42,17 +85,49 @@ def _find_free_port(host: str = "127.0.0.1") -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_http(host: str, port: int, timeout_sec: float = 300.0) -> bool:
-    """Return True when something accepts TCP on host:port."""
+def _is_port_available(host: str, port: int) -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind((host, port))
+            return True
+    except OSError:
+        return False
+
+
+def _resolve_desktop_port(host: str) -> int:
+    candidates: list[int] = []
+    last_api = read_last_api()
+    if last_api is not None:
+        last_host, last_port = last_api
+        if last_host == host and isinstance(last_port, int) and last_port > 0:
+            candidates.append(last_port)
+
+    if DEFAULT_DESKTOP_PORT not in candidates:
+        candidates.append(DEFAULT_DESKTOP_PORT)
+
+    for port in candidates:
+        if _is_port_available(host, port):
+            return port
+
+    return _find_free_port(host)
+
+
+def _wait_for_http(
+    host: str,
+    port: int,
+    timeout_sec: float = 60.0,
+    proc: subprocess.Popen | None = None,
+) -> bool:
     deadline = time.monotonic() + timeout_sec
+    version_url = f"http://{host}:{port}/api/version"
     while time.monotonic() < deadline:
+        if proc is not None and proc.poll() is not None:
+            return False
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(2.0)
-                s.connect((host, port))
+            with urllib.request.urlopen(version_url, timeout=2):
                 return True
-        except (OSError, socket.error):
-            time.sleep(1)
+        except Exception:
+            time.sleep(0.5)
     return False
 
 
@@ -103,7 +178,15 @@ def _spawn_windows_taskbar_icon_thread(window_title: str, ico_path: str) -> None
         import ctypes
         from ctypes import wintypes
 
-        user32 = ctypes.windll.user32
+        windll = getattr(ctypes, "windll", None)
+        if windll is None:
+            return
+        user32 = windll.user32
+
+        winfunctype = getattr(ctypes, "WINFUNCTYPE", None)
+        if winfunctype is None:
+            return
+
         WM_SETICON = 0x0080
         ICON_SMALL = 0
         ICON_BIG = 1
@@ -112,7 +195,7 @@ def _spawn_windows_taskbar_icon_thread(window_title: str, ico_path: str) -> None
         abs_ico = os.path.abspath(ico_path)
         found: list[bool] = [False]
 
-        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        @winfunctype(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def enum_cb(hwnd: int, _lparam: int) -> bool:
             if not user32.IsWindowVisible(hwnd):
                 return True
@@ -178,7 +261,12 @@ def desktop_cmd(
     window without conflicting with an existing CoPaw app instance.
     """
 
-    port = _find_free_port(host)
+    if webview is None:
+        raise click.ClickException(
+            "Desktop mode requires pywebview. Install it and retry.",
+        )
+
+    port = _resolve_desktop_port(host)
     url = f"http://{host}:{port}"
     click.echo(f"Starting CoPaw app on {url} (port {port})")
     _log_desktop("[desktop] Server subprocess starting...")
@@ -192,8 +280,7 @@ def desktop_cmd(
             _log_desktop(f"[desktop] SSL certificate: {cert_file}")
         else:
             _log_desktop(
-                f"[desktop] WARNING: SSL_CERT_FILE set but not found: "
-                f"{cert_file}",
+                f"[desktop] WARNING: SSL_CERT_FILE set but not found: {cert_file}",
             )
     else:
         _log_desktop("[desktop] WARNING: SSL_CERT_FILE not set")
@@ -233,8 +320,8 @@ def desktop_cmd(
                 )
                 stdout_thread.start()
                 stderr_thread.start()
-            _log_desktop("[desktop] Waiting for HTTP ready...")
-            if _wait_for_http(host, port):
+            _log_desktop("[desktop] Waiting for HTTP ready (up to 60s)...")
+            if _wait_for_http(host, port, timeout_sec=60.0, proc=proc):
                 _log_desktop(
                     "[desktop] HTTP ready, creating webview window...",
                 )
@@ -254,11 +341,11 @@ def desktop_cmd(
                         win_icon,
                     )
                 _log_desktop(
-                    "[desktop] Calling webview.start() "
-                    "(blocks until closed)...",
+                    "[desktop] Calling webview.start() (blocks until closed)...",
                 )
                 webview.start(
                     private_mode=False,
+                    storage_path=str(WORKING_DIR / "webview_storage"),
                 )  # blocks until user closes the window
                 _log_desktop(
                     "[desktop] webview.start() returned (window closed).",

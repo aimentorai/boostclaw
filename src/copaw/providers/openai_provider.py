@@ -55,12 +55,13 @@ class OpenAIProvider(Provider):
         try:
             await client.models.list(timeout=timeout)
             return True, ""
-        except APIError:
-            return False, f"API error when connecting to `{self.base_url}`"
-        except Exception:
+        except APIError as e:
+            detail = getattr(e, 'message', '') or str(e)
+            return False, f"Connection to `{self.base_url}` failed: {detail}"
+        except Exception as e:
             return (
                 False,
-                f"Unknown exception when connecting to `{self.base_url}`",
+                f"Connection to `{self.base_url}` failed: {e}",
             )
 
     async def fetch_models(self, timeout: float = 5) -> List[ModelInfo]:
@@ -94,16 +95,24 @@ class OpenAIProvider(Provider):
                 max_tokens=1,
                 stream=True,
             )
-            # consume the stream to ensure the model is actually responsive
-            async for _ in res:
-                break
+            try:
+                # consume just one chunk to verify the model responds
+                async for _ in res:
+                    break
+            finally:
+                # always close the stream to avoid resource leaks / crashes
+                await res.close()
             return True, ""
-        except APIError:
-            return False, f"API error when connecting to model '{model_id}'"
-        except Exception:
+        except APIError as e:
+            detail = getattr(e, 'message', '') or str(e)
             return (
                 False,
-                f"Unknown exception when connecting to model '{model_id}'",
+                f"Model '{model_id}' connection failed: {detail}",
+            )
+        except Exception as e:
+            return (
+                False,
+                f"Model '{model_id}' connection failed: {e}",
             )
 
     def get_chat_model_instance(self, model_id: str) -> ChatModelBase:

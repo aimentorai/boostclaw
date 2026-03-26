@@ -286,7 +286,9 @@ async def test_model(
         provider = manager.get_provider(provider_id)
         if provider is None:
             raise ValueError(f"Provider '{provider_id}' not found")
-        ok, msg = await provider.check_model_connection(model_id=body.model_id)
+        # Use a copy to avoid corrupting the live provider instance
+        tmp_provider = deepcopy(provider)
+        ok, msg = await tmp_provider.check_model_connection(model_id=body.model_id)
         return TestConnectionResponse(
             success=ok,
             message=(

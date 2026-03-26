@@ -4,6 +4,7 @@
 Create a temporary conda env, install CoPaw from a wheel, run conda-pack.
 Used by build_macos.sh and build_win.ps1. Run from repo root.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,6 +13,7 @@ import random
 import string
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -60,7 +62,12 @@ def _conda_exe() -> str:
             if not base:
                 continue
             base_path = Path(base)
-            for mid in ("miniconda3", "anaconda3", "Programs/miniconda3", "Programs/anaconda3"):
+            for mid in (
+                "miniconda3",
+                "anaconda3",
+                "Programs/miniconda3",
+                "Programs/anaconda3",
+            ):
                 for exe_rel in ("Scripts/conda.exe", "condabin/conda.exe"):
                     cand = base_path / mid / exe_rel
                     if cand.is_file():
@@ -75,7 +82,34 @@ def _conda_exe() -> str:
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> None:
+    print(f"$ {' '.join(cmd)}")
     subprocess.run(cmd, cwd=cwd or REPO_ROOT, check=True)
+
+
+def _run_with_retry(
+    cmd: list[str],
+    retries: int = 2,
+    retry_delay_sec: int = 5,
+    cwd: Path | None = None,
+) -> None:
+    for attempt in range(1, retries + 2):
+        try:
+            _run(cmd, cwd=cwd)
+            return
+        except subprocess.CalledProcessError as exc:
+            if attempt > retries:
+                print(
+                    "Command failed after retries: "
+                    f"attempt={attempt}, returncode={exc.returncode}",
+                )
+                raise
+            print(
+                "Command failed, will retry: "
+                f"attempt={attempt}/{retries + 1}, "
+                f"returncode={exc.returncode}, "
+                f"sleep={retry_delay_sec}s",
+            )
+            time.sleep(retry_delay_sec)
 
 
 def _pick_wheel(wheel_arg: str | None) -> Path:
@@ -125,8 +159,7 @@ def main() -> int:
         "--wheel",
         default=None,
         help=(
-            "Wheel path to install. If omitted, pick the newest "
-            "dist/boostclaw-*.whl."
+            "Wheel path to install. If omitted, pick the newest dist/boostclaw-*.whl."
         ),
     )
     parser.add_argument(
@@ -147,9 +180,7 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     wheel_path = _pick_wheel(args.wheel)
     wheel_uri = wheel_path.resolve().as_uri()
-    env_name = (
-        f"{ENV_PREFIX}{''.join(random.choices(string.ascii_lowercase, k=8))}"
-    )
+    env_name = f"{ENV_PREFIX}{''.join(random.choices(string.ascii_lowercase, k=8))}"
 
     conda = _conda_exe()
     try:
@@ -196,7 +227,8 @@ def main() -> int:
         if args.extras:
             install_target = f"boostclaw[{args.extras}] @ {wheel_uri}"
 
-        _run(
+        print(f"Installing package into env '{env_name}': {install_target}")
+        _run_with_retry(
             [
                 conda,
                 "run",
@@ -206,8 +238,15 @@ def main() -> int:
                 "-m",
                 "pip",
                 "install",
+                "--prefer-binary",
+                "--retries",
+                "3",
+                "--timeout",
+                "120",
                 install_target,
             ],
+            retries=1,
+            retry_delay_sec=8,
         )
         print("Verifying certifi is installed (required for SSL)...")
         _run(
@@ -226,8 +265,7 @@ def main() -> int:
             wheels_cache = REPO_ROOT / ".cache" / "conda_unpack_wheels"
             wheels_cache.mkdir(parents=True, exist_ok=True)
             print(
-                f"Caching wheels for conda-unpack bug workaround to "
-                f"{wheels_cache}",
+                f"Caching wheels for conda-unpack bug workaround to {wheels_cache}",
             )
             _run(
                 [

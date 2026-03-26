@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Integrated tests for CoPaw app startup and console."""
+
 # pylint:disable=consider-using-with
 from __future__ import annotations
 
@@ -76,7 +77,7 @@ def test_app_startup_and_console() -> None:
                     logs = "".join(log_lines)[-4000:]
                     if "ImportError" in logs or "ModuleNotFoundError" in logs:
                         raise AssertionError(
-                            "Failed due to dependency issue:\n" f"{logs}",
+                            f"Failed due to dependency issue:\n{logs}",
                         )
                     raise AssertionError(
                         f"Process exited early with code"
@@ -104,13 +105,12 @@ def test_app_startup_and_console() -> None:
                 )
 
             console_response = client.get(f"http://{host}:{port}/console/")
-            assert (
-                console_response.status_code == 200
-            ), f"Console not accessible: {console_response.status_code}"
+            assert console_response.status_code == 200, (
+                f"Console not accessible: {console_response.status_code}"
+            )
 
             assert (
-                "text/html"
-                in console_response.headers.get("content-type", "").lower()
+                "text/html" in console_response.headers.get("content-type", "").lower()
             ), "Console should return HTML content"
 
             html_content = console_response.text
@@ -119,6 +119,20 @@ def test_app_startup_and_console() -> None:
                 "<!doctype html>" in html_content.lower()
                 or "<html" in html_content.lower()
             ), "Console should return valid HTML"
+
+            dark_icon_response = client.get(f"http://{host}:{port}/copaw-dark.png")
+            assert dark_icon_response.status_code == 200
+            assert (
+                "image/png"
+                in dark_icon_response.headers.get("content-type", "").lower()
+            )
+
+            dark_logo_response = client.get(f"http://{host}:{port}/dark-logo.png")
+            assert dark_logo_response.status_code == 200
+            assert (
+                "image/png"
+                in dark_logo_response.headers.get("content-type", "").lower()
+            )
 
     finally:
         if process.poll() is None:

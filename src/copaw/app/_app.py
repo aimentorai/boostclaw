@@ -3,14 +3,18 @@
 import mimetypes
 import os
 import time
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from agentscope_runtime.engine.app import AgentApp
+from agentscope_runtime.engine.runner import Runner
 
 from .runner import AgentRunner
 from ..config import (  # pylint: disable=no-name-in-module
@@ -80,8 +84,7 @@ class DynamicMultiAgentRunner:
         try:
             workspace = await self._multi_agent_manager.get_agent(agent_id)
             logger.debug(
-                f"Got workspace: {workspace.agent_id}, "
-                f"runner: {workspace.runner}",
+                f"Got workspace: {workspace.agent_id}, runner: {workspace.runner}",
             )
             return workspace.runner
         except ValueError as e:
@@ -150,7 +153,7 @@ class DynamicMultiAgentRunner:
 
 
 # Use dynamic runner for AgentApp
-runner = DynamicMultiAgentRunner()
+runner = cast(Runner, DynamicMultiAgentRunner())
 
 agent_app = AgentApp(
     app_name="Friday",
@@ -176,8 +179,33 @@ async def lifespan(
     logger.info("Initializing MultiAgentManager...")
     multi_agent_manager = MultiAgentManager()
 
-    # Start all configured agents (handled by manager)
-    await multi_agent_manager.start_all_configured_agents()
+    config = load_config(get_config_path())
+    active_agent_id = config.agents.active_agent or "default"
+
+    await multi_agent_manager.preload_agent(active_agent_id)
+
+    preload_candidates = [
+        agent_id
+        for agent_id in config.agents.profiles.keys()
+        if agent_id != active_agent_id
+    ]
+
+    async def _preload_remaining_agents(agent_ids: list[str]) -> None:
+        results = await asyncio.gather(
+            *[multi_agent_manager.preload_agent(agent_id) for agent_id in agent_ids],
+            return_exceptions=True,
+        )
+        success_count = sum(1 for result in results if result is True)
+        logger.info(
+            "Background agent preload complete: "
+            f"{success_count}/{len(agent_ids)} started",
+        )
+
+    app.state.agent_preload_task = None
+    if preload_candidates:
+        app.state.agent_preload_task = asyncio.create_task(
+            _preload_remaining_agents(preload_candidates),
+        )
 
     # --- Model provider manager (non-reloadable, in-memory) ---
     provider_manager = ProviderManager.get_instance()
@@ -190,7 +218,7 @@ async def lifespan(
         runner.set_multi_agent_manager(multi_agent_manager)
 
     # Helper function to get agent instance by ID (async)
-    async def _get_agent_by_id(agent_id: str = None):
+    async def _get_agent_by_id(agent_id: str | None = None):
         """Get agent instance by ID, or active agent if not specified."""
         if agent_id is None:
             config = load_config(get_config_path())
@@ -203,12 +231,12 @@ async def lifespan(
     app.state.provider_manager = provider_manager
 
     # Setup approval service with default agent's channel_manager
-    default_agent = await multi_agent_manager.get_agent("default")
-    if default_agent.channel_manager:
+    startup_agent = await multi_agent_manager.get_agent(active_agent_id)
+    if startup_agent.channel_manager:
         from .approvals import get_approval_service
 
         get_approval_service().set_channel_manager(
-            default_agent.channel_manager,
+            startup_agent.channel_manager,
         )
 
     startup_elapsed = time.time() - startup_start_time
@@ -219,6 +247,12 @@ async def lifespan(
     try:
         yield
     finally:
+        preload_task = getattr(app.state, "agent_preload_task", None)
+        if preload_task is not None and not preload_task.done():
+            preload_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await preload_task
+
         # Stop multi-agent manager (stops all agents and their components)
         multi_agent_mgr = getattr(app.state, "multi_agent_manager", None)
         if multi_agent_mgr is not None:
@@ -332,21 +366,28 @@ if os.path.isdir(_CONSOLE_STATIC_DIR):
 
         raise HTTPException(status_code=404, detail="Not Found")
 
-    @app.get("/logo.png")
-    def _console_logo():
-        f = _console_path / "logo.png"
-        if f.is_file():
-            return FileResponse(f, media_type="image/png")
+    def _serve_console_file(file_name: str, media_type: str):
+        file_path = _console_path / file_name
+        if file_path.is_file():
+            return FileResponse(file_path, media_type=media_type)
 
         raise HTTPException(status_code=404, detail="Not Found")
+
+    @app.get("/logo.png")
+    def _console_logo():
+        return _serve_console_file("logo.png", "image/png")
+
+    @app.get("/dark-logo.png")
+    def _console_dark_logo():
+        return _serve_console_file("dark-logo.png", "image/png")
+
+    @app.get("/copaw-dark.png")
+    def _console_dark_icon():
+        return _serve_console_file("copaw-dark.png", "image/png")
 
     @app.get("/copaw-symbol.svg")
     def _console_icon():
-        f = _console_path / "copaw-symbol.svg"
-        if f.is_file():
-            return FileResponse(f, media_type="image/svg+xml")
-
-        raise HTTPException(status_code=404, detail="Not Found")
+        return _serve_console_file("copaw-symbol.svg", "image/svg+xml")
 
     _assets_dir = _console_path / "assets"
     if _assets_dir.is_dir():
