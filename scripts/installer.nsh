@@ -18,6 +18,22 @@
   SetDetailsPrint both
   DetailPrint "Preparing installation..."
   DetailPrint "Extracting ClawX runtime files. This can take a few minutes on slower disks or while antivirus scanning is active."
+  ${if} ${isUpdated}
+    DetailPrint "Running upgrade preflight cleanup for ClawX, Gateway, and stale locks..."
+
+    InitPluginsDir
+    ClearErrors
+    File "/oname=$PLUGINSDIR\installer-preflight.ps1" "${PROJECT_DIR}\scripts\installer-preflight.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-preflight.ps1" -AppExecutableName "${APP_EXECUTABLE_FILENAME}" -GatewayPort 18789'
+    Pop $0
+    Pop $1
+    StrCmp $0 "error" 0 +2
+      DetailPrint "Warning: Failed to launch installer preflight cleanup."
+    StrCmp $0 "timeout" 0 +2
+      DetailPrint "Warning: Installer preflight cleanup timed out."
+    StrCmp $0 "0" 0 +2
+      DetailPrint "Warning: Installer preflight cleanup exited with code $0."
+  ${endIf}
 
   ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
 
@@ -33,7 +49,7 @@
     doStopProcess:
     DetailPrint `Closing running "${PRODUCT_NAME}"...`
 
-    # Silently kill the process using nsProcess instead of taskkill / cmd.exe
+    # Retry closing the app entry process in case it relaunched during preflight.
     ${nsProcess::KillProcess} "${APP_EXECUTABLE_FILENAME}" $R0
     
     # to ensure that files are not "in-use"
