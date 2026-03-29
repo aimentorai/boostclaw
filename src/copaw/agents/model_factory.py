@@ -168,21 +168,24 @@ def _create_file_block_support_formatter(
                 in_assistant = [m for m in msgs if m.role == "assistant"]
                 out_assistant = [m for m in messages if m.get("role") == "assistant"]
                 if len(in_assistant) != len(out_assistant):
-                    logger.warning(
-                        "Assistant message count mismatch after formatting "
+                    logger.debug(
+                        "Assistant message count changed after formatting "
                         "(%d before, %d after). "
-                        "Skipping reasoning_content injection.",
+                        "Using reverse matching for reasoning_content.",
                         len(in_assistant),
                         len(out_assistant),
                     )
-                else:
-                    for in_msg, out_msg in zip(
-                        in_assistant,
-                        out_assistant,
-                    ):
-                        reasoning = reasoning_contents.get(id(in_msg))
-                        if reasoning:
-                            out_msg["reasoning_content"] = reasoning
+                # Match from the end so the most recent (and most
+                # important) assistant messages get their reasoning
+                # injected even when older ones were dropped by the
+                # formatter (e.g. empty content, truncation).
+                for in_msg, out_msg in zip(
+                    reversed(in_assistant),
+                    reversed(out_assistant),
+                ):
+                    reasoning = reasoning_contents.get(id(in_msg))
+                    if reasoning:
+                        out_msg["reasoning_content"] = reasoning
 
             return _strip_top_level_message_name(messages)
 

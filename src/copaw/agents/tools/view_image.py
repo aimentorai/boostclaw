@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Load an image file into the LLM context for visual analysis."""
 
+import base64
 import mimetypes
 import os
 import unicodedata
@@ -46,32 +47,36 @@ async def view_image(image_path: str) -> ToolResponse:
             content=[
                 TextBlock(
                     type="text",
-                    text=f"Error: {image_path} does not exist or "
-                    "is not a file.",
+                    text=f"Error: {image_path} does not exist or is not a file.",
                 ),
             ],
         )
 
     ext = resolved.suffix.lower()
     mime, _ = mimetypes.guess_type(str(resolved))
-    if ext not in _IMAGE_EXTENSIONS and (
-        not mime or not mime.startswith("image/")
-    ):
+    if ext not in _IMAGE_EXTENSIONS and (not mime or not mime.startswith("image/")):
         return ToolResponse(
             content=[
                 TextBlock(
                     type="text",
-                    text=f"Error: {resolved.name} is not a supported "
-                    "image format.",
+                    text=f"Error: {resolved.name} is not a supported image format.",
                 ),
             ],
         )
+
+    media_type = mime or "image/png"
+    with open(resolved, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
 
     return ToolResponse(
         content=[
             ImageBlock(
                 type="image",
-                source={"type": "url", "url": str(resolved)},
+                source={
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": data,
+                },
             ),
             TextBlock(
                 type="text",
