@@ -170,6 +170,10 @@ REM Preserve system PATH for accessing system commands
 REM Prepend packaged env to PATH so packaged Python takes precedence
 set "PATH=%~dp0;%~dp0Scripts;%PATH%"
 
+REM Prevent user site-packages from leaking into the bundled environment
+set "PYTHONNOUSERSITE=1"
+set "PYTHONPATH="
+
 REM Workspace/log level (only BOOSTCLAW_*)
 if not defined BOOSTCLAW_WORKING_DIR set "BOOSTCLAW_WORKING_DIR=%USERPROFILE%\.boostclaw"
 if not defined BOOSTCLAW_LOG_LEVEL set "BOOSTCLAW_LOG_LEVEL=info"
@@ -203,6 +207,10 @@ cd /d "%~dp0"
 REM Preserve system PATH for accessing system commands
 REM Prepend packaged env to PATH so packaged Python takes precedence
 set "PATH=%~dp0;%~dp0Scripts;%PATH%"
+
+REM Prevent user site-packages from leaking into the bundled environment
+set "PYTHONNOUSERSITE=1"
+set "PYTHONPATH="
 
 REM Workspace and log level setup (BOOSTCLAW_* only)
 if not defined BOOSTCLAW_WORKING_DIR set "BOOSTCLAW_WORKING_DIR=%USERPROFILE%\.boostclaw"

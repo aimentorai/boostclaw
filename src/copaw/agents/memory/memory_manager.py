@@ -8,6 +8,7 @@ Extends ReMeLight to provide memory management capabilities including:
 - Vector and full-text search integration
 - Embedding configuration from environment variables
 """
+
 import logging
 import os
 import platform
@@ -144,9 +145,7 @@ class MemoryManager(ReMeLight):
         # (local for Windows, chroma otherwise)
         memory_store_backend = os.environ.get("MEMORY_STORE_BACKEND", "auto")
         if memory_store_backend == "auto":
-            memory_backend = (
-                "local" if platform.system() == "Windows" else "chroma"
-            )
+            memory_backend = "local" if platform.system() == "Windows" else "chroma"
         else:
             memory_backend = memory_store_backend
 
@@ -294,6 +293,37 @@ class MemoryManager(ReMeLight):
             compact_ratio=self._memory_compact_ratio,
         )
 
+    async def check_context(
+        self,
+        messages: list[Msg],
+        memory_compact_threshold: int,
+        memory_compact_reserve: int = 10000,
+        token_counter=None,
+    ) -> tuple[list[Msg], list[Msg], bool]:
+        """Check context with token_counter compat across reme versions."""
+        import inspect
+
+        effective_counter = token_counter or self.token_counter
+
+        parent_method = super().check_context
+        try:
+            params = inspect.signature(parent_method).parameters
+        except (ValueError, TypeError):
+            params = {}
+
+        kwargs: dict = {
+            "messages": messages,
+            "memory_compact_threshold": memory_compact_threshold,
+            "memory_compact_reserve": memory_compact_reserve,
+        }
+
+        if "token_counter" in params:
+            kwargs["token_counter"] = effective_counter
+        elif "as_token_counter" in params:
+            kwargs["as_token_counter"] = effective_counter
+
+        return await parent_method(**kwargs)
+
     def get_in_memory_memory(self, **_kwargs):
         """Retrieve in-memory memory content.
 
@@ -303,4 +333,17 @@ class MemoryManager(ReMeLight):
         Returns:
             The in-memory memory content with token counting support
         """
-        return super().get_in_memory_memory(token_counter=self.token_counter)
+        import inspect
+
+        parent_method = super().get_in_memory_memory
+        try:
+            params = inspect.signature(parent_method).parameters
+        except (ValueError, TypeError):
+            params = {}
+
+        if "token_counter" in params:
+            return parent_method(token_counter=self.token_counter)
+        elif "as_token_counter" in params:
+            return parent_method(as_token_counter=self.token_counter)
+        else:
+            return parent_method()

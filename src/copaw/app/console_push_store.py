@@ -4,6 +4,7 @@
 Bounded: at most _MAX_MESSAGES kept; messages older than _MAX_AGE_SECONDS
 are dropped when reading. Frontend dedupes by id and caps its seen set.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -62,6 +63,7 @@ def _strip_ts(msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "id": m["id"],
             "text": m["text"],
             "sticky": bool(m.get("sticky", False)),
+            "session_id": m.get("session_id", ""),
         }
         for m in msgs
     ]

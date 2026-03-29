@@ -4,6 +4,10 @@
 Transparently retries LLM API calls on transient errors (rate-limit,
 timeout, connection) with configurable exponential back-off.
 
+Also detects "input too long" errors (400) and automatically truncates
+the message list before retrying once, preventing context-window overflows
+from crashing the agent loop.
+
 Configuration via environment variables (or use defaults from constant.py):
     BOOSTCLAW_LLM_MAX_RETRIES   – max retry attempts (default 3)
     BOOSTCLAW_LLM_BACKOFF_BASE  – base delay in seconds (default 1.0)
@@ -14,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any, AsyncGenerator
 
 from agentscope.model import ChatModelBase
@@ -25,8 +30,84 @@ logger = logging.getLogger(__name__)
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Number of most-recent messages to preserve when truncating.
+_TRUNCATE_KEEP_TAIL = 10
+
+# Patterns that indicate the API rejected the request because the input
+# exceeds the model's context window.  Covers OpenAI-compatible providers,
+# DashScope, Anthropic, and generic phrasing.
+_INPUT_TOO_LONG_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"input.{0,10}length", re.IGNORECASE),
+    re.compile(r"maximum context length", re.IGNORECASE),
+    re.compile(r"context.{0,10}window", re.IGNORECASE),
+    re.compile(r"token.{0,20}(limit|exceed|max)", re.IGNORECASE),
+    re.compile(r"input.{0,10}too.{0,10}(long|large)", re.IGNORECASE),
+    re.compile(r"prompt is too long", re.IGNORECASE),
+    re.compile(r"reduce.{0,20}(length|prompt|input)", re.IGNORECASE),
+]
+
 _openai_retryable: tuple[type[Exception], ...] | None = None
 _anthropic_retryable: tuple[type[Exception], ...] | None = None
+_openai_bad_request: type[Exception] | None = None
+_anthropic_bad_request: type[Exception] | None = None
+
+
+def _get_bad_request_types() -> tuple[type[Exception], ...]:
+    global _openai_bad_request, _anthropic_bad_request  # noqa: PLW0603
+    types: list[type[Exception]] = []
+    if _openai_bad_request is None:
+        try:
+            import openai  # noqa: PLC0415
+
+            _openai_bad_request = openai.BadRequestError
+        except ImportError:
+            _openai_bad_request = type(None)  # type: ignore[assignment]
+    if _openai_bad_request is not type(None):
+        types.append(_openai_bad_request)  # type: ignore[arg-type]
+    if _anthropic_bad_request is None:
+        try:
+            import anthropic  # noqa: PLC0415
+
+            _anthropic_bad_request = anthropic.BadRequestError
+        except ImportError:
+            _anthropic_bad_request = type(None)  # type: ignore[assignment]
+    if _anthropic_bad_request is not type(None):
+        types.append(_anthropic_bad_request)  # type: ignore[arg-type]
+    return tuple(types)
+
+
+def _is_input_too_long(exc: Exception) -> bool:
+    """Return *True* if *exc* is a 400-class error about input length."""
+    bad_request_types = _get_bad_request_types()
+    if not bad_request_types or not isinstance(exc, bad_request_types):
+        status = getattr(exc, "status_code", None)
+        if status != 400:
+            return False
+    msg = str(exc)
+    return any(p.search(msg) for p in _INPUT_TOO_LONG_PATTERNS)
+
+
+def _truncate_messages(
+    messages: list[dict[str, Any]],
+    keep_tail: int = _TRUNCATE_KEEP_TAIL,
+) -> list[dict[str, Any]]:
+    """Drop middle messages, keeping the system prompt and recent tail.
+
+    Returns a new list; does not mutate *messages*.
+    """
+    if len(messages) <= keep_tail + 1:
+        return messages
+
+    head = [messages[0]] if messages[0].get("role") == "system" else []
+    tail = messages[-keep_tail:]
+    dropped = len(messages) - len(head) - len(tail)
+    logger.warning(
+        "Truncating prompt: dropped %d middle message(s), keeping %d head + %d tail",
+        dropped,
+        len(head),
+        len(tail),
+    )
+    return head + tail
 
 
 def _get_openai_retryable() -> tuple[type[Exception], ...]:
@@ -106,6 +187,7 @@ class RetryChatModel(ChatModelBase):
         retries = LLM_MAX_RETRIES
         attempts = retries + 1
         last_exc: Exception | None = None
+        truncated = False
 
         for attempt in range(1, attempts + 1):
             try:
@@ -123,12 +205,36 @@ class RetryChatModel(ChatModelBase):
 
             except Exception as exc:
                 last_exc = exc
+
+                if not truncated and _is_input_too_long(exc):
+                    messages = (
+                        kwargs.get("messages")
+                        if "messages" in kwargs
+                        else (args[0] if args else None)
+                    )
+                    if isinstance(messages, list) and len(messages) > (
+                        _TRUNCATE_KEEP_TAIL + 1
+                    ):
+                        shorter = _truncate_messages(messages)
+                        if "messages" in kwargs:
+                            kwargs = {**kwargs, "messages": shorter}
+                        elif args:
+                            args = (shorter, *args[1:])
+                        truncated = True
+                        logger.warning(
+                            "Input too long (attempt %d/%d): %s. "
+                            "Retrying with truncated prompt …",
+                            attempt,
+                            attempts,
+                            exc,
+                        )
+                        continue
+
                 if not _is_retryable(exc) or attempt >= attempts:
                     raise
                 delay = _compute_backoff(attempt)
                 logger.warning(
-                    "LLM call failed (attempt %d/%d): %s. "
-                    "Retrying in %.1fs …",
+                    "LLM call failed (attempt %d/%d): %s. Retrying in %.1fs …",
                     attempt,
                     attempts,
                     exc,
@@ -193,8 +299,7 @@ class RetryChatModel(ChatModelBase):
                     raise
                 retry_delay = _compute_backoff(attempt)
                 logger.warning(
-                    "LLM stream retry failed (attempt %d/%d): %s. "
-                    "Retrying in %.1fs …",
+                    "LLM stream retry failed (attempt %d/%d): %s. Retrying in %.1fs …",
                     attempt,
                     max_attempts,
                     retry_exc,

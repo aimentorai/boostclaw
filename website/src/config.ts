@@ -17,8 +17,7 @@ const defaultConfig: SiteConfig = {
   projectName: "boostclaw",
   projectTaglineEn: "Works for you, grows with you",
   projectTaglineZh: "懂你所需，伴你左右",
-  repoUrl: "https://github.com/aimentorai/boostclaw.git",
-  docsPath: "/docs/",
+  repoUrl: "https://github.com/aimentorai/boostclaw.git", docsPath: "/docs/",
   showTestimonials: true,
 };
 

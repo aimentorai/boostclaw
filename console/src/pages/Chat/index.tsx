@@ -224,6 +224,19 @@ export default function ChatPage() {
     prevSelectedAgentRef.current = selectedAgent;
   }, [selectedAgent, navigate]);
 
+  useEffect(() => {
+    const handleCronPush = (e: Event) => {
+      const { sessionIds } = (e as CustomEvent<{ sessionIds: string[] }>)
+        .detail;
+      const activeId = window.currentSessionId;
+      if (activeId && sessionIds.includes(activeId)) {
+        setRefreshKey((prev) => prev + 1);
+      }
+    };
+    window.addEventListener("cron-push-message", handleCronPush);
+    return () => window.removeEventListener("cron-push-message", handleCronPush);
+  }, []);
+
   const getSessionListWrapped = useCallback(async () => {
     const sessions = await sessionApi.getSessionList();
     const currentChatId = chatIdRef.current;

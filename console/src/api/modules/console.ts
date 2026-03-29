@@ -3,6 +3,7 @@ import { request } from "../request";
 export interface PushMessage {
   id: string;
   text: string;
+  session_id?: string;
 }
 
 export interface AuthDebugEventPayload {

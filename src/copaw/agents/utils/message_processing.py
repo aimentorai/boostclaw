@@ -6,7 +6,10 @@ This module handles:
 - Message content manipulation
 - Message validation
 """
+
+import base64
 import logging
+import mimetypes
 import os
 import urllib.parse
 import urllib.request
@@ -121,6 +124,31 @@ def _media_type_from_path(path: str) -> str:
     }.get(ext, "audio/octet-stream")
 
 
+def _local_path_to_base64_source(
+    local_path: str,
+    fallback_media_type: str = "application/octet-stream",
+) -> dict:
+    """Read a local file and return a base64 source dict.
+
+    Args:
+        local_path: Absolute path to the local file.
+        fallback_media_type: Media type to use if guessing fails.
+
+    Returns:
+        A dict with keys ``type``, ``media_type``, and ``data``
+        suitable for ``ImageBlock.source`` / ``AudioBlock.source``.
+    """
+    mime, _ = mimetypes.guess_type(local_path)
+    media_type = mime or fallback_media_type
+    with open(local_path, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
+    return {
+        "type": "base64",
+        "media_type": media_type,
+        "data": data,
+    }
+
+
 def _update_block_with_local_path(
     block: dict,
     block_type: str,
@@ -132,17 +160,28 @@ def _update_block_with_local_path(
         if not block.get("filename"):
             block["filename"] = os.path.basename(local_path)
     else:
-        if block_type == "audio":
-            block["source"] = {
+        fallback = (
+            _media_type_from_path(local_path)
+            if block_type == "audio"
+            else "application/octet-stream"
+        )
+        try:
+            block["source"] = _local_path_to_base64_source(
+                local_path,
+                fallback_media_type=fallback,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to encode %s as base64, falling back to file URI",
+                local_path,
+            )
+            source: dict = {
                 "type": "url",
                 "url": Path(local_path).as_uri(),
-                "media_type": _media_type_from_path(local_path),
             }
-        else:
-            block["source"] = {
-                "type": "url",
-                "url": Path(local_path).as_uri(),
-            }
+            if block_type == "audio":
+                source["media_type"] = _media_type_from_path(local_path)
+            block["source"] = source
     return block
 
 
@@ -190,11 +229,21 @@ async def _process_single_block(
             and os.path.isfile(data)
             and _is_allowed_media_path(data)
         ):
-            block["source"] = {
-                "type": "url",
-                "url": Path(data).as_uri(),
-                "media_type": _media_type_from_path(data),
-            }
+            try:
+                block["source"] = _local_path_to_base64_source(
+                    data,
+                    fallback_media_type=_media_type_from_path(data),
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to encode audio %s as base64, falling back to file URI",
+                    data,
+                )
+                block["source"] = {
+                    "type": "url",
+                    "url": Path(data).as_uri(),
+                    "media_type": _media_type_from_path(data),
+                }
             source = block["source"]
 
     try:
@@ -236,9 +285,7 @@ async def process_file_and_media_blocks_in_message(msg) -> None:
     Args:
         msg: The message object (Msg or list[Msg]) to process.
     """
-    messages = (
-        [msg] if isinstance(msg, Msg) else msg if isinstance(msg, list) else []
-    )
+    messages = [msg] if isinstance(msg, Msg) else msg if isinstance(msg, list) else []
 
     for message in messages:
         if not isinstance(message, Msg):
@@ -286,9 +333,7 @@ def is_first_user_interaction(messages: list) -> bool:
     system_prompt_count = sum(1 for msg in messages if msg.role == "system")
     non_system_messages = messages[system_prompt_count:]
 
-    user_msg_count = sum(
-        1 for msg in non_system_messages if msg.role == "user"
-    )
+    user_msg_count = sum(1 for msg in non_system_messages if msg.role == "user")
     assistant_msg_count = sum(
         1 for msg in non_system_messages if msg.role == "assistant"
     )

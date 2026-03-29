@@ -50,6 +50,22 @@ export default function ConsoleCronBubble() {
             const merged = [...prev, ...toAdd];
             return merged.slice(-MAX_VISIBLE_BUBBLES);
           });
+
+          // Notify Chat page to refresh sessions that received cron results
+          const sessionIds = [
+            ...new Set(
+              newItems
+                .map((m) => m.session_id)
+                .filter((id): id is string => !!id),
+            ),
+          ];
+          if (sessionIds.length > 0) {
+            window.dispatchEvent(
+              new CustomEvent("cron-push-message", {
+                detail: { sessionIds },
+              }),
+            );
+          }
         })
         .catch(() => {});
     };
