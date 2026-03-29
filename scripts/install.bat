@@ -13,7 +13,7 @@ REM   1. Found on PATH or in common locations
 REM   2. Downloaded via https://astral.sh/uv/install.ps1
 REM   3. Downloaded via GitHub Releases if astral.sh is unreachable (e.g. in China)
 
-REM ── Defaults ──────────────────────────────────────────────────────────────────
+REM -- Defaults ------------------------------------------------------------------
 if defined BOOSTCLAW_HOME (
     set "BOOSTCLAW_HOME=%BOOSTCLAW_HOME%"
 ) else (
@@ -21,10 +21,10 @@ if defined BOOSTCLAW_HOME (
 )
 set "BOOSTCLAW_VENV=%BOOSTCLAW_HOME%\venv"
 set "BOOSTCLAW_BIN=%BOOSTCLAW_HOME%\bin"
-set "PYTHON_VERSION=3.10"
+set "PYTHON_VERSION=3.12"
 set "BOOSTCLAW_REPO=https://github.com/aimentorai/boostclaw.git"
 
-REM ──── Argument defaults ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Argument defaults ------------------------------------------------------------------------------------------------------------------
 set "ARG_VERSION="
 set "ARG_FROM_SOURCE=0"
 set "ARG_SOURCE_DIR="
@@ -33,7 +33,7 @@ set "ARG_UV_PATH="
 set "CONSOLE_COPIED=0"
 set "CONSOLE_AVAILABLE=0"
 
-REM ──── Parse arguments ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Parse arguments ----------------------------------------------------------------------------------------------------------------------
 :parse_args
 if "%~1"=="" goto :done_args
 if /i "%~1"=="-Version"    goto :arg_version
@@ -73,7 +73,7 @@ goto :parse_args
 :done_args
 goto :main
 
-REM ──── Help ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Help --------------------------------------------------------------------------------------------------------------------------------------------
 :show_help
 echo BoostClaw Installer for Windows
 echo.
@@ -92,7 +92,7 @@ echo Environment:
 echo   BOOSTCLAW_HOME        Installation directory (default: %%USERPROFILE%%\.boostclaw)
 exit /b 0
 
-REM ──── Helper functions ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Helper functions --------------------------------------------------------------------------------------------------------------------
 :write_info
 echo [boostclaw] %~1
 exit /b 0
@@ -109,7 +109,7 @@ exit /b 0
 echo [boostclaw] ERROR: %~1
 exit /b 1
 
-REM ──── Download uv from GitHub Releases ────────────────────────────────────────────────────────────────────────────────────
+REM ---- Download uv from GitHub Releases ------------------------------------------------------------------------------------
 REM Subroutine: called when astral.sh is unreachable (e.g. in China).
 REM On success: uv.exe is in %LOCALAPPDATA%\uv and that dir is prepended to PATH.
 :download_uv_github
@@ -159,7 +159,7 @@ set "PATH=!_DL_DEST!;!PATH!"
 echo [boostclaw] uv installed: !_DL_DEST!\uv.exe
 exit /b 0
 
-REM ──── Ensure uv ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Ensure uv ----------------------------------------------------------------------------------------------------------------------------------
 :ensure_uv
 REM 0. User-supplied path (-UvPath)
 if defined ARG_UV_PATH (
@@ -224,7 +224,7 @@ echo [boostclaw] uv installed via astral.sh
 :ensure_uv_done
 exit /b 0
 
-REM ──── Prepare console frontend ────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Prepare console frontend ----------------------------------------------------------------------------------------------------
 :prepare_console
 REM %~1 = RepoDir
 set "_REPO_DIR=%~1"
@@ -289,7 +289,7 @@ if exist "%_CONSOLE_SRC%\index.html" (
 echo [boostclaw] WARNING: Console build completed but index.html not found - the web UI won't be available.
 exit /b 0
 
-REM ──── Cleanup console frontend ────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Cleanup console frontend ----------------------------------------------------------------------------------------------------
 :cleanup_console
 REM %~1 = RepoDir
 if "%CONSOLE_COPIED%"=="1" (
@@ -298,15 +298,15 @@ if "%CONSOLE_COPIED%"=="1" (
 )
 exit /b 0
 
-REM ══════════════════════════════ MAIN ═════════════════════════════════════════
+REM ============================== MAIN =========================================
 :main
 echo [boostclaw] Installing boostclaw into %BOOSTCLAW_HOME%
 
-REM ──── Step 1: Ensure uv ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Step 1: Ensure uv ------------------------------------------------------------------------------------------------------------------
 call :ensure_uv
 if errorlevel 1 exit /b 1
 
-REM ──── Step 2: Create / update virtual environment ──────────────────────────────────────────────────────────────
+REM ---- Step 2: Create / update virtual environment --------------------------------------------------------------
 if exist "%BOOSTCLAW_VENV%" (
     echo [boostclaw] Existing environment found, upgrading...
 ) else (
@@ -328,7 +328,7 @@ if not exist "%VENV_PYTHON%" (
 for /f "delims=" %%v in ('"%VENV_PYTHON%" --version 2^>^&1') do set "PY_VERSION=%%v"
 echo [boostclaw] Python environment ready (%PY_VERSION%)
 
-REM ──── Step 3: Install BoostClaw ─────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Step 3: Install BoostClaw -----------------------------------------------------------------------------------------------------
 set "EXTRAS_SUFFIX="
 if defined ARG_EXTRAS set "EXTRAS_SUFFIX=[%ARG_EXTRAS%]"
 
@@ -350,17 +350,14 @@ call :prepare_console "%ARG_SOURCE_DIR%"
 echo [boostclaw] Installing package from source...
 
 rem === Secure Input Validation (Prevents Argument Injection) ===
-rem 1. Ensure non-empty
-if “%ARG_SOURCE_DIR%” == ‘’ set “ARG_SOURCE_DIR=.”
-if “%EXTRAS_SUFFIX%” == ‘’ set “EXTRAS_SUFFIX=”
+rem 1. Ensure non-empty (ASCII quotes only - curly quotes break cmd.exe)
+if "%ARG_SOURCE_DIR%"=="" set "ARG_SOURCE_DIR=."
+if "%EXTRAS_SUFFIX%"=="" set "EXTRAS_SUFFIX="
 
-rem 2. Define invalid character set (double quotes, pipe, logical AND, redirection, brackets, percent sign, caret)
-rem These characters can break command structure or inject new parameters
-set “INVALID_CHARS=\”|&<>()%%^"
-
-rem 3. Validate ARG_SOURCE_DIR
+rem 2. Validate ARG_SOURCE_DIR
 rem Logic: If the variable contains any invalid characters, findstr will match successfully (errorlevel 0)
-echo %ARG_SOURCE_DIR% | findstr /R "[\"|&<>()%%^]" >nul 2>&1
+rem Do not put \" inside the quoted regex - cmd.exe ends the string at the inner " and treats |& as pipes.
+echo !ARG_SOURCE_DIR!| findstr /R "[|&<>()%%^]" >nul 2>&1
 if not errorlevel 1 (
     echo [ERROR] Security Alert: ARG_SOURCE_DIR contains invalid characters.
     echo [ERROR] Detected unsafe input: %ARG_SOURCE_DIR%
@@ -369,16 +366,16 @@ if not errorlevel 1 (
     exit /b 1
 )
 
-rem 4. Validate EXTRAS_SUFFIX (typically formatted as [dev,test])
-rem Whitelist policy: Only letters, digits, commas, square brackets, underscores, and hyphens are permitted
-rem Logic: If any non-whitelisted character is present, findstr succeeds
-echo %EXTRAS_SUFFIX% | findstr /R "[^a-zA-Z0-9_,\-\[\]]" >nul 2>&1
-if not errorlevel 1 (
-    echo [ERROR] Security Alert: EXTRAS_SUFFIX contains invalid characters.
-    echo [ERROR] Detected unsafe input: %EXTRAS_SUFFIX%
-    echo [ERROR] Only alphanumeric, commas, underscores, hyphens, and brackets are allowed.
-    call :cleanup_console "%ARG_SOURCE_DIR%"
-    exit /b 1
+rem 3. Validate EXTRAS_SUFFIX when -Extras was passed (skip when empty; findstr matches empty line otherwise)
+if defined ARG_EXTRAS (
+    echo !EXTRAS_SUFFIX!| findstr /R "[^a-zA-Z0-9_,\-\[\]]" >nul 2>&1
+    if not errorlevel 1 (
+        echo [ERROR] Security Alert: EXTRAS_SUFFIX contains invalid characters.
+        echo [ERROR] Detected unsafe input: !EXTRAS_SUFFIX!
+        echo [ERROR] Only alphanumeric, commas, underscores, hyphens, and brackets are allowed.
+        call :cleanup_console "%ARG_SOURCE_DIR%"
+        exit /b 1
+    )
 )
 rem === End Security Validation ===
 
@@ -433,7 +430,7 @@ if defined ARG_VERSION (
         echo [ERROR] Installation aborted.
         exit /b 1
     )
-    set "_PACKAGE=boostclaw%ARG_VERSION%"
+    set "_PACKAGE=boostclaw==%ARG_VERSION%"
 )
 rem === End Version Validation ===
 
@@ -466,7 +463,7 @@ if "%CONSOLE_AVAILABLE%"=="0" (
     if "!CONSOLE_CHECK!"=="yes" set "CONSOLE_AVAILABLE=1"
 )
 
-REM ──── Step 4: Create wrapper scripts ────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Step 4: Create wrapper scripts ----------------------------------------------------------------------------------------
 if not exist "%BOOSTCLAW_BIN%" mkdir "%BOOSTCLAW_BIN%"
 
 REM PowerShell wrapper
@@ -501,38 +498,38 @@ echo ) >> "%WRAPPER_CMD%"
 echo "%%REAL_BIN%%" %%* >> "%WRAPPER_CMD%"
 echo [boostclaw] CMD wrapper created at %WRAPPER_CMD%
 
-REM ──── Step 5: Update PATH via user environment variable ──────────────────────────────────────────────────
+REM ---- Step 5: Update PATH via user environment variable --------------------------------------------------
 set "CURRENT_USER_PATH="
 for /f "skip=2 tokens=1,2,*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do (
     if /i "%%a"=="Path" set "CURRENT_USER_PATH=%%c"
 )
 
-:: === 安全检查PATH是否已存在（关键修复） ===
+:: === PATH duplicate check (user env) ===
 set "path_check=;%CURRENT_USER_PATH%;"
 set "check_str=;%BOOSTCLAW_BIN%;"
 if /i "%path_check%" neq "%path_check:%check_str%=%" (
     echo [boostclaw] %BOOSTCLAW_BIN% already in PATH
 ) else (
-    :: === 修复1：安全传递参数（解决命令注入） ===
+    :: === Pass Path parts via PowerShell args (avoid injection) ===
     if defined CURRENT_USER_PATH (
         powershell -NoProfile -Command "$p = $args[0]; $v = $args[1]; [Environment]::SetEnvironmentVariable('Path', $p + ';' + $v, 'User')" "%BOOSTCLAW_BIN%" "!CURRENT_USER_PATH!"
     ) else (
         powershell -NoProfile -Command "$p = $args[0]; [Environment]::SetEnvironmentVariable('Path', $p, 'User')" "%BOOSTCLAW_BIN%"
     )
 
-    :: === 修复2：添加关键错误检查（解决失败不报错） ===
+    :: === Fail if registry Path update fails ===
     if errorlevel 1 (
         echo [error] Failed to update PATH. BOOSTCLAW_BIN: "%BOOSTCLAW_BIN%"
         echo [error] Please verify the path is valid.
         exit /b 1
     )
 
-    :: === 修复3：安全更新当前进程PATH ===
+    :: === Update PATH for current cmd session ===
     set "PATH=%BOOSTCLAW_BIN%;!PATH!"
     echo [boostclaw] Added %BOOSTCLAW_BIN% to PATH
 )
 
-REM ──── Done ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+REM ---- Done --------------------------------------------------------------------------------------------------------------------------------------------
 echo.
 echo boostclaw installed successfully!
 echo.
