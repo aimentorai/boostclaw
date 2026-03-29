@@ -114,12 +114,15 @@ def _get_openai_retryable() -> tuple[type[Exception], ...]:
     global _openai_retryable  # noqa: PLW0603
     if _openai_retryable is None:
         try:
+            import httpx  # noqa: PLC0415
             import openai  # noqa: PLC0415
 
             _openai_retryable = (
                 openai.RateLimitError,
                 openai.APITimeoutError,
                 openai.APIConnectionError,
+                httpx.RemoteProtocolError,
+                httpx.ReadError,
             )
         except ImportError:
             _openai_retryable = ()
