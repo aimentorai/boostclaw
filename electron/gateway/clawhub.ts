@@ -157,7 +157,7 @@ export class ClawHubService {
                 env.ELECTRON_RUN_AS_NODE = '1';
             }
             if (language?.startsWith('zh')) {
-                env.CLAWHUB_REGISTRY = 'http://mirror-cn.clawhub.com';
+                env.CLAWHUB_REGISTRY = 'https://mirror-cn.clawhub.com';
             }
             const spawnCmd = useShell ? quoteForCmd(this.cliPath) : this.cliPath;
             const spawnArgs = useShell ? commandArgs.map(a => quoteForCmd(a)) : commandArgs;
