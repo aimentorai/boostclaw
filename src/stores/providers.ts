@@ -13,6 +13,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import {
   fetchProviderSnapshot,
 } from '@/lib/provider-accounts';
+import { rendererTimer } from '@/lib/startup-timer';
 
 // Re-export types for consumers that imported from here
 export type {
@@ -78,6 +79,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
 
   init: async () => {
     await get().refreshProviderSnapshot();
+    rendererTimer.mark('providers_store_init');
   },
 
   refreshProviderSnapshot: async () => {
