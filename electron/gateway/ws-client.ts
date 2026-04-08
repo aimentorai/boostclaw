@@ -7,6 +7,7 @@ import {
   signDevicePayload,
 } from '../utils/device-identity';
 import { logger } from '../utils/logger';
+import { startupTimer } from '../utils/startup-timer';
 
 export const GATEWAY_CHALLENGE_TIMEOUT_MS = 10_000;
 export const GATEWAY_CONNECT_HANDSHAKE_TIMEOUT_MS = 20_000;
@@ -15,6 +16,7 @@ export async function probeGatewayReady(
   port: number,
   timeoutMs = 1500,
 ): Promise<boolean> {
+  startupTimer.mark('ws_probe_start');
   return await new Promise<boolean>((resolve) => {
     const testWs = new WebSocket(`ws://localhost:${port}/ws`);
     let settled = false;
@@ -48,6 +50,7 @@ export async function probeGatewayReady(
       try {
         const message = JSON.parse(data.toString()) as { type?: string; event?: string };
         if (message.type === 'event' && message.event === 'connect.challenge') {
+          startupTimer.mark('ws_probe_success');
           resolveOnce(true);
         }
       } catch {
@@ -84,6 +87,7 @@ export async function waitForGatewayReady(options: {
     try {
       const ready = await probeGatewayReady(options.port, 1500);
       if (ready) {
+        startupTimer.mark('ws_wait_success');
         logger.debug(`Gateway ready after ${i + 1} attempt(s)`);
         return;
       }
