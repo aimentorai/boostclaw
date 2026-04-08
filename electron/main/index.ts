@@ -288,14 +288,23 @@ async function initialize(): Promise<void> {
 
   if (!isE2EMode) {
     // Warm up network optimization (non-blocking)
+    startupTimer.mark('network_warmup_start');
     void warmupNetworkOptimization();
+    startupTimer.mark('network_warmup_done');
 
     // Initialize Telemetry early
+    startupTimer.mark('telemetry_start');
     await initTelemetry();
+    startupTimer.mark('telemetry_done');
 
     // Apply persisted proxy settings before creating windows or network requests.
+    startupTimer.mark('proxy_start');
     await applyProxySettings();
+    startupTimer.mark('proxy_done');
+
+    startupTimer.mark('launch_setting_start');
     await syncLaunchAtStartupSettingFromStore();
+    startupTimer.mark('launch_setting_done');
   } else {
     logger.info('Running in E2E mode: startup side effects minimized');
   }
@@ -364,6 +373,7 @@ async function initialize(): Promise<void> {
   // Pre-deploy built-in skills (feishu-doc, feishu-drive, feishu-perm, feishu-wiki)
   // to ~/.openclaw/skills/ so they are immediately available without manual install.
   if (!isE2EMode) {
+    startupTimer.mark('skills_start');
     void ensureBuiltinSkillsInstalled().catch((error) => {
       logger.warn('Failed to install built-in skills:', error);
     });
@@ -376,15 +386,18 @@ async function initialize(): Promise<void> {
     void ensurePreinstalledSkillsInstalled().catch((error) => {
       logger.warn('Failed to install preinstalled skills:', error);
     });
+    startupTimer.mark('skills_done');
   }
 
   // Pre-deploy/upgrade bundled OpenClaw plugins (dingtalk, wecom, feishu, wechat)
   // to ~/.openclaw/extensions/ so they are always up-to-date after an app update.
   // Note: qqbot was moved to a built-in channel in OpenClaw 3.31.
   if (!isE2EMode) {
+    startupTimer.mark('plugins_start');
     void ensureAllBundledPluginsInstalled().catch((error) => {
       logger.warn('Failed to install/upgrade bundled plugins:', error);
     });
+    startupTimer.mark('plugins_done');
   }
 
   // Bridge gateway and host-side events before any auto-start logic runs, so
@@ -466,7 +479,9 @@ async function initialize(): Promise<void> {
   const gatewayAutoStart = await getSetting('gatewayAutoStart');
   if (!isE2EMode && gatewayAutoStart) {
     try {
+      startupTimer.mark('provider_sync_start');
       await syncAllProviderAuthToRuntime();
+      startupTimer.mark('provider_sync_done');
       logger.debug('Auto-starting Gateway...');
       await gatewayManager.start();
       logger.info('Gateway auto-start succeeded');
@@ -484,13 +499,16 @@ async function initialize(): Promise<void> {
   // The gateway seeds workspace files asynchronously after its HTTP server
   // is ready, so ensureClawXContext will retry until the target files appear.
   if (!isE2EMode) {
+    startupTimer.mark('workspace_start');
     void ensureClawXContext().catch((error) => {
       logger.warn('Failed to merge ClawX context into workspace:', error);
     });
+    startupTimer.mark('workspace_done');
   }
 
   // Auto-install openclaw CLI and shell completions (non-blocking).
   if (!isE2EMode) {
+    startupTimer.mark('cli_start');
     void autoInstallCliIfNeeded((installedPath) => {
       mainWindow?.webContents.send('openclaw:cli-installed', installedPath);
     }).then(() => {
@@ -499,6 +517,7 @@ async function initialize(): Promise<void> {
     }).catch((error) => {
       logger.warn('CLI auto-install failed:', error);
     });
+    startupTimer.mark('cli_done');
   }
 
   // Mark startup complete
