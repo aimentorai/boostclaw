@@ -1,9 +1,10 @@
 import { closeElectronApp, expect, test } from './fixtures/electron';
 
-test.describe('ClawX Electron smoke flows', () => {
+test.describe('Boostclaw Electron smoke flows', () => {
   test('shows the setup wizard on a fresh profile', async ({ page }) => {
     await expect(page.getByTestId('setup-page')).toBeVisible();
     await expect(page.getByTestId('setup-welcome-step')).toBeVisible();
+    await expect(page.getByText('Welcome to Boostclaw')).toBeVisible();
     await expect(page.getByTestId('setup-skip-button')).toBeVisible();
   });
 
