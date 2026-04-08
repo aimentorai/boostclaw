@@ -205,6 +205,29 @@ Notes:
 - In **Settings → Advanced → Developer**, you can run **OpenClaw Doctor** to execute `openclaw doctor --json` and inspect the diagnostic output without leaving the app.
 - On packaged Windows builds, the bundled `openclaw` CLI/TUI runs via the shipped `node.exe` entrypoint to keep terminal input behavior stable.
 
+### Optional Desktop Login (System Browser + PKCE)
+
+ClawX can enforce an app-level OIDC login flow in desktop mode:
+
+- Main process starts login in an embedded Electron window
+- OAuth redirect URI defaults to `https://open.microdata-inc.com`
+- After web redirect, your callback page should forward `code/state` to app callback URI (default `boostclaw://auth/callback`)
+- Authorization Code + PKCE (`S256`) is used for token exchange
+
+Environment variables:
+
+- `CLAWX_APP_AUTH_ENABLED=1`
+- `CLAWX_APP_AUTH_AUTHORIZATION_ENDPOINT` (default `https://open.am.microdata-inc.com/usercenter/oauth/authorize`)
+- `CLAWX_APP_AUTH_TOKEN_ENDPOINT` (default `https://open.am.microdata-inc.com/usercenter/oauth/token`)
+- `CLAWX_APP_AUTH_CODE_EXCHANGE_ENDPOINT` (optional backend endpoint for exchanging `code/codeVerifier`; avoids storing client secrets in the desktop app)
+- `CLAWX_APP_AUTH_CLIENT_ID` (default `4edb20b8-9bb1-4fe1-9b20-b89bb19fe13a`)
+- `CLAWX_APP_AUTH_TOKEN_AUTH_METHOD` (`auto` / `client_secret_post` / `client_secret_basic` / `none`; default `auto`)
+- `CLAWX_APP_AUTH_CLIENT_SECRET` (required for `client_secret_post` or `client_secret_basic`)
+- `CLAWX_APP_AUTH_REDIRECT_URI` (default `https://open.microdata-inc.com`)
+- `CLAWX_APP_AUTH_COOKIE_NAME` (default `Auth-Graviteeio-APIM`; captured from the redirect page cookie jar)
+- `CLAWX_APP_AUTH_APP_CALLBACK_URI` (default `boostclaw://auth/callback`)
+- `CLAWX_APP_AUTH_SCOPE` (default `openid profile`)
+
 ---
 
 ## Architecture

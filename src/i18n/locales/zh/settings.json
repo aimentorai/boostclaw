@@ -12,6 +12,13 @@
     "launchAtStartup": "开机自动启动",
     "launchAtStartupDesc": "登录系统后自动启动 Boostclaw"
   },
+  "account": {
+    "title": "账号",
+    "current": "当前登录",
+    "signedIn": "已登录",
+    "logout": "退出登录",
+    "logoutSucceeded": "已退出登录"
+  },
   "aiProviders": {
     "title": "AI 模型提供商",
     "description": "配置 AI 模型提供商和 API 密钥",

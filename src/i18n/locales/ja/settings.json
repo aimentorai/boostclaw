@@ -12,6 +12,13 @@
     "launchAtStartup": "システム起動時に自動起動",
     "launchAtStartupDesc": "ログイン時に Boostclaw を自動的に起動します"
   },
+  "account": {
+    "title": "アカウント",
+    "current": "ログイン中",
+    "signedIn": "ログイン済み",
+    "logout": "ログアウト",
+    "logoutSucceeded": "ログアウトしました"
+  },
   "aiProviders": {
     "title": "AI プロバイダー",
     "description": "AI モデルプロバイダーと API キーを設定",

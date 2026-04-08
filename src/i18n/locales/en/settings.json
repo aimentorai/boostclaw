@@ -12,6 +12,13 @@
     "launchAtStartup": "Launch at system startup",
     "launchAtStartupDesc": "Automatically launch Boostclaw when you log in"
   },
+  "account": {
+    "title": "Account",
+    "current": "Signed in as",
+    "signedIn": "Signed in",
+    "logout": "Sign out",
+    "logoutSucceeded": "Signed out"
+  },
   "aiProviders": {
     "title": "AI Providers",
     "description": "Configure your AI model providers and API keys",
