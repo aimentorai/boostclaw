@@ -134,6 +134,64 @@ Each background task should log before/after:
 
 ---
 
+## Diagnostic Results (2026-04-08)
+
+**Environment:** macOS arm64, dev mode (Vite), Electron 40.8.4
+
+### Actual Startup Timing
+
+```
+Phase                          Time      Duration
+──────────────────────────────────────────────────
+app_ready                      207ms
+network_warmup                 208-210ms   2ms
+telemetry                      210-243ms  33ms
+proxy                          243-259ms  16ms
+launch_setting                 259-267ms   8ms
+window_create                  268-317ms  49ms
+skills                         328ms       0ms (cached)
+plugins                        328-329ms   1ms
+provider_sync                  329-356ms  27ms
+──────────────────────────────────────────────────
+All background tasks done      356ms
+──────────────────────────────────────────────────
+Gateway probe (49 retries)     491-11507ms  ~11 seconds
+workspace + cli                11623ms       0ms
+=== COMPLETE                   11623ms
+```
+
+### Findings
+
+**Gateway startup is 95% of total startup time** (11s out of 11.6s).
+
+1. **Gateway cold start (~11s)** - The Python gateway process takes ~11 seconds to become ready. WS probe retried 49 times before succeeding. This is the overwhelming bottleneck.
+2. **Window creation is fast (49ms)** - No issue here.
+3. **All background tasks complete in ~150ms total** - telemetry (33ms), proxy (16ms), provider sync (27ms), and others are all fast.
+4. **Window is shown at 317ms but app waits for gateway** - User sees the window but the app isn't fully functional until ~11.6s.
+
+### Optimization Recommendations
+
+1. **Priority 1: Investigate gateway cold start** - Why does the Python process take 11s? Possible causes: Python import time, dependency loading, uv environment setup.
+2. **Priority 2: Show window early** - Window is created at 317ms. Consider making the UI usable before gateway is ready (show loading state, allow settings access).
+3. **Priority 3: Gateway warm start** - Keep gateway process alive between app restarts, or use a pre-forked process.
+
+### Files Implemented
+
+| File | Status |
+|------|--------|
+| `electron/utils/startup-timer.ts` | Created - Main process timer |
+| `src/lib/startup-timer.ts` | Created - Renderer timer |
+| `tests/unit/electron/utils/startup-timer.test.ts` | Created - 5 tests passing |
+| `electron/main/index.ts` | Modified - app_ready, window, background tasks marks |
+| `electron/gateway/manager.ts` | Modified - gateway start/connect/ready marks |
+| `electron/gateway/ws-client.ts` | Modified - probe and wait marks |
+| `src/App.tsx` | Modified - renderer_mount, routes_rendered marks |
+| `src/stores/settings.ts` | Modified - settings_store_init mark |
+| `src/stores/gateway.ts` | Modified - gateway_store_init mark |
+| `src/stores/providers.ts` | Modified - providers_store_init mark |
+
+---
+
 ## Future Work
 
 Once we have the diagnostic logs, we can:
