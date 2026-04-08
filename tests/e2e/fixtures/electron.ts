@@ -192,8 +192,9 @@ export const test = base.extend<ElectronFixtures>({
 });
 
 export async function completeSetup(page: Page): Promise<void> {
-  await expect(page.getByTestId('setup-page')).toBeVisible();
-  await page.getByTestId('setup-skip-button').click();
+  if (await page.getByTestId('setup-page').isVisible().catch(() => false)) {
+    await page.getByTestId('setup-skip-button').click();
+  }
   await expect(page.getByTestId('main-layout')).toBeVisible();
 }
 
