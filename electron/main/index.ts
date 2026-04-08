@@ -14,6 +14,7 @@ import { appUpdater, registerUpdateHandlers } from './updater';
 import { logger } from '../utils/logger';
 import { warmupNetworkOptimization } from '../utils/uv-env';
 import { initTelemetry } from '../utils/telemetry';
+import { startupTimer } from '../utils/startup-timer';
 
 import { ClawHubService } from '../gateway/clawhub';
 import { ensureClawXContext, repairClawXOnlyBootstrapFiles } from '../utils/openclaw-workspace';
@@ -275,6 +276,9 @@ function createMainWindow(): BrowserWindow {
  * Initialize the application
  */
 async function initialize(): Promise<void> {
+  // Mark app ready
+  startupTimer.mark('app_ready');
+
   // Initialize logger first
   logger.init();
   logger.info('=== ClawX Application Starting ===');
@@ -300,7 +304,9 @@ async function initialize(): Promise<void> {
   createMenu();
 
   // Create the main window
+  startupTimer.mark('window_create_start');
   const window = createMainWindow();
+  startupTimer.mark('window_create_complete');
 
   // Create system tray
   if (!isE2EMode) {
@@ -494,6 +500,10 @@ async function initialize(): Promise<void> {
       logger.warn('CLI auto-install failed:', error);
     });
   }
+
+  // Mark startup complete
+  startupTimer.mark('complete');
+  startupTimer.complete();
 }
 
 if (gotTheLock) {
