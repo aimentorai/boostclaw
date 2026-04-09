@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { randomBytes, createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, session } from 'electron';
 import { getSecretStore } from '../services/secrets/secret-store';
 import { logger } from './logger';
 
@@ -37,7 +37,7 @@ type PendingAuthFlow = {
 
 const APP_AUTH_ACCOUNT_ID = '__BoostClaw_app_auth__';
 
-const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED === '1';
+const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED !== '0';
 const AUTHORIZATION_ENDPOINT = process.env.BoostClaw_APP_AUTH_AUTHORIZATION_ENDPOINT
   || 'https://open.am.microdata-inc.com/usercenter/oauth/authorize';
 const TOKEN_ENDPOINT = process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT
@@ -159,6 +159,8 @@ export class AppAuthManager extends EventEmitter {
   private authWindow: BrowserWindow | null = null;
   private authReturnUrl: string | null = null;
   private cleanupMainWindowAuthListeners: (() => void) | null = null;
+  private cleanupSessionCookieListener: (() => void) | null = null;
+  private cookiePollTimer: NodeJS.Timeout | null = null;
 
   setWindow(window: BrowserWindow): void {
     this.mainWindow = window;
@@ -178,12 +180,24 @@ export class AppAuthManager extends EventEmitter {
       this.pendingFlow.closeLoopbackServer();
     }
     this.pendingFlow = null;
+    if (this.cookiePollTimer) {
+      clearTimeout(this.cookiePollTimer);
+      this.cookiePollTimer = null;
+    }
+    this.cleanupSessionCookieListener?.();
+    this.cleanupSessionCookieListener = null;
     this.closeAuthWindow();
   }
 
   private cleanupMainWindowAuthNavigation(): void {
     this.cleanupMainWindowAuthListeners?.();
     this.cleanupMainWindowAuthListeners = null;
+    if (this.cookiePollTimer) {
+      clearTimeout(this.cookiePollTimer);
+      this.cookiePollTimer = null;
+    }
+    this.cleanupSessionCookieListener?.();
+    this.cleanupSessionCookieListener = null;
   }
 
   private cleanupMainWindowAfterAuth(): void {
@@ -211,6 +225,34 @@ export class AppAuthManager extends EventEmitter {
 
   private getRedirectUrl(): URL {
     return new URL(REDIRECT_URI);
+  }
+
+  private getAuthSession(): Electron.Session {
+    const activeSession = this.mainWindow?.webContents.session;
+    return activeSession || session.defaultSession;
+  }
+
+  private async getAuthCookie(): Promise<Electron.Cookie | null> {
+    const cookies = await this.getAuthSession().cookies.get({ name: AUTH_COOKIE_NAME });
+    return cookies.find((cookie) => typeof cookie.value === 'string' && cookie.value.length > 0) || null;
+  }
+
+  private async clearAuthCookies(): Promise<void> {
+    const cookies = await this.getAuthSession().cookies.get({ name: AUTH_COOKIE_NAME });
+    for (const cookie of cookies) {
+      const domain = (cookie.domain || '').replace(/^\./, '');
+      if (!domain) {
+        continue;
+      }
+      const protocol = cookie.secure ? 'https' : 'http';
+      const path = cookie.path || '/';
+      const url = `${protocol}://${domain}${path}`;
+      try {
+        await this.getAuthSession().cookies.remove(url, cookie.name);
+      } catch (error) {
+        logger.warn('[AppAuth] Failed to remove auth cookie:', error);
+      }
+    }
   }
 
   private getAppCallbackUrl(): URL | null {
@@ -637,23 +679,13 @@ export class AppAuthManager extends EventEmitter {
     }
   }
 
-  private async captureStoredTokenFromRedirectPage(urlText: string): Promise<boolean> {
+  private async captureStoredTokenFromSession(urlText: string): Promise<boolean> {
     const win = this.mainWindow;
     if (!win || win.isDestroyed() || !this.pendingFlow || this.pendingFlow.completed) {
       return false;
     }
 
-    let parsed: URL;
-    try {
-      parsed = new URL(urlText);
-    } catch {
-      return false;
-    }
-
-    const redirect = this.getRedirectUrl();
-    if (!this.isRedirectMatch(parsed, redirect)) {
-      return false;
-    }
+    const currentUrl = urlText || win.webContents.getURL() || '';
 
     let authCookie: Electron.Cookie | null = null;
 
@@ -661,19 +693,12 @@ export class AppAuthManager extends EventEmitter {
       if (!this.pendingFlow || this.pendingFlow.completed || win.isDestroyed()) {
         return false;
       }
-      if (!this.isWebRedirectUrl(win.webContents.getURL())) {
-        return false;
-      }
 
-      const cookies = await win.webContents.session.cookies.get({
-        url: parsed.origin,
-        name: AUTH_COOKIE_NAME,
-      });
-      authCookie = cookies[0] ?? null;
+      authCookie = await this.getAuthCookie();
 
       if (authCookie?.value) {
         this.emitDebug('web_cookie_token_found', {
-          source: parsed.origin,
+          source: currentUrl,
           attempt,
           name: AUTH_COOKIE_NAME,
           domain: authCookie.domain,
@@ -684,7 +709,7 @@ export class AppAuthManager extends EventEmitter {
 
       if (attempt === 1 || attempt % 10 === 0) {
         this.emitDebug('web_cookie_token_wait', {
-          source: parsed.origin,
+          source: currentUrl,
           attempt,
           name: AUTH_COOKIE_NAME,
         });
@@ -705,7 +730,7 @@ export class AppAuthManager extends EventEmitter {
     };
 
     this.emitDebug('web_cookie_token_capture', {
-      source: parsed.origin,
+      source: currentUrl,
       hasAccessToken: true,
       cookieName: AUTH_COOKIE_NAME,
       domain: authCookie.domain,
@@ -720,6 +745,10 @@ export class AppAuthManager extends EventEmitter {
   }
 
   private shouldHandleAuthNavigation(urlText: string): boolean {
+    if (this.pendingFlow && !this.pendingFlow.completed) {
+      return true;
+    }
+
     let parsed: URL;
     try {
       parsed = new URL(urlText);
@@ -763,14 +792,42 @@ export class AppAuthManager extends EventEmitter {
   }
 
   private async handleAuthNavigation(url: string): Promise<boolean> {
-    if (this.isWebRedirectUrl(url)) {
-      return await this.captureStoredTokenFromRedirectPage(url);
-    }
-    const handledByStoredToken = await this.captureStoredTokenFromRedirectPage(url);
+    const handledByStoredToken = await this.captureStoredTokenFromSession(url);
     if (handledByStoredToken) return true;
+    if (this.isWebRedirectUrl(url)) {
+      return await this.handleWebRedirectCallback(url);
+    }
     const handledByRedirect = await this.handleWebRedirectCallback(url);
     if (handledByRedirect) return true;
     return await this.handleProtocolCallback(url);
+  }
+
+  private scheduleCookiePoll(url: string): void {
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed() || !this.pendingFlow || this.pendingFlow.completed) {
+      return;
+    }
+    if (!url || this.cookiePollTimer) {
+      return;
+    }
+
+    this.cookiePollTimer = setTimeout(async () => {
+      this.cookiePollTimer = null;
+      if (!this.pendingFlow || this.pendingFlow.completed || win.isDestroyed()) {
+        return;
+      }
+      const authCookie = await this.getAuthCookie();
+      if (authCookie?.value) {
+        this.emitDebug('web_cookie_token_polled', { url });
+        void this.handleAuthNavigation(win.webContents.getURL());
+        return;
+      }
+      const currentUrl = win.webContents.getURL();
+      if (!currentUrl || currentUrl !== url) {
+        return;
+      }
+      this.scheduleCookiePoll(currentUrl);
+    }, 500);
   }
 
   private async openLoginInMainWindow(authorizationUrl: string): Promise<void> {
@@ -798,6 +855,24 @@ export class AppAuthManager extends EventEmitter {
       void this.handleAuthNavigation(url);
     };
     const handleFinishLoad = () => {
+      const currentUrl = win.webContents.getURL();
+      void this.handleAuthNavigation(currentUrl);
+      this.scheduleCookiePoll(currentUrl);
+    };
+    const handleCookieChanged = (
+      _event: Electron.Event,
+      cookie: Electron.Cookie,
+      _cause: string,
+      removed: boolean,
+    ) => {
+      if (removed || cookie.name !== AUTH_COOKIE_NAME || !cookie.value) {
+        return;
+      }
+      this.emitDebug('web_cookie_token_changed', {
+        name: cookie.name,
+        domain: cookie.domain,
+        expiresAt: cookie.expirationDate ? cookie.expirationDate * 1000 : undefined,
+      });
       void this.handleAuthNavigation(win.webContents.getURL());
     };
 
@@ -806,12 +881,16 @@ export class AppAuthManager extends EventEmitter {
     win.webContents.on('did-navigate', handleAfterNavigate);
     win.webContents.on('did-redirect-navigation', handleAfterNavigate);
     win.webContents.on('did-finish-load', handleFinishLoad);
+    win.webContents.session.cookies.on('changed', handleCookieChanged);
     this.cleanupMainWindowAuthListeners = () => {
       win.webContents.removeListener('will-redirect', handleBeforeNavigate);
       win.webContents.removeListener('will-navigate', handleBeforeNavigate);
       win.webContents.removeListener('did-navigate', handleAfterNavigate);
       win.webContents.removeListener('did-redirect-navigation', handleAfterNavigate);
       win.webContents.removeListener('did-finish-load', handleFinishLoad);
+    };
+    this.cleanupSessionCookieListener = () => {
+      win.webContents.session.cookies.removeListener('changed', handleCookieChanged);
     };
 
     await win.loadURL(authorizationUrl);
@@ -822,43 +901,31 @@ export class AppAuthManager extends EventEmitter {
       return { enabled: false, authenticated: true };
     }
 
+    const authCookie = await this.getAuthCookie();
+    if (!authCookie?.value) {
+      await getSecretStore().delete(APP_AUTH_ACCOUNT_ID);
+      return { enabled: true, authenticated: false };
+    }
+
     const secret = await getSecretStore().get(APP_AUTH_ACCOUNT_ID);
-    if (!secret || secret.type !== 'oauth') {
-      return { enabled: true, authenticated: false };
-    }
+    const jwt = decodeJwtPayload(authCookie.value);
+    const email = readStringClaim(jwt, 'email') || (secret?.type === 'oauth' ? secret.email : undefined);
+    const subject = readStringClaim(jwt, 'sub') || (secret?.type === 'oauth' ? secret.subject : undefined);
+    const scope = (secret?.type === 'oauth' ? secret.scopes?.join(' ') : undefined) || SCOPE;
+    const expiresAt = authCookie.expirationDate
+      ? authCookie.expirationDate * 1000
+      : (readJwtExpiresAt(authCookie.value) || (secret?.type === 'oauth' ? secret.expiresAt : undefined));
 
-    const now = Date.now();
-    if (secret.expiresAt > now + 30_000) {
-      return {
-        enabled: true,
-        authenticated: true,
-        profile: {
-          email: secret.email,
-          subject: secret.subject,
-          scope: secret.scopes?.join(' '),
-          expiresAt: secret.expiresAt,
-        },
-      };
-    }
-
-    if (!secret.refreshToken) {
-      await getSecretStore().delete(APP_AUTH_ACCOUNT_ID);
-      return { enabled: true, authenticated: false };
-    }
-
-    try {
-      const refreshed = await this.exchangeToken({
-        grant_type: 'refresh_token',
-        refresh_token: secret.refreshToken,
-        client_id: CLIENT_ID,
-      });
-      const persisted = await this.persistToken(refreshed);
-      return { enabled: true, ...persisted };
-    } catch (error) {
-      logger.warn('[AppAuth] Refresh token failed, clearing saved session:', error);
-      await getSecretStore().delete(APP_AUTH_ACCOUNT_ID);
-      return { enabled: true, authenticated: false };
-    }
+    return {
+      enabled: true,
+      authenticated: true,
+      profile: {
+        email,
+        subject,
+        scope,
+        expiresAt,
+      },
+    };
   }
 
   async startLoginFlow(): Promise<{ started: true; authorizationUrl: string }> {
@@ -945,6 +1012,7 @@ export class AppAuthManager extends EventEmitter {
   }
 
   async logout(): Promise<void> {
+    await this.clearAuthCookies();
     await getSecretStore().delete(APP_AUTH_ACCOUNT_ID);
     this.clearPendingFlow();
     this.emit('auth:logout', { authenticated: false } satisfies AuthEventPayload);

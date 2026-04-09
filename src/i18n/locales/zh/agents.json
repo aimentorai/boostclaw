@@ -10,6 +10,7 @@
     "modelLine": "Model: {{model}}{{suffix}}",
     "channelsLine": "频道: {{channels}}",
     "deleteAgent": "删除 Agent",
+    "setDefault": "设为默认",
     "settings": "设置",
     "creating": "创建中...",
     "createDialog": {
@@ -61,7 +62,9 @@
         "agentDeleted": "Agent 已删除",
         "agentDeleteFailed": "删除 Agent 失败：{{error}}",
         "agentUpdated": "Agent 已更新",
+        "agentDefaultUpdated": "默认 Agent 已更新",
         "agentUpdateFailed": "更新 Agent 失败：{{error}}",
+        "agentDefaultUpdateFailed": "更新默认 Agent 失败：{{error}}",
         "agentModelInvalid": "模型格式必须为 provider/model",
         "agentModelProviderRequired": "请先选择 Provider",
         "agentModelIdRequired": "模型 ID 不能为空",

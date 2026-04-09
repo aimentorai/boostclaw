@@ -30,6 +30,7 @@ import {
   type ProviderVendorInfo,
 } from '@/stores/providers';
 import {
+  UI_VISIBLE_PROVIDER_TYPE_INFO,
   PROVIDER_TYPE_INFO,
   getProviderDocsUrl,
   type ProviderType,
@@ -1133,7 +1134,7 @@ function AddProviderDialog({
     }
   };
 
-  const availableTypes = PROVIDER_TYPE_INFO.filter((type) => {
+  const availableTypes = UI_VISIBLE_PROVIDER_TYPE_INFO.filter((type) => {
     // Skip providers that are temporarily hidden from the UI.
     if (type.hidden) return false;
 

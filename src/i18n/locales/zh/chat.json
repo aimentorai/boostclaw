@@ -2,20 +2,26 @@
     "gatewayNotRunning": "网关未运行",
     "gatewayRequired": "OpenClaw 网关需要运行才能使用聊天。它将自动启动，或者您可以从设置中启动。",
     "welcome": {
-        "title": "BoostClaw 聊天",
-        "subtitle": "我能为你做些什么？",
+        "title": "BoostClaw 控制台",
+        "subtitle": "欢迎使用 BoostClaw，开始新对话吧。",
+        "hint": "输入你的第一个问题，或直接描述你要完成的任务。",
+        "eyebrow": "Agent Console",
+        "sessionsTitle": "会话",
+        "sessionsBody": "当前工作区的对话记录、最近运行和任务上下文都会保留在这里。",
+        "agentsTitle": "Agent",
+        "agentsBody": "选择当前对话 Agent，或把下一条消息路由给其他 Agent 处理。",
+        "runtimeTitle": "运行态",
+        "runtimeBody": "思考、工具调用和执行过程会在同一条对话流里持续展示。",
         "askQuestions": "处理任务",
-        "askQuestionsDesc": "处理面向任务的请求",
-        "creativeTasks": "持续执行",
-        "creativeTasksDesc": "持续推进多步骤工作",
-        "brainstorming": "多智能体并行"
+        "creativeTasks": "连接频道",
+        "brainstorming": "配置模型"
     },
     "noLogs": "（暂无日志）",
     "toolbar": {
         "refresh": "刷新聊天",
         "showThinking": "显示思考过程",
         "hideThinking": "隐藏思考过程",
-        "currentAgent": "当前对话对象：{{agent}}"
+        "currentAgent": "当前对话 Agent：{{agent}}"
     },
     "taskPanel": {
         "eyebrow": "运行视图",
@@ -51,14 +57,18 @@
     "composer": {
         "attachFiles": "添加文件",
         "pickAgent": "选择 Agent",
+        "agentSelectorLabel": "对话 Agent：{{agent}}",
+        "placeholder": "问我任何任务，例如：整理需求、写脚本、排查报错",
         "clearTarget": "清除目标 Agent",
         "targetChip": "@{{agent}}",
-        "agentPickerTitle": "将下一条消息直接发送给其他 Agent",
+        "agentPickerTitle": "选择这条消息要发送到哪个 Agent",
+        "currentAgentOption": "当前 Agent：{{agent}}",
+        "currentAgentOptionDesc": "发送到当前打开的对话 Agent",
         "gatewayDisconnectedPlaceholder": "网关未连接...",
         "send": "发送",
         "stop": "停止",
         "gatewayConnected": "已连接",
-        "gatewayStatus": "gateway {{state}} | port: {{port}} {{pid}}",
+        "gatewayStatus": "网关 {{state}} | 端口: {{port}} {{pid}}",
         "retryFailedAttachments": "重试失败的附件"
     },
     "historyBuckets": {

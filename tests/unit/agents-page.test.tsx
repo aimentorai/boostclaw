@@ -7,6 +7,7 @@ const hostApiFetchMock = vi.fn();
 const subscribeHostEventMock = vi.fn();
 const fetchAgentsMock = vi.fn();
 const updateAgentMock = vi.fn();
+const setDefaultAgentMock = vi.fn();
 const updateAgentModelMock = vi.fn();
 const refreshProviderSnapshotMock = vi.fn();
 
@@ -36,6 +37,7 @@ vi.mock('@/stores/agents', () => ({
   useAgentsStore: (selector?: (state: typeof agentsState & {
     fetchAgents: typeof fetchAgentsMock;
     updateAgent: typeof updateAgentMock;
+    setDefaultAgent: typeof setDefaultAgentMock;
     updateAgentModel: typeof updateAgentModelMock;
     createAgent: ReturnType<typeof vi.fn>;
     deleteAgent: ReturnType<typeof vi.fn>;
@@ -44,6 +46,7 @@ vi.mock('@/stores/agents', () => ({
       ...agentsState,
       fetchAgents: fetchAgentsMock,
       updateAgent: updateAgentMock,
+      setDefaultAgent: setDefaultAgentMock,
       updateAgentModel: updateAgentModelMock,
       createAgent: vi.fn(),
       deleteAgent: vi.fn(),
@@ -98,6 +101,7 @@ describe('Agents page status refresh', () => {
     providersState.defaultAccountId = '';
     fetchAgentsMock.mockResolvedValue(undefined);
     updateAgentMock.mockResolvedValue(undefined);
+    setDefaultAgentMock.mockResolvedValue(undefined);
     updateAgentModelMock.mockResolvedValue(undefined);
     refreshProviderSnapshotMock.mockResolvedValue(undefined);
     hostApiFetchMock.mockResolvedValue({
@@ -255,5 +259,48 @@ describe('Agents page status refresh', () => {
 
     expect(container.querySelector('svg.animate-spin')).toBeTruthy();
     expect(screen.queryByText('title')).not.toBeInTheDocument();
+  });
+
+  it('allows setting a non-default agent as the default', async () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'gpt-5',
+        modelRef: 'openai/gpt-5',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace',
+        agentDir: '~/.openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+      {
+        id: 'research',
+        name: 'Research',
+        isDefault: false,
+        modelDisplay: 'deepseek-chat',
+        modelRef: 'deepseek/deepseek-chat',
+        overrideModelRef: 'deepseek/deepseek-chat',
+        inheritedModel: false,
+        workspace: '~/.openclaw/workspace-research',
+        agentDir: '~/.openclaw/agents/research/agent',
+        mainSessionKey: 'agent:research:main',
+        channelTypes: [],
+      },
+    ];
+
+    render(<Agents />);
+
+    await waitFor(() => {
+      expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByTitle('setDefault'));
+
+    await waitFor(() => {
+      expect(setDefaultAgentMock).toHaveBeenCalledWith('research');
+    });
   });
 });

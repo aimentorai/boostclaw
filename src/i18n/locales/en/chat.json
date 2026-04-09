@@ -2,20 +2,26 @@
     "gatewayNotRunning": "Gateway Not Running",
     "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings.",
     "welcome": {
-        "title": "BoostClaw Chat",
-        "subtitle": "What can I do for you?",
-        "askQuestions": "Handle Tasks",
-        "askQuestionsDesc": "Work on task-oriented requests",
-        "creativeTasks": "Continuous Execution",
-        "creativeTasksDesc": "Keep running through multi-step work",
-        "brainstorming": "Multi-Agent Parallel"
+        "title": "BoostClaw Console",
+        "subtitle": "Connect models, channels, and agents, then start the next task from here.",
+        "hint": "Type your first question, or describe the task you want to complete.",
+        "eyebrow": "Agent Console",
+        "sessionsTitle": "Sessions",
+        "sessionsBody": "Conversation history, recent runs, and task context stay attached to the current workspace.",
+        "agentsTitle": "Agents",
+        "agentsBody": "Choose the active chat agent or route the next message to another agent.",
+        "runtimeTitle": "Runtime",
+        "runtimeBody": "Thinking, tool calls, and execution progress stay visible in the same conversation flow.",
+        "askQuestions": "Handle tasks",
+        "creativeTasks": "Connect channels",
+        "brainstorming": "Configure models"
     },
     "noLogs": "(No logs available yet)",
     "toolbar": {
         "refresh": "Refresh chat",
         "showThinking": "Show thinking",
         "hideThinking": "Hide thinking",
-        "currentAgent": "Talking to {{agent}}"
+        "currentAgent": "Current chat agent: {{agent}}"
     },
     "taskPanel": {
         "eyebrow": "Run View",
@@ -51,14 +57,18 @@
     "composer": {
         "attachFiles": "Attach files",
         "pickAgent": "Choose agent",
+        "agentSelectorLabel": "Chat agent: {{agent}}",
+        "placeholder": "Ask anything, for example: refine a spec, write a script, debug an error",
         "clearTarget": "Clear target agent",
         "targetChip": "@{{agent}}",
-        "agentPickerTitle": "Route the next message to another agent",
+        "agentPickerTitle": "Choose which agent should receive the next message",
+        "currentAgentOption": "Current agent: {{agent}}",
+        "currentAgentOptionDesc": "Send to the agent for the active chat session",
         "gatewayDisconnectedPlaceholder": "Gateway not connected...",
         "send": "Send",
         "stop": "Stop",
         "gatewayConnected": "connected",
-        "gatewayStatus": "gateway {{state}} | port: {{port}} {{pid}}",
+        "gatewayStatus": "Gateway {{state}} | port: {{port}} {{pid}}",
         "retryFailedAttachments": "Retry failed attachments"
     },
     "historyBuckets": {

@@ -102,6 +102,7 @@ function App() {
   const authEnabled = useAuthStore((state) => state.enabled);
   const authLoading = useAuthStore((state) => state.loading);
   const authenticated = useAuthStore((state) => state.authenticated);
+  const pendingLogin = useAuthStore((state) => state.pendingLogin);
 
   useEffect(() => {
     rendererTimer.mark('renderer_mount');
@@ -216,6 +217,16 @@ function App() {
           closeButton
           style={{ zIndex: 99999 }}
         />
+
+        {authEnabled && pendingLogin && !authenticated && (
+          <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-white/88 backdrop-blur-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl text-center">
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+              <p className="text-base font-semibold text-slate-900">登录中</p>
+              <p className="mt-2 text-sm text-slate-600">正在完成登录，请稍候...</p>
+            </div>
+          </div>
+        )}
       </TooltipProvider>
     </ErrorBoundary>
   );

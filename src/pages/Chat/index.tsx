@@ -425,48 +425,15 @@ export function Chat() {
 
 function WelcomeScreen() {
   const { t } = useTranslation('chat');
-  const quickActions = [
-    { key: 'askQuestions', label: t('welcome.askQuestions') },
-    { key: 'creativeTasks', label: t('welcome.creativeTasks') },
-    { key: 'brainstorming', label: t('welcome.brainstorming') },
-  ];
 
   return (
-    <div data-testid="chat-welcome-screen" className="flex h-[60vh] flex-col items-center justify-center text-center">
-      <div className="panel-elevated tech-border w-full max-w-3xl rounded-[32px] px-8 py-10">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/75">AI workspace</p>
-        <h1 className="text-gradient mx-auto mb-4 max-w-2xl text-4xl font-semibold md:text-5xl">
+    <div data-testid="chat-welcome-screen" className="flex h-[40vh] flex-col items-center justify-center px-4 text-center">
+      <div className="w-full max-w-2xl">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/70">{t('welcome.eyebrow')}</p>
+        <h1 className="mx-auto max-w-xl text-2xl font-semibold text-foreground md:text-3xl">
           {t('welcome.subtitle')}
         </h1>
-        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-muted-foreground">
-          Launch a session, route work to agents, and keep tool execution visible without changing the current workflow.
-        </p>
-
-        <div className="mb-8 grid gap-3 text-left sm:grid-cols-3">
-          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Sessions</p>
-            <p className="text-sm font-medium text-foreground">Persistent transcripts and recent runs stay attached to the active workspace.</p>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Agents</p>
-            <p className="text-sm font-medium text-foreground">Route tasks to the current agent or hand off focused work to another one.</p>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Runtime</p>
-            <p className="text-sm font-medium text-foreground">Thinking, tool calls, and execution graphs remain visible in the same chat flow.</p>
-          </div>
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-center gap-2.5">
-        {quickActions.map(({ key, label }) => (
-          <button 
-            key={key}
-            className="rounded-full border border-border/70 bg-background/55 px-4 py-2 text-[13px] font-medium text-foreground/75 transition-colors hover:border-primary/30 hover:bg-primary/8 hover:text-foreground"
-          >
-            {label}
-          </button>
-        ))}
-        </div>
+        <p className="mt-2 text-sm text-muted-foreground/70">{t('welcome.hint')}</p>
       </div>
     </div>
   );

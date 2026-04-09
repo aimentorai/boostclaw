@@ -9,6 +9,8 @@ import { Progress } from '@/components/ui/progress';
 import { useUpdateStore } from '@/stores/update';
 import { useTranslation } from 'react-i18next';
 
+const DISPLAY_VERSION = '0.1.0';
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -21,7 +23,6 @@ export function UpdateSettings() {
   const { t } = useTranslation('settings');
   const {
     status,
-    currentVersion,
     updateInfo,
     progress,
     error,
@@ -153,7 +154,7 @@ export function UpdateSettings() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium">{t('updates.currentVersion')}</p>
-          <p className="text-2xl font-bold">v{currentVersion}</p>
+          <p className="text-2xl font-bold">v{DISPLAY_VERSION}</p>
         </div>
         {renderStatusIcon()}
       </div>

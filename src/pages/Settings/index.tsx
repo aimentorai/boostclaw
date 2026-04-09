@@ -23,8 +23,6 @@ import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useGatewayStore } from '@/stores/gateway';
-import { useUpdateStore } from '@/stores/update';
-import { UpdateSettings } from '@/components/settings/UpdateSettings';
 import {
   getGatewayWsDiagnosticEnabled,
   invokeIpc,
@@ -42,15 +40,19 @@ import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
+
 type ControlUiInfo = {
   url: string;
   token: string;
   port: number;
 };
 
+const DISPLAY_VERSION = '0.1.0';
+
 export function Settings() {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
+  const showHiddenDeveloperSettings = false as boolean;
   const {
     theme,
     setTheme,
@@ -72,10 +74,6 @@ export function Settings() {
     setProxyHttpsServer,
     setProxyAllServer,
     setProxyBypassRules,
-    autoCheckUpdate,
-    setAutoCheckUpdate,
-    autoDownloadUpdate,
-    setAutoDownloadUpdate,
     devModeUnlocked,
     setDevModeUnlocked,
     telemetryEnabled,
@@ -83,8 +81,6 @@ export function Settings() {
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
-  const currentVersion = useUpdateStore((state) => state.currentVersion);
-  const updateSetAutoDownload = useUpdateStore((state) => state.setAutoDownload);
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(null);
   const [openclawCliCommand, setOpenclawCliCommand] = useState('');
   const [openclawCliError, setOpenclawCliError] = useState<string | null>(null);
@@ -668,7 +664,7 @@ export function Settings() {
               </div>
 
 
-              {false && (
+              {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
@@ -684,7 +680,7 @@ export function Settings() {
                 </div>
               )}
 
-              {false && (
+              {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
@@ -704,7 +700,7 @@ export function Settings() {
 
 
           {/* Developer */}
-          {false && devModeUnlocked && (
+          {showHiddenDeveloperSettings && devModeUnlocked && (
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
@@ -1079,47 +1075,6 @@ export function Settings() {
 
           <Separator className="bg-black/5 dark:bg-white/5" />
 
-          {/* Updates */}
-          <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
-              {t('updates.title')}
-            </h2>
-            <div className="space-y-6">
-              <UpdateSettings />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoCheck')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('updates.autoCheckDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={autoCheckUpdate}
-                  onCheckedChange={setAutoCheckUpdate}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoDownload')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('updates.autoDownloadDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={autoDownloadUpdate}
-                  onCheckedChange={(value) => {
-                    setAutoDownloadUpdate(value);
-                    updateSetAutoDownload(value);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator className="bg-black/5 dark:bg-white/5" />
-
           {/* About */}
           <div>
             <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
@@ -1130,7 +1085,7 @@ export function Settings() {
                 <strong className="text-foreground font-semibold">{t('about.appName')}</strong> - {t('about.tagline')}
               </p>
               <p>{t('about.basedOn')}</p>
-              <p>{t('about.version', { version: currentVersion })}</p>
+              <p>{t('about.version', { version: DISPLAY_VERSION })}</p>
               <div className="flex gap-4 pt-3">
                 <Button
                   variant="link"
@@ -1138,13 +1093,6 @@ export function Settings() {
                   onClick={() => window.electron.openExternal('https://claw-x.com')}
                 >
                   {t('about.docs')}
-                </Button>
-                <Button
-                  variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/BoostClaw')}
-                >
-                  {t('about.github')}
                 </Button>
                 <Button
                   variant="link"

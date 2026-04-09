@@ -63,6 +63,18 @@
       "ref": "main",
       "version": "main",
       "autoEnable": true
+    },
+    {
+      "slug": "development-sheet-factory",
+      "localPath": "resources/local-skills/development-sheet-factory 2",
+      "version": "0.1.0",
+      "autoEnable": true
+    },
+    {
+      "slug": "product-chart-get",
+      "localPath": "resources/local-skills/product-chart-get 2",
+      "version": "0.1.0",
+      "autoEnable": true
     }
   ]
 }

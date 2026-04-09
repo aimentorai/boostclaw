@@ -104,6 +104,7 @@ export function Agents() {
     fetchAgents,
     createAgent,
     deleteAgent,
+    setDefaultAgent,
   } = useAgentsStore();
   const [channelGroups, setChannelGroups] = useState<ChannelGroupItem[]>([]);
   const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(() => agents.length > 0);
@@ -234,6 +235,10 @@ export function Agents() {
                 channelGroups={visibleChannelGroups}
                 onOpenSettings={() => setActiveAgentId(agent.id)}
                 onDelete={() => setAgentToDelete(agent)}
+                onSetDefault={async () => {
+                  await setDefaultAgent(agent.id);
+                  toast.success(t('toast.agentDefaultUpdated'));
+                }}
               />
             ))}
           </div>
@@ -291,13 +296,16 @@ function AgentCard({
   channelGroups,
   onOpenSettings,
   onDelete,
+  onSetDefault,
 }: {
   agent: AgentSummary;
   channelGroups: ChannelGroupItem[];
   onOpenSettings: () => void;
   onDelete: () => void;
+  onSetDefault: () => Promise<void>;
 }) {
   const { t } = useTranslation('agents');
+  const [settingDefault, setSettingDefault] = useState(false);
   const boundChannelAccounts = channelGroups.flatMap((group) =>
     group.accounts
       .filter((account) => account.agentId === agent.id)
@@ -339,6 +347,29 @@ function AgentCard({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {!agent.isDefault && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100 h-7 rounded-full px-3 text-[12px] text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all"
+                onClick={() => {
+                  void (async () => {
+                    setSettingDefault(true);
+                    try {
+                      await onSetDefault();
+                    } catch (error) {
+                      toast.error(t('toast.agentDefaultUpdateFailed', { error: String(error) }));
+                    } finally {
+                      setSettingDefault(false);
+                    }
+                  })();
+                }}
+                disabled={settingDefault}
+                title={t('setDefault')}
+              >
+                {settingDefault ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : t('setDefault')}
+              </Button>
+            )}
             {!agent.isDefault && (
               <Button
                 variant="ghost"

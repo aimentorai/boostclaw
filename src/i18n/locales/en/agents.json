@@ -10,6 +10,7 @@
     "modelLine": "Model: {{model}}{{suffix}}",
     "channelsLine": "Channels: {{channels}}",
     "deleteAgent": "Delete Agent",
+    "setDefault": "Set default",
     "settings": "Settings",
     "creating": "Creating...",
     "createDialog": {
@@ -61,7 +62,9 @@
         "agentDeleted": "Agent deleted",
         "agentDeleteFailed": "Failed to delete agent: {{error}}",
         "agentUpdated": "Agent updated",
+        "agentDefaultUpdated": "Default agent updated",
         "agentUpdateFailed": "Failed to update agent: {{error}}",
+        "agentDefaultUpdateFailed": "Failed to update default agent: {{error}}",
         "agentModelInvalid": "Model must be in provider/model format",
         "agentModelProviderRequired": "Select a provider first",
         "agentModelIdRequired": "Model ID is required",

@@ -10,6 +10,7 @@
     "modelLine": "Model: {{model}}{{suffix}}",
     "channelsLine": "Channels: {{channels}}",
     "deleteAgent": "Agent を削除",
+    "setDefault": "デフォルトに設定",
     "settings": "設定",
     "creating": "作成中...",
     "createDialog": {
@@ -61,7 +62,9 @@
         "agentDeleted": "Agent を削除しました",
         "agentDeleteFailed": "Agent の削除に失敗しました: {{error}}",
         "agentUpdated": "Agent を更新しました",
+        "agentDefaultUpdated": "デフォルト Agent を更新しました",
         "agentUpdateFailed": "Agent の更新に失敗しました: {{error}}",
+        "agentDefaultUpdateFailed": "デフォルト Agent の更新に失敗しました: {{error}}",
         "agentModelInvalid": "モデル形式は provider/model で指定してください",
         "agentModelProviderRequired": "先に Provider を選択してください",
         "agentModelIdRequired": "モデル ID は必須です",

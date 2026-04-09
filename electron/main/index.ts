@@ -563,9 +563,9 @@ async function initialize(): Promise<void> {
   // is ready, so ensureBoostClawContext will retry until the target files appear.
   if (!isE2EMode) {
     startupTimer.mark('workspace_start');
-    void ensureClawXContext()
+    void ensureBoostClawContext()
       .catch((error) => {
-        logger.warn('Failed to merge ClawX context into workspace:', error);
+        logger.warn('Failed to merge BoostClaw context into workspace:', error);
       })
       .finally(() => {
         startupTimer.mark('workspace_done');
