@@ -503,10 +503,13 @@ async function initialize(): Promise<void> {
   // is ready, so ensureClawXContext will retry until the target files appear.
   if (!isE2EMode) {
     startupTimer.mark('workspace_start');
-    void ensureClawXContext().catch((error) => {
-      logger.warn('Failed to merge ClawX context into workspace:', error);
-    });
-    startupTimer.mark('workspace_done');
+    void ensureClawXContext()
+      .catch((error) => {
+        logger.warn('Failed to merge ClawX context into workspace:', error);
+      })
+      .finally(() => {
+        startupTimer.mark('workspace_done');
+      });
   }
 
   // Auto-install openclaw CLI and shell completions (non-blocking).
