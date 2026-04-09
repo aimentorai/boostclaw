@@ -25,11 +25,19 @@ describe('startup-timer', () => {
     expect(elapsed1).toBeGreaterThanOrEqual(0);
   });
 
-  it('should reset timer', async () => {
-    await new Promise(resolve => setTimeout(resolve, 10));
-    startupTimer.reset();
-    const elapsed = startupTimer.getElapsed();
-    expect(elapsed).toBeLessThan(10);
+  it('should reset timer', () => {
+    vi.useFakeTimers();
+
+    try {
+      startupTimer.reset();
+      vi.advanceTimersByTime(10);
+      startupTimer.reset();
+
+      const elapsed = startupTimer.getElapsed();
+      expect(elapsed).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('should log complete message with total time', () => {
