@@ -1,6 +1,6 @@
 {
   "title": "设置",
-  "subtitle": "配置您的 Boostclaw 体验",
+  "subtitle": "配置您的 BoostClaw 体验",
   "appearance": {
     "title": "通用",
     "description": "自定义外观和风格",
@@ -10,7 +10,7 @@
     "system": "跟随系统",
     "language": "语言",
     "launchAtStartup": "开机自动启动",
-    "launchAtStartupDesc": "登录系统后自动启动 Boostclaw"
+    "launchAtStartupDesc": "登录系统后自动启动 BoostClaw"
   },
   "account": {
     "title": "账号",
@@ -44,7 +44,7 @@
     "notRequired": "非必填",
     "empty": {
       "title": "未配置提供商",
-      "desc": "添加 AI 提供商以开始使用 Boostclaw",
+      "desc": "添加 AI 提供商以开始使用 BoostClaw",
       "cta": "添加您的第一个提供商"
     },
     "dialog": {
@@ -67,7 +67,7 @@
       "protocol": "协议",
       "advancedConfig": "高级配置",
       "userAgent": "User-Agent",
-      "userAgentPlaceholder": "Boostclaw/1.0",
+      "userAgentPlaceholder": "BoostClaw/1.0",
       "fallbackModels": "回退模型",
       "fallbackProviders": "跨 Provider 回退",
       "fallbackModelIds": "同 Provider 回退模型 ID",
@@ -141,7 +141,7 @@
     "appLogs": "应用日志",
     "openFolder": "打开文件夹",
     "autoStart": "自动启动网关",
-    "autoStartDesc": "Boostclaw 启动时自动启动网关",
+    "autoStartDesc": "BoostClaw 启动时自动启动网关",
     "proxyTitle": "代理",
     "proxyDesc": "让 Electron 和 Gateway 的网络请求都走本地代理客户端。",
     "proxyServer": "代理服务器",
@@ -162,7 +162,7 @@
   },
   "updates": {
     "title": "更新",
-    "description": "保持 Boostclaw 最新",
+    "description": "保持 BoostClaw 最新",
     "autoCheck": "自动检查更新",
     "autoCheckDesc": "启动时检查更新",
     "autoDownload": "自动更新",
@@ -216,7 +216,7 @@
     "devMode": "开发者模式",
     "devModeDesc": "显示开发者工具和快捷方式",
     "telemetry": "匿名使用数据",
-    "telemetryDesc": "允许提供匿名的基础使用数据，用于改进 Boostclaw"
+    "telemetryDesc": "允许提供匿名的基础使用数据，用于改进 BoostClaw"
   },
   "developer": {
     "title": "开发者",
@@ -278,7 +278,7 @@
   },
   "about": {
     "title": "关于",
-    "appName": "Boostclaw",
+    "appName": "BoostClaw",
     "tagline": "图形化 AI 助手",
     "basedOn": "基于 OpenClaw",
     "version": "版本 {{version}}",

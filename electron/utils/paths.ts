@@ -24,7 +24,7 @@ function getElectronApp() {
     return (require('electron') as typeof import('electron')).app;
   }
 
-  const fallbackUserData = process.env.CLAWX_USER_DATA_DIR?.trim() || join(homedir(), '.boostclaw');
+  const fallbackUserData = process.env.BoostClaw_USER_DATA_DIR?.trim() || join(homedir(), '.BoostClaw');
   const fallbackAppPath = process.cwd();
   const fallbackApp: ElectronAppLike = {
     isPackaged: false,
@@ -62,21 +62,21 @@ export function getOpenClawSkillsDir(): string {
 }
 
 /**
- * Get ClawX config directory
+ * Get BoostClaw config directory
  */
-export function getClawXConfigDir(): string {
-  return join(homedir(), '.boostclaw');
+export function getBoostClawConfigDir(): string {
+  return join(homedir(), '.BoostClaw');
 }
 
 /**
- * Get ClawX logs directory
+ * Get BoostClaw logs directory
  */
 export function getLogsDir(): string {
   return join(getElectronApp().getPath('userData'), 'logs');
 }
 
 /**
- * Get ClawX data directory
+ * Get BoostClaw data directory
  */
 export function getDataDir(): string {
   return getElectronApp().getPath('userData');

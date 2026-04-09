@@ -668,39 +668,43 @@ export function Settings() {
               </div>
 
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('advanced.devModeDesc')}
-                  </p>
+              {false && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
+                    <p className="text-[13px] text-muted-foreground mt-1">
+                      {t('advanced.devModeDesc')}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={devModeUnlocked}
+                    onCheckedChange={setDevModeUnlocked}
+                    data-testid="settings-dev-mode-switch"
+                  />
                 </div>
-                <Switch
-                  checked={devModeUnlocked}
-                  onCheckedChange={setDevModeUnlocked}
-                  data-testid="settings-dev-mode-switch"
-                />
-              </div>
+              )}
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('advanced.telemetryDesc')}
-                  </p>
+              {false && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
+                    <p className="text-[13px] text-muted-foreground mt-1">
+                      {t('advanced.telemetryDesc')}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={telemetryEnabled}
+                    onCheckedChange={setTelemetryEnabled}
+                  />
                 </div>
-                <Switch
-                  checked={telemetryEnabled}
-                  onCheckedChange={setTelemetryEnabled}
-                />
-              </div>
+              )}
 
             </div>
           </div>
 
 
           {/* Developer */}
-          {devModeUnlocked && (
+          {false && devModeUnlocked && (
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
@@ -1138,7 +1142,7 @@ export function Settings() {
                 <Button
                   variant="link"
                   className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/ClawX')}
+                  onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/BoostClaw')}
                 >
                   {t('about.github')}
                 </Button>
