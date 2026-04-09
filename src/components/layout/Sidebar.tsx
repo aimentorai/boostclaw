@@ -273,7 +273,7 @@ export function Sidebar() {
                 {isGatewayRunning ? 'online' : gatewayStatus.state}
               </span>
             </div>
-            <p className="text-[13px] font-medium text-foreground">Current workspace is ready for agents, sessions, and model telemetry.</p>
+            <p className="text-[13px] font-medium text-foreground">当前工作区已就绪，可用于管理 Agent、会话和模型统计。</p>
           </div>
         </div>
       )}

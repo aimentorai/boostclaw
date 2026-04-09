@@ -42,15 +42,19 @@ import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
+
 type ControlUiInfo = {
   url: string;
   token: string;
   port: number;
 };
 
+const DISPLAY_VERSION = '0.1.0';
+
 export function Settings() {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
+  const showHiddenDeveloperSettings = false as boolean;
   const {
     theme,
     setTheme,
@@ -83,7 +87,6 @@ export function Settings() {
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
-  const currentVersion = useUpdateStore((state) => state.currentVersion);
   const updateSetAutoDownload = useUpdateStore((state) => state.setAutoDownload);
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(null);
   const [openclawCliCommand, setOpenclawCliCommand] = useState('');
@@ -668,7 +671,7 @@ export function Settings() {
               </div>
 
 
-              {false && (
+              {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
@@ -684,7 +687,7 @@ export function Settings() {
                 </div>
               )}
 
-              {false && (
+              {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
@@ -704,7 +707,7 @@ export function Settings() {
 
 
           {/* Developer */}
-          {false && devModeUnlocked && (
+          {showHiddenDeveloperSettings && devModeUnlocked && (
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
@@ -1130,7 +1133,7 @@ export function Settings() {
                 <strong className="text-foreground font-semibold">{t('about.appName')}</strong> - {t('about.tagline')}
               </p>
               <p>{t('about.basedOn')}</p>
-              <p>{t('about.version', { version: currentVersion })}</p>
+              <p>{t('about.version', { version: DISPLAY_VERSION })}</p>
               <div className="flex gap-4 pt-3">
                 <Button
                   variant="link"
@@ -1138,13 +1141,6 @@ export function Settings() {
                   onClick={() => window.electron.openExternal('https://claw-x.com')}
                 >
                   {t('about.docs')}
-                </Button>
-                <Button
-                  variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/BoostClaw')}
-                >
-                  {t('about.github')}
                 </Button>
                 <Button
                   variant="link"

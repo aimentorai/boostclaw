@@ -14,6 +14,8 @@ export const PROVIDER_TYPES = [
   'ark',
   'moonshot',
   'siliconflow',
+  'deepseek',
+  'qwen',
   'minimax-portal',
   'minimax-portal-cn',
   'modelstudio',
@@ -30,6 +32,8 @@ export const BUILTIN_PROVIDER_TYPES = [
   'ark',
   'moonshot',
   'siliconflow',
+  'deepseek',
+  'qwen',
   'minimax-portal',
   'minimax-portal-cn',
   'modelstudio',
@@ -173,6 +177,8 @@ export const PROVIDER_TYPE_INFO: ProviderTypeInfo[] = [
   { id: 'minimax-portal-cn', name: 'MiniMax (CN)', icon: '☁️', placeholder: 'sk-...', model: 'MiniMax', requiresApiKey: false, isOAuth: true, supportsApiKey: true, defaultModelId: 'MiniMax-M2.7', showModelId: true, showModelIdInDevModeOnly: true, modelIdPlaceholder: 'MiniMax-M2.7', apiKeyUrl: 'https://platform.minimaxi.com/' },
   { id: 'moonshot', name: 'Moonshot (CN)', icon: '🌙', placeholder: 'sk-...', model: 'Kimi', requiresApiKey: true, defaultBaseUrl: 'https://api.moonshot.cn/v1', defaultModelId: 'kimi-k2.5', docsUrl: 'https://platform.moonshot.cn/' },
   { id: 'siliconflow', name: 'SiliconFlow (CN)', icon: '🌊', placeholder: 'sk-...', model: 'Multi-Model', requiresApiKey: true, defaultBaseUrl: 'https://api.siliconflow.cn/v1', showModelId: true, showModelIdInDevModeOnly: true, modelIdPlaceholder: 'deepseek-ai/DeepSeek-V3', defaultModelId: 'deepseek-ai/DeepSeek-V3', docsUrl: 'https://docs.siliconflow.cn/cn/userguide/introduction' },
+  { id: 'deepseek', name: 'DeepSeek', icon: 'D', placeholder: 'sk-...', model: 'DeepSeek', requiresApiKey: true, defaultBaseUrl: 'https://api.deepseek.com/v1', defaultModelId: 'deepseek-chat', showModelId: true, modelIdPlaceholder: 'deepseek-chat', apiKeyUrl: 'https://platform.deepseek.com/api_keys' },
+  { id: 'qwen', name: 'Qwen', icon: 'Q', placeholder: 'sk-...', model: 'Tongyi Qwen', requiresApiKey: true, defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', showBaseUrl: true, defaultModelId: 'qwen-plus', showModelId: true, modelIdPlaceholder: 'qwen-plus', apiKeyUrl: 'https://bailian.console.aliyun.com/' },
   { id: 'minimax-portal', name: 'MiniMax (Global)', icon: '☁️', placeholder: 'sk-...', model: 'MiniMax', requiresApiKey: false, isOAuth: true, supportsApiKey: true, defaultModelId: 'MiniMax-M2.7', showModelId: true, showModelIdInDevModeOnly: true, modelIdPlaceholder: 'MiniMax-M2.7', apiKeyUrl: 'https://platform.minimax.io' },
   { id: 'modelstudio', name: 'Model Studio', icon: '☁️', placeholder: 'sk-...', model: 'Qwen', requiresApiKey: true, defaultBaseUrl: 'https://coding.dashscope.aliyuncs.com/v1', showBaseUrl: true, defaultModelId: 'qwen3.5-plus', showModelId: true, showModelIdInDevModeOnly: true, modelIdPlaceholder: 'qwen3.5-plus', apiKeyUrl: 'https://bailian.console.aliyun.com/', hidden: true },
   { id: 'ark', name: 'ByteDance Ark', icon: 'A', placeholder: 'your-ark-api-key', model: 'Doubao', requiresApiKey: true, defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3', showBaseUrl: true, showModelId: true, modelIdPlaceholder: 'ep-20260228000000-xxxxx', docsUrl: 'https://www.volcengine.com/', codePlanPresetBaseUrl: 'https://ark.cn-beijing.volces.com/api/coding/v3', codePlanPresetModelId: 'ark-code-latest', codePlanDocsUrl: 'https://www.volcengine.com/docs/82379/1928261?lang=zh' },
@@ -202,7 +208,19 @@ export function shouldInvertInDark(_type: ProviderType | string): boolean {
 }
 
 /** Provider list shown in the Setup wizard */
-export const SETUP_PROVIDERS = PROVIDER_TYPE_INFO;
+const DOMESTIC_PROVIDER_TYPE_IDS = new Set<ProviderType>([
+  'moonshot',
+  'siliconflow',
+  'deepseek',
+  'qwen',
+  'minimax-portal-cn',
+  'custom',
+]);
+
+export const UI_VISIBLE_PROVIDER_TYPE_INFO = PROVIDER_TYPE_INFO.filter((provider) => DOMESTIC_PROVIDER_TYPE_IDS.has(provider.id));
+
+/** Provider list shown in the Setup wizard */
+export const SETUP_PROVIDERS = UI_VISIBLE_PROVIDER_TYPE_INFO;
 
 /** Get type info by provider type id */
 export function getProviderTypeInfo(type: ProviderType): ProviderTypeInfo | undefined {

@@ -15,6 +15,7 @@ interface AgentsState {
   fetchAgents: () => Promise<void>;
   createAgent: (name: string, options?: { inheritWorkspace?: boolean }) => Promise<void>;
   updateAgent: (agentId: string, name: string) => Promise<void>;
+  setDefaultAgent: (agentId: string) => Promise<void>;
   updateAgentModel: (agentId: string, modelRef: string | null) => Promise<void>;
   deleteAgent: (agentId: string) => Promise<void>;
   assignChannel: (agentId: string, channelType: ChannelType) => Promise<void>;
@@ -79,6 +80,20 @@ export const useAgentsStore = create<AgentsState>((set) => ({
           method: 'PUT',
           body: JSON.stringify({ name }),
         }
+      );
+      set(applySnapshot(snapshot));
+    } catch (error) {
+      set({ error: String(error) });
+      throw error;
+    }
+  },
+
+  setDefaultAgent: async (agentId: string) => {
+    set({ error: null });
+    try {
+      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
+        `/api/agents/${encodeURIComponent(agentId)}/default`,
+        { method: 'PUT' }
       );
       set(applySnapshot(snapshot));
     } catch (error) {

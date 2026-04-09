@@ -123,7 +123,7 @@ Environment variables for bundled search skills:
 - `find-skills` and `self-improving-agent` do not require API keys
 
 ### 🔐 Secure Provider Integration
-Connect to multiple AI providers (OpenAI, Anthropic, and more) with credentials stored securely in your system's native keychain. OpenAI supports both API key and browser OAuth (Codex subscription) sign-in.
+Connect to multiple AI providers with credentials stored securely in your system's native keychain. The built-in catalog focuses on domestic providers such as DeepSeek, Qwen, Moonshot, ByteDance Ark, SiliconFlow, and MiniMax CN.
 For **Custom** providers used with OpenAI-compatible gateways, you can set a custom `User-Agent` in **Settings → AI Providers → Edit Provider** for compatibility-sensitive endpoints.
 When a compatible gateway rejects `/models` for non-auth reasons, BoostClaw automatically falls back to a lightweight `/chat/completions` or `/responses` probe during API key validation.
 
@@ -184,9 +184,6 @@ Open **Settings → Gateway → Proxy** and configure:
 
 - **Proxy Server**: the default proxy for all requests
 - **Bypass Rules**: hosts that should connect directly, separated by semicolons, commas, or new lines
-  - **HTTP Proxy**
-  - **HTTPS Proxy**
-  - **ALL_PROXY / SOCKS**
 
 Recommended local examples:
 

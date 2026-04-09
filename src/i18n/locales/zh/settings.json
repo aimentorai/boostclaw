@@ -283,7 +283,6 @@
     "basedOn": "基于 OpenClaw",
     "version": "版本 {{version}}",
     "docs": "官网",
-    "github": "GitHub",
     "faq": "常见问题"
   }
 }

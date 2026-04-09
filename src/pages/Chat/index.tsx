@@ -434,26 +434,24 @@ function WelcomeScreen() {
   return (
     <div data-testid="chat-welcome-screen" className="flex h-[60vh] flex-col items-center justify-center text-center">
       <div className="panel-elevated tech-border w-full max-w-3xl rounded-[32px] px-8 py-10">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/75">AI workspace</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/75">{t('welcome.eyebrow')}</p>
         <h1 className="text-gradient mx-auto mb-4 max-w-2xl text-4xl font-semibold md:text-5xl">
           {t('welcome.subtitle')}
         </h1>
-        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-muted-foreground">
-          Launch a session, route work to agents, and keep tool execution visible without changing the current workflow.
-        </p>
+        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-muted-foreground">{t('welcome.title')}</p>
 
         <div className="mb-8 grid gap-3 text-left sm:grid-cols-3">
           <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Sessions</p>
-            <p className="text-sm font-medium text-foreground">Persistent transcripts and recent runs stay attached to the active workspace.</p>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t('welcome.sessionsTitle')}</p>
+            <p className="text-sm font-medium text-foreground">{t('welcome.sessionsBody')}</p>
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Agents</p>
-            <p className="text-sm font-medium text-foreground">Route tasks to the current agent or hand off focused work to another one.</p>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t('welcome.agentsTitle')}</p>
+            <p className="text-sm font-medium text-foreground">{t('welcome.agentsBody')}</p>
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Runtime</p>
-            <p className="text-sm font-medium text-foreground">Thinking, tool calls, and execution graphs remain visible in the same chat flow.</p>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t('welcome.runtimeTitle')}</p>
+            <p className="text-sm font-medium text-foreground">{t('welcome.runtimeBody')}</p>
           </div>
         </div>
 

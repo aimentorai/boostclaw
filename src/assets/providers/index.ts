@@ -18,6 +18,7 @@ export const providerIcons: Record<string, string> = {
     ark,
     moonshot,
     siliconflow,
+    qwen: qwenPortal,
     'minimax-portal': minimaxPortal,
     'minimax-portal-cn': minimaxPortal,
     'modelstudio': qwenPortal,

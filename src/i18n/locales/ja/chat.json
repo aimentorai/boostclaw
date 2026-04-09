@@ -2,20 +2,25 @@
     "gatewayNotRunning": "ゲートウェイが停止中",
     "gatewayRequired": "チャットを利用するには OpenClaw ゲートウェイが実行されている必要があります。自動的に起動するか、設定から起動できます。",
     "welcome": {
-        "title": "BoostClaw チャット",
-        "subtitle": "お手伝いできることはありますか？",
+        "title": "BoostClaw Console",
+        "subtitle": "モデル、チャンネル、Agent を接続し、ここから次のタスクを始めます。",
+        "eyebrow": "Agent Console",
+        "sessionsTitle": "セッション",
+        "sessionsBody": "会話履歴、直近の実行、タスク文脈は現在のワークスペースに紐づいて保持されます。",
+        "agentsTitle": "Agent",
+        "agentsBody": "現在の会話 Agent を選択するか、次のメッセージを別の Agent に送れます。",
+        "runtimeTitle": "ランタイム",
+        "runtimeBody": "思考、ツール呼び出し、実行状況が同じ会話フロー内で見える状態で維持されます。",
         "askQuestions": "タスク対応",
-        "askQuestionsDesc": "タスク指向の依頼に対応します",
-        "creativeTasks": "連続実行",
-        "creativeTasksDesc": "複数ステップの作業を継続して進めます",
-        "brainstorming": "マルチエージェント並列実行"
+        "creativeTasks": "チャンネル接続",
+        "brainstorming": "モデル設定"
     },
     "noLogs": "（ログはまだありません）",
     "toolbar": {
         "refresh": "チャットを更新",
         "showThinking": "思考を表示",
         "hideThinking": "思考を非表示",
-        "currentAgent": "現在の会話相手: {{agent}}"
+        "currentAgent": "現在の会話 Agent: {{agent}}"
     },
     "taskPanel": {
         "eyebrow": "実行ビュー",
@@ -51,14 +56,17 @@
     "composer": {
         "attachFiles": "ファイルを添付",
         "pickAgent": "Agent を選択",
+        "agentSelectorLabel": "会話 Agent: {{agent}}",
         "clearTarget": "送信先 Agent をクリア",
         "targetChip": "@{{agent}}",
-        "agentPickerTitle": "次のメッセージを別の Agent に直接送信します",
+        "agentPickerTitle": "次のメッセージの送信先 Agent を選択します",
+        "currentAgentOption": "現在の Agent: {{agent}}",
+        "currentAgentOptionDesc": "現在開いている会話 Agent に送信します",
         "gatewayDisconnectedPlaceholder": "ゲートウェイ未接続...",
         "send": "送信",
         "stop": "停止",
         "gatewayConnected": "接続済み",
-        "gatewayStatus": "ゲートウェイ {{state}} | ポート: {{port}} {{pid}}",
+        "gatewayStatus": "Gateway {{state}} | ポート: {{port}} {{pid}}",
         "retryFailedAttachments": "失敗した添付を再試行"
     },
     "historyBuckets": {

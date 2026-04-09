@@ -40,12 +40,18 @@ function translate(key: string, vars?: Record<string, unknown>): string {
       return 'Attach files';
     case 'composer.pickAgent':
       return 'Choose agent';
+    case 'composer.agentSelectorLabel':
+      return `Chat agent: ${String(vars?.agent ?? '')}`;
     case 'composer.clearTarget':
       return 'Clear target agent';
     case 'composer.targetChip':
       return `@${String(vars?.agent ?? '')}`;
     case 'composer.agentPickerTitle':
-      return 'Route the next message to another agent';
+      return 'Choose which agent should receive the next message';
+    case 'composer.currentAgentOption':
+      return `Current agent: ${String(vars?.agent ?? '')}`;
+    case 'composer.currentAgentOptionDesc':
+      return 'Send to the agent for the active chat session';
     case 'composer.gatewayDisconnectedPlaceholder':
       return 'Gateway not connected...';
     case 'composer.send':
@@ -125,10 +131,13 @@ describe('ChatInput agent targeting', () => {
 
     render(<ChatInput onSend={onSend} />);
 
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Chat agent: Main');
+
     fireEvent.click(screen.getByTitle('Choose agent'));
     fireEvent.click(screen.getByText('Research'));
 
     expect(screen.getByText('@Research')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Chat agent: Research');
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Hello direct agent' } });
     fireEvent.click(screen.getByTitle('Send'));

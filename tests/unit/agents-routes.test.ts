@@ -21,6 +21,7 @@ vi.mock('@electron/utils/agent-config', () => ({
   listAgentsSnapshot: vi.fn(),
   removeAgentWorkspaceDirectory: vi.fn(),
   resolveAccountIdForAgent: vi.fn(),
+  setDefaultAgent: vi.fn(),
   updateAgentName: vi.fn(),
 }));
 

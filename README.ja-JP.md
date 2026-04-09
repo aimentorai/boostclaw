@@ -122,7 +122,7 @@ Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、
 - `TAVILY_API_KEY`: `tavily-search` 用（上流ランタイムで OAuth 対応の場合あり）
 
 ### 🔐 セキュアなプロバイダー統合
-複数のAIプロバイダー（OpenAI、Anthropicなど）に接続でき、資格情報はシステムのネイティブキーチェーンに安全に保存されます。OpenAI は API キーとブラウザ OAuth（Codex サブスクリプション）の両方に対応しています。
+複数の AI プロバイダーに接続でき、認証情報はシステムのネイティブキーチェーンに安全に保存されます。内蔵カタログは DeepSeek、Qwen、Moonshot、ByteDance Ark、SiliconFlow、MiniMax 中国版などの国内向けプロバイダーを中心に構成されています。
 OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う場合、**設定 → AI Providers → Provider 編集** でカスタム `User-Agent` を設定でき、互換性が必要なエンドポイントで有効です。
 互換ゲートウェイで `/models` が認証以外の理由で使えない場合、BoostClaw は API キー検証時に軽量な `/chat/completions` または `/responses` プローブへ自動フォールバックします。
 
@@ -180,9 +180,6 @@ BoostClawには、Electron、OpenClaw Gateway、またはTelegramなどのチャ
 
 - **プロキシサーバー**: すべてのリクエストのデフォルトプロキシ
 - **バイパスルール**: 直接接続すべきホスト（セミコロン、カンマ、または改行で区切る）
-  - **HTTP プロキシ**
-  - **HTTPS プロキシ**
-  - **ALL_PROXY / SOCKS**
 
 推奨されるローカル設定例：
 

@@ -620,6 +620,36 @@ export async function updateAgentName(agentId: string, name: string): Promise<Ag
   });
 }
 
+export async function setDefaultAgent(agentId: string): Promise<AgentsSnapshot> {
+  return withConfigLock(async () => {
+    const config = await readOpenClawConfig() as AgentConfigDocument;
+    const { agentsConfig, entries } = normalizeAgentsConfig(config);
+    const targetExists = entries.some((entry) => entry.id === agentId);
+    if (!targetExists) {
+      throw new Error(`Agent "${agentId}" not found`);
+    }
+
+    const nextEntries = entries.map((entry) => {
+      const nextEntry = { ...entry };
+      if (entry.id === agentId) {
+        nextEntry.default = true;
+      } else {
+        delete nextEntry.default;
+      }
+      return nextEntry;
+    });
+
+    config.agents = {
+      ...agentsConfig,
+      list: nextEntries,
+    };
+
+    await writeOpenClawConfig(config);
+    logger.info('Updated default agent', { agentId });
+    return buildSnapshotFromConfig(config);
+  });
+}
+
 function isValidModelRef(modelRef: string): boolean {
   const firstSlash = modelRef.indexOf('/');
   return firstSlash > 0 && firstSlash < modelRef.length - 1;

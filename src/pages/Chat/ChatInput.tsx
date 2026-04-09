@@ -7,7 +7,7 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { SendHorizontal, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, AtSign } from 'lucide-react';
+import { SendHorizontal, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -100,15 +100,20 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     () => (agents ?? []).find((agent) => agent.id === currentAgentId)?.name ?? currentAgentId,
     [agents, currentAgentId],
   );
+  const selectableAgents = useMemo(
+    () => (agents ?? []),
+    [agents],
+  );
   const mentionableAgents = useMemo(
-    () => (agents ?? []).filter((agent) => agent.id !== currentAgentId),
-    [agents, currentAgentId],
+    () => selectableAgents.filter((agent) => agent.id !== currentAgentId),
+    [selectableAgents, currentAgentId],
   );
   const selectedTarget = useMemo(
     () => (agents ?? []).find((agent) => agent.id === targetAgentId) ?? null,
     [agents, targetAgentId],
   );
-  const showAgentPicker = mentionableAgents.length > 0;
+  const effectiveTargetLabel = selectedTarget?.name || currentAgentName;
+  const showAgentPicker = selectableAgents.length > 1;
 
   // Auto-resize textarea
   useEffect(() => {
@@ -446,17 +451,20 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
             {showAgentPicker && (
               <div ref={pickerRef} className="relative shrink-0">
                 <Button
+                  data-testid="chat-agent-picker-button"
                   variant="ghost"
-                  size="icon"
                   className={cn(
-                    'h-10 w-10 rounded-2xl text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground',
+                    'h-10 max-w-[220px] rounded-2xl px-3 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground',
                     (pickerOpen || selectedTarget) && 'bg-primary/12 text-primary hover:bg-primary/20'
                   )}
                   onClick={() => setPickerOpen((open) => !open)}
                   disabled={disabled || sending}
                   title={t('composer.pickAgent')}
                 >
-                  <AtSign className="h-4 w-4" />
+                  <span className="truncate text-[13px] font-medium">
+                    {t('composer.agentSelectorLabel', { agent: effectiveTargetLabel })}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                 </Button>
                 {pickerOpen && (
                   <div className="panel-elevated absolute bottom-full left-0 z-20 mb-2 w-72 overflow-hidden rounded-3xl border border-border/70 p-1.5 shadow-xl">
@@ -464,6 +472,26 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                       {t('composer.agentPickerTitle', { currentAgent: currentAgentName })}
                     </div>
                     <div className="max-h-64 overflow-y-auto">
+                      <button
+                        type="button"
+                        data-testid="chat-agent-option-current"
+                        onClick={() => {
+                          setTargetAgentId(null);
+                          setPickerOpen(false);
+                          textareaRef.current?.focus();
+                        }}
+                        className={cn(
+                          'flex w-full flex-col items-start rounded-2xl px-3 py-2 text-left transition-colors',
+                          !selectedTarget ? 'bg-primary/10 text-foreground' : 'hover:bg-white/[0.06]'
+                        )}
+                      >
+                        <span className="text-[14px] font-medium text-foreground">
+                          {t('composer.currentAgentOption', { agent: currentAgentName })}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {t('composer.currentAgentOptionDesc')}
+                        </span>
+                      </button>
                       {mentionableAgents.map((agent) => (
                         <AgentPickerItem
                           key={agent.id}
@@ -628,6 +656,7 @@ function AgentPickerItem({
   return (
     <button
       type="button"
+      data-testid={`chat-agent-option-${agent.id}`}
       onClick={onSelect}
       className={cn(
         'flex w-full flex-col items-start rounded-2xl px-3 py-2 text-left transition-colors',

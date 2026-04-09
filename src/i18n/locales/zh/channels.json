@@ -171,7 +171,7 @@
         },
         "dingtalk": {
             "description": "通过 OpenClaw 渠道插件连接钉钉（Stream 模式）",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/Y5eNwiSiZidkLskrwtJc1rUln0b#doxcnr8KfaA2mNPeQUeHO83eDPh",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "clientId": {
                     "label": "Client ID (AppKey)",
