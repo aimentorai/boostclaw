@@ -22,6 +22,7 @@ import { useSettingsStore } from './stores/settings';
 import { useGatewayStore } from './stores/gateway';
 import { useProviderStore } from './stores/providers';
 import { applyGatewayTransportPreference } from './lib/api-client';
+import { rendererTimer } from './lib/startup-timer';
 import { useAuthStore } from './stores/auth';
 
 
@@ -103,6 +104,10 @@ function App() {
   const authenticated = useAuthStore((state) => state.authenticated);
 
   useEffect(() => {
+    rendererTimer.mark('renderer_mount');
+  }, []);
+
+  useEffect(() => {
     initSettings();
   }, [initSettings]);
 
@@ -176,6 +181,11 @@ function App() {
 
   useEffect(() => {
     applyGatewayTransportPreference();
+  }, []);
+
+  useEffect(() => {
+    rendererTimer.mark('routes_rendered');
+    rendererTimer.complete();
   }, []);
 
   return (

@@ -7,6 +7,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import { invokeIpc } from '@/lib/api-client';
 import { subscribeHostEvent } from '@/lib/host-events';
 import type { GatewayStatus } from '../types/gateway';
+import { rendererTimer } from '@/lib/startup-timer';
 
 let gatewayInitPromise: Promise<void> | null = null;
 let gatewayEventUnsubscribers: Array<() => void> | null = null;
@@ -325,6 +326,7 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
         } catch {
           // Best-effort; the IPC listener will eventually reconcile.
         }
+        rendererTimer.mark('gateway_store_init');
       } catch (error) {
         console.error('Failed to initialize Gateway:', error);
         set({ lastError: String(error) });
