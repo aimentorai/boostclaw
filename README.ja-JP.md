@@ -373,6 +373,8 @@ pnpm package:linux        # Linux向けにパッケージ化
 
 ヘッドレス Linux では Electron テストに表示サーバーが必要です。`xvfb-run -a pnpm run test:e2e` を利用してください。
 
+アプリに同梱するローカルのプリインストール済みスキルを全ユーザーへ配布したい場合は、各スキルを `resources/local-skills/<skill-folder>/` に配置し、[`resources/skills/preinstalled-manifest.json`](resources/skills/preinstalled-manifest.json) に `localPath` エントリを追加します。
+
 ### 通信回帰チェック
 
 PR が通信経路（Gateway イベント、Chat 送受信フロー、Channel 配信、トランスポートのフォールバック）に触れる場合は、次を実行してください。

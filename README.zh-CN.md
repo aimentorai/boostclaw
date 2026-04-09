@@ -377,6 +377,8 @@ pnpm package:linux        # 为 Linux 打包
 
 在无头 Linux 环境下，Electron 测试需要显示服务；可使用 `xvfb-run -a pnpm run test:e2e`。
 
+如果要把项目内置技能随安装包分发给所有用户，把每个技能目录放到 `resources/local-skills/<技能目录>/`，再在 [`resources/skills/preinstalled-manifest.json`](resources/skills/preinstalled-manifest.json) 里增加 `localPath` 条目。
+
 ### 通信回归检查
 
 当 PR 涉及通信链路（Gateway 事件、Chat 收发流程、Channel 投递、传输回退）时，建议执行：

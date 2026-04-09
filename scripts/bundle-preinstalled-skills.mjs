@@ -21,7 +21,9 @@ function loadManifest() {
     throw new Error('Invalid preinstalled-skills manifest format');
   }
   for (const item of parsed.skills) {
-    if (!item.slug || !item.repo || !item.repoPath) {
+    const hasLocalSource = typeof item.localPath === 'string' && item.localPath.trim().length > 0;
+    const hasRepoSource = item.repo && item.repoPath;
+    if (!item.slug || (!hasLocalSource && !hasRepoSource)) {
       throw new Error(`Invalid manifest entry: ${JSON.stringify(item)}`);
     }
   }
@@ -58,6 +60,32 @@ function shouldCopySkillFile(srcPath) {
   if (base === '.git') return false;
   if (base === '.subset.tar') return false;
   return true;
+}
+
+function copyLocalSkill(entry) {
+  const sourceDir = join(ROOT, entry.localPath);
+  const targetDir = join(OUTPUT_ROOT, entry.slug);
+
+  if (!existsSync(sourceDir)) {
+    throw new Error(`Missing local skill path: ${entry.localPath}`);
+  }
+
+  rmSync(targetDir, { recursive: true, force: true });
+  cpSync(sourceDir, targetDir, { recursive: true, dereference: true, filter: shouldCopySkillFile });
+
+  const skillManifest = join(targetDir, 'SKILL.md');
+  if (!existsSync(skillManifest)) {
+    throw new Error(`Skill ${entry.slug} is missing SKILL.md after copy`);
+  }
+
+  const version = (entry.version || 'local').trim() || 'local';
+  lock.skills.push({
+    slug: entry.slug,
+    version,
+    localPath: entry.localPath,
+  });
+
+  echo`   OK ${entry.slug} (local)`;
 }
 
 async function extractArchive(archiveFileName, cwd) {
@@ -120,7 +148,17 @@ const lock = {
   skills: [],
 };
 
-const groups = groupByRepoRef(manifestSkills);
+const localSkills = manifestSkills.filter((entry) => typeof entry.localPath === 'string' && entry.localPath.trim().length > 0);
+const remoteSkills = manifestSkills.filter((entry) => !(typeof entry.localPath === 'string' && entry.localPath.trim().length > 0));
+
+if (localSkills.length > 0) {
+  echo`Copying local preinstalled skills...`;
+  for (const entry of localSkills) {
+    copyLocalSkill(entry);
+  }
+}
+
+const groups = groupByRepoRef(remoteSkills);
 for (const group of groups) {
   const repoDir = join(TMP_ROOT, createRepoDirName(group.repo, group.ref));
   const sparsePaths = [...new Set(group.entries.map((entry) => entry.repoPath))];

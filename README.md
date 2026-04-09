@@ -377,6 +377,8 @@ pnpm package:linux        # Package for Linux
 
 On headless Linux, run Electron tests under a display server such as `xvfb-run -a pnpm run test:e2e`.
 
+To bundle project-local preinstalled skills for every user, place each skill directory under `resources/local-skills/<skill-folder>/` and add a `localPath` entry in [`resources/skills/preinstalled-manifest.json`](resources/skills/preinstalled-manifest.json).
+
 ### Communication Regression Checks
 
 When a PR changes communication paths (gateway events, chat runtime send/receive flow, channel delivery, or transport fallback), run:
