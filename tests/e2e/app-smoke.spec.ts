@@ -1,6 +1,6 @@
 import { closeElectronApp, expect, test } from './fixtures/electron';
 
-test.describe('Boostclaw Electron smoke flows', () => {
+test.describe('BoostClaw Electron smoke flows', () => {
   test('opens main layout on a fresh profile', async ({ page }) => {
     await expect(page.getByTestId('main-layout')).toBeVisible();
     await expect(page.getByTestId('setup-page')).toHaveCount(0);

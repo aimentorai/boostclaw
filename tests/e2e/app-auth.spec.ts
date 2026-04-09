@@ -1,6 +1,6 @@
 import { closeElectronApp, expect, test } from './fixtures/electron';
 
-test.describe('Boostclaw app auth', () => {
+test.describe('BoostClaw app auth', () => {
   test('shows login page when app auth is enabled', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ enableAppAuth: true });
     try {

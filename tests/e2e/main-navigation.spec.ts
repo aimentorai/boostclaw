@@ -1,6 +1,6 @@
 import { closeElectronApp, expect, getStableWindow, test } from './fixtures/electron';
 
-test.describe('Boostclaw main navigation without setup flow', () => {
+test.describe('BoostClaw main navigation without setup flow', () => {
   test('navigates between core pages with setup bypassed', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
@@ -8,6 +8,8 @@ test.describe('Boostclaw main navigation without setup flow', () => {
       const page = await getStableWindow(app);
 
       await expect(page.getByTestId('main-layout')).toBeVisible();
+      await expect(page.getByTestId('chat-welcome-screen')).toBeVisible();
+      await expect(page.getByTestId('chat-composer-shell')).toBeVisible();
 
       await page.getByTestId('sidebar-nav-models').click();
       await expect(page.getByTestId('models-page')).toBeVisible();

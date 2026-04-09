@@ -35,26 +35,26 @@ type PendingAuthFlow = {
   closeLoopbackServer?: () => void;
 };
 
-const APP_AUTH_ACCOUNT_ID = '__clawx_app_auth__';
+const APP_AUTH_ACCOUNT_ID = '__BoostClaw_app_auth__';
 
-const AUTH_ENABLED = process.env.CLAWX_APP_AUTH_ENABLED === '1';
-const AUTHORIZATION_ENDPOINT = process.env.CLAWX_APP_AUTH_AUTHORIZATION_ENDPOINT
+const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED === '1';
+const AUTHORIZATION_ENDPOINT = process.env.BoostClaw_APP_AUTH_AUTHORIZATION_ENDPOINT
   || 'https://open.am.microdata-inc.com/usercenter/oauth/authorize';
-const TOKEN_ENDPOINT = process.env.CLAWX_APP_AUTH_TOKEN_ENDPOINT
+const TOKEN_ENDPOINT = process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT
   || 'https://open.am.microdata-inc.com/usercenter/oauth/token';
-const CODE_EXCHANGE_ENDPOINT = (process.env.CLAWX_APP_AUTH_CODE_EXCHANGE_ENDPOINT || '').trim();
-const CLIENT_ID = process.env.CLAWX_APP_AUTH_CLIENT_ID
+const CODE_EXCHANGE_ENDPOINT = (process.env.BoostClaw_APP_AUTH_CODE_EXCHANGE_ENDPOINT || '').trim();
+const CLIENT_ID = process.env.BoostClaw_APP_AUTH_CLIENT_ID
   || '4edb20b8-9bb1-4fe1-9b20-b89bb19fe13a';
-const CLIENT_SECRET = (process.env.CLAWX_APP_AUTH_CLIENT_SECRET || '').trim();
+const CLIENT_SECRET = (process.env.BoostClaw_APP_AUTH_CLIENT_SECRET || '').trim();
 const TOKEN_AUTH_METHOD = (
-  process.env.CLAWX_APP_AUTH_TOKEN_AUTH_METHOD
+  process.env.BoostClaw_APP_AUTH_TOKEN_AUTH_METHOD
   || 'auto'
 ).trim() as 'auto' | 'none' | 'client_secret_post' | 'client_secret_basic';
-const REDIRECT_URI = process.env.CLAWX_APP_AUTH_REDIRECT_URI || 'https://open.microdata-inc.com';
-const APP_CALLBACK_URI = process.env.CLAWX_APP_AUTH_APP_CALLBACK_URI || 'boostclaw://auth/callback';
-const SCOPE = process.env.CLAWX_APP_AUTH_SCOPE || 'openid profile';
-const AUTH_PROMPT = (process.env.CLAWX_APP_AUTH_PROMPT || 'login').trim();
-const AUTH_COOKIE_NAME = process.env.CLAWX_APP_AUTH_COOKIE_NAME || 'Auth-Graviteeio-APIM';
+const REDIRECT_URI = process.env.BoostClaw_APP_AUTH_REDIRECT_URI || 'https://open.microdata-inc.com';
+const APP_CALLBACK_URI = process.env.BoostClaw_APP_AUTH_APP_CALLBACK_URI || 'BoostClaw://auth/callback';
+const SCOPE = process.env.BoostClaw_APP_AUTH_SCOPE || 'openid profile';
+const AUTH_PROMPT = (process.env.BoostClaw_APP_AUTH_PROMPT || 'login').trim();
+const AUTH_COOKIE_NAME = process.env.BoostClaw_APP_AUTH_COOKIE_NAME || 'Auth-Graviteeio-APIM';
 const LOOPBACK_SUCCESS_HTML = `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -63,7 +63,7 @@ const LOOPBACK_SUCCESS_HTML = `<!doctype html>
   <title>登录成功</title>
 </head>
 <body>
-  <p>登录成功，请返回 Boostclaw 继续使用。</p>
+  <p>登录成功，请返回 BoostClaw 继续使用。</p>
 </body>
 </html>`;
 

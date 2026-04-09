@@ -4,7 +4,7 @@
  * via gateway:rpc IPC. Session selector, thinking toggle, and refresh
  * are in the toolbar; messages render with markdown + streaming.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { useChatStore, type RawMessage } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
@@ -68,10 +68,13 @@ export function Chat() {
     void fetchAgents();
   }, [fetchAgents]);
 
+  const subagentCompletionInfos = useMemo(
+    () => messages.map((message) => parseSubagentCompletionInfo(message)),
+    [messages],
+  );
+
   useEffect(() => {
-    const completions = messages
-      .map((message) => parseSubagentCompletionInfo(message))
-      .filter((value): value is NonNullable<typeof value> => value != null);
+    const completions = subagentCompletionInfos.filter((value): value is NonNullable<typeof value> => value != null);
     const missing = completions.filter((completion) => !childTranscripts[completion.sessionId]);
     if (missing.length === 0) return;
 
@@ -115,7 +118,7 @@ export function Chat() {
     return () => {
       cancelled = true;
     };
-  }, [messages, childTranscripts]);
+  }, [subagentCompletionInfos, childTranscripts]);
 
   // Update timestamp when sending starts
   useEffect(() => {
@@ -129,112 +132,209 @@ export function Chat() {
 
   // Gateway not running block has been completely removed so the UI always renders.
 
-  const streamMsg = streamingMessage && typeof streamingMessage === 'object'
-    ? streamingMessage as unknown as { role?: string; content?: unknown; timestamp?: number }
-    : null;
-  const streamText = streamMsg ? extractText(streamMsg) : (typeof streamingMessage === 'string' ? streamingMessage : '');
-  const hasStreamText = streamText.trim().length > 0;
-  const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
-  const hasStreamThinking = showThinking && !!streamThinking && streamThinking.trim().length > 0;
-  const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
-  const hasStreamTools = streamTools.length > 0;
-  const streamImages = streamMsg ? extractImages(streamMsg) : [];
-  const hasStreamImages = streamImages.length > 0;
-  const hasStreamToolStatus = streamingTools.length > 0;
-  const shouldRenderStreaming = sending && (hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus);
-  const hasAnyStreamContent = hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus;
+  const streamState = useMemo(() => {
+    const streamMsg = streamingMessage && typeof streamingMessage === 'object'
+      ? streamingMessage as unknown as { role?: string; content?: unknown; timestamp?: number }
+      : null;
+    const streamText = streamMsg ? extractText(streamMsg) : (typeof streamingMessage === 'string' ? streamingMessage : '');
+    const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
+    const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
+    const streamImages = streamMsg ? extractImages(streamMsg) : [];
+    const hasStreamText = streamText.trim().length > 0;
+    const hasStreamThinking = showThinking && !!streamThinking && streamThinking.trim().length > 0;
+    const hasStreamTools = streamTools.length > 0;
+    const hasStreamImages = streamImages.length > 0;
+    const hasStreamToolStatus = streamingTools.length > 0;
+    const hasAnyStreamContent = hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus;
+
+    return {
+      streamMsg,
+      streamText,
+      streamThinking,
+      streamTools,
+      streamImages,
+      hasStreamText,
+      hasStreamThinking,
+      hasStreamTools,
+      hasStreamImages,
+      hasStreamToolStatus,
+      hasAnyStreamContent,
+      shouldRenderStreaming: sending && hasAnyStreamContent,
+    };
+  }, [showThinking, sending, streamingMessage, streamingTools]);
 
   const isEmpty = messages.length === 0 && !sending;
-  const subagentCompletionInfos = messages.map((message) => parseSubagentCompletionInfo(message));
-  const nextUserMessageIndexes = new Array<number>(messages.length).fill(-1);
-  let nextUserMessageIndex = -1;
-  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
-    nextUserMessageIndexes[idx] = nextUserMessageIndex;
-    if (messages[idx].role === 'user' && !subagentCompletionInfos[idx]) {
-      nextUserMessageIndex = idx;
-    }
-  }
+  const agentNameById = useMemo(
+    () => new Map((agents ?? []).map((agent) => [agent.id, agent.name])),
+    [agents],
+  );
 
-  const userRunCards = messages.flatMap((message, idx) => {
-    if (message.role !== 'user' || subagentCompletionInfos[idx]) return [];
-
-    const nextUserIndex = nextUserMessageIndexes[idx];
-    const segmentEnd = nextUserIndex === -1 ? messages.length : nextUserIndex;
-    const segmentMessages = messages.slice(idx + 1, segmentEnd);
-    const replyIndexOffset = segmentMessages.findIndex((candidate) => candidate.role === 'assistant');
-    const replyIndex = replyIndexOffset === -1 ? null : idx + 1 + replyIndexOffset;
-    const completionInfos = subagentCompletionInfos
-      .slice(idx + 1, segmentEnd)
-      .filter((value): value is NonNullable<typeof value> => value != null);
-    const isLatestOpenRun = nextUserIndex === -1 && (sending || pendingFinal || hasAnyStreamContent);
-    let steps = deriveTaskSteps({
-      messages: segmentMessages,
-      streamingMessage: isLatestOpenRun ? streamingMessage : null,
-      streamingTools: isLatestOpenRun ? streamingTools : [],
-      sending: isLatestOpenRun ? sending : false,
-      pendingFinal: isLatestOpenRun ? pendingFinal : false,
-      showThinking,
-    });
-
-    for (const completion of completionInfos) {
-      const childMessages = childTranscripts[completion.sessionId];
-      if (!childMessages || childMessages.length === 0) continue;
-      const branchRootId = `subagent:${completion.sessionId}`;
-      const childSteps = deriveTaskSteps({
-        messages: childMessages,
-        streamingMessage: null,
-        streamingTools: [],
-        sending: false,
-        pendingFinal: false,
-        showThinking,
-      }).map((step) => ({
-        ...step,
-        id: `${completion.sessionId}:${step.id}`,
-        depth: step.depth + 1,
-        parentId: branchRootId,
-      }));
-
-      steps = [
-        ...steps,
-        {
-          id: branchRootId,
-          label: `${completion.agentId} subagent`,
-          status: 'completed',
-          kind: 'system' as const,
-          detail: completion.sessionKey,
-          depth: 1,
-          parentId: 'agent-run',
-        },
-        ...childSteps,
-      ];
+  const { userRunCards, suppressedToolIndexes } = useMemo(() => {
+    const nextUserMessageIndexes = new Array<number>(messages.length).fill(-1);
+    let nextUserMessageIndex = -1;
+    for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+      nextUserMessageIndexes[idx] = nextUserMessageIndex;
+      if (messages[idx].role === 'user' && !subagentCompletionInfos[idx]) {
+        nextUserMessageIndex = idx;
+      }
     }
 
-    if (steps.length === 0) return [];
-
-    const segmentAgentId = currentAgentId;
-    const segmentAgentLabel = agents.find((agent) => agent.id === segmentAgentId)?.name || segmentAgentId;
+    const computedRunCards: Array<{
+      triggerIndex: number;
+      replyIndex: number | null;
+      active: boolean;
+      agentLabel: string;
+      sessionLabel: string;
+      segmentEnd: number;
+      steps: ReturnType<typeof deriveTaskSteps>;
+    }> = [];
+    const suppressedIndexes = new Set<number>();
+    const segmentAgentLabel = agentNameById.get(currentAgentId) || currentAgentId;
     const segmentSessionLabel = sessionLabels[currentSessionKey] || currentSessionKey;
 
-    return [{
-      triggerIndex: idx,
-      replyIndex,
-      active: isLatestOpenRun,
-      agentLabel: segmentAgentLabel,
-      sessionLabel: segmentSessionLabel,
-      segmentEnd: replyIndex ?? (nextUserIndex === -1 ? messages.length - 1 : nextUserIndex - 1),
-      steps,
-    }];
-  });
+    for (let idx = 0; idx < messages.length; idx += 1) {
+      const message = messages[idx];
+      if (message.role !== 'user' || subagentCompletionInfos[idx]) continue;
+
+      const nextUserIndex = nextUserMessageIndexes[idx];
+      const segmentEnd = nextUserIndex === -1 ? messages.length : nextUserIndex;
+      const segmentMessages = messages.slice(idx + 1, segmentEnd);
+      const replyIndexOffset = segmentMessages.findIndex((candidate) => candidate.role === 'assistant');
+      const replyIndex = replyIndexOffset === -1 ? null : idx + 1 + replyIndexOffset;
+      const completionInfos = subagentCompletionInfos
+        .slice(idx + 1, segmentEnd)
+        .filter((value): value is NonNullable<typeof value> => value != null);
+      const isLatestOpenRun = nextUserIndex === -1 && (sending || pendingFinal || streamState.hasAnyStreamContent);
+
+      let steps = deriveTaskSteps({
+        messages: segmentMessages,
+        streamingMessage: isLatestOpenRun ? streamingMessage : null,
+        streamingTools: isLatestOpenRun ? streamingTools : [],
+        sending: isLatestOpenRun ? sending : false,
+        pendingFinal: isLatestOpenRun ? pendingFinal : false,
+        showThinking,
+      });
+
+      for (const completion of completionInfos) {
+        const childMessages = childTranscripts[completion.sessionId];
+        if (!childMessages || childMessages.length === 0) continue;
+        const branchRootId = `subagent:${completion.sessionId}`;
+        const childSteps = deriveTaskSteps({
+          messages: childMessages,
+          streamingMessage: null,
+          streamingTools: [],
+          sending: false,
+          pendingFinal: false,
+          showThinking,
+        }).map((step) => ({
+          ...step,
+          id: `${completion.sessionId}:${step.id}`,
+          depth: step.depth + 1,
+          parentId: branchRootId,
+        }));
+
+        steps = [
+          ...steps,
+          {
+            id: branchRootId,
+            label: `${completion.agentId} subagent`,
+            status: 'completed',
+            kind: 'system' as const,
+            detail: completion.sessionKey,
+            depth: 1,
+            parentId: 'agent-run',
+          },
+          ...childSteps,
+        ];
+      }
+
+      if (steps.length === 0) continue;
+
+      const cardSegmentEnd = replyIndex ?? (nextUserIndex === -1 ? messages.length - 1 : nextUserIndex - 1);
+      for (let messageIndex = idx + 1; messageIndex <= cardSegmentEnd; messageIndex += 1) {
+        suppressedIndexes.add(messageIndex);
+      }
+
+      computedRunCards.push({
+        triggerIndex: idx,
+        replyIndex,
+        active: isLatestOpenRun,
+        agentLabel: segmentAgentLabel,
+        sessionLabel: segmentSessionLabel,
+        segmentEnd: cardSegmentEnd,
+        steps,
+      });
+    }
+
+    return { userRunCards: computedRunCards, suppressedToolIndexes: suppressedIndexes };
+  }, [
+    agentNameById,
+    childTranscripts,
+    currentAgentId,
+    currentSessionKey,
+    messages,
+    pendingFinal,
+    sending,
+    sessionLabels,
+    showThinking,
+    streamState.hasAnyStreamContent,
+    streamingMessage,
+    streamingTools,
+    subagentCompletionInfos,
+  ]);
+
+  const messageRows = useMemo(() => messages.map((msg, idx) => {
+    const suppressToolCards = suppressedToolIndexes.has(idx);
+    const cardsForMessage = userRunCards.filter((card) => card.triggerIndex === idx);
+
+    return (
+      <div
+        key={msg.id || `msg-${idx}`}
+        className="space-y-3"
+        id={`chat-message-${idx}`}
+        data-testid={`chat-message-${idx}`}
+      >
+        <ChatMessage
+          message={msg}
+          showThinking={showThinking}
+          suppressToolCards={suppressToolCards}
+        />
+        {cardsForMessage.map((card) => (
+          <ExecutionGraphCard
+            key={`graph-${idx}`}
+            agentLabel={card.agentLabel}
+            sessionLabel={card.sessionLabel}
+            steps={card.steps}
+            active={card.active}
+            onJumpToTrigger={() => {
+              document.getElementById(`chat-message-${card.triggerIndex}`)?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }}
+            onJumpToReply={() => {
+              if (card.replyIndex == null) return;
+              document.getElementById(`chat-message-${card.replyIndex}`)?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }}
+          />
+        ))}
+      </div>
+    );
+  }), [messages, showThinking, suppressedToolIndexes, userRunCards]);
 
   return (
-    <div className={cn("relative flex min-h-0 flex-col -m-6 transition-colors duration-500 dark:bg-background")} style={{ height: 'calc(100vh - 2.5rem)' }}>
+    <div className={cn("relative flex min-h-0 flex-col overflow-hidden rounded-[28px] transition-colors duration-500")} style={{ height: '100%' }}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--glow)/0.08),transparent_24%)]" />
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-end px-4 py-2">
+      <div className="relative z-10 flex shrink-0 items-center justify-end border-b border-border/50 px-5 py-3">
         <ChatToolbar />
       </div>
 
       {/* Messages Area */}
-      <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
+      <div className="relative z-10 min-h-0 flex-1 overflow-hidden px-5 py-5">
         <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-4 lg:flex-row lg:items-stretch">
           <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
             <div ref={contentRef} className="max-w-4xl space-y-4">
@@ -242,63 +342,21 @@ export function Chat() {
                 <WelcomeScreen />
               ) : (
                 <>
-                  {messages.map((msg, idx) => {
-                    const suppressToolCards = userRunCards.some((card) =>
-                      idx > card.triggerIndex && idx <= card.segmentEnd,
-                    );
-                    return (
-                    <div
-                      key={msg.id || `msg-${idx}`}
-                      className="space-y-3"
-                      id={`chat-message-${idx}`}
-                      data-testid={`chat-message-${idx}`}
-                    >
-                      <ChatMessage
-                        message={msg}
-                        showThinking={showThinking}
-                        suppressToolCards={suppressToolCards}
-                      />
-                      {userRunCards
-                        .filter((card) => card.triggerIndex === idx)
-                        .map((card) => (
-                          <ExecutionGraphCard
-                            key={`graph-${idx}`}
-                            agentLabel={card.agentLabel}
-                            sessionLabel={card.sessionLabel}
-                            steps={card.steps}
-                            active={card.active}
-                            onJumpToTrigger={() => {
-                              document.getElementById(`chat-message-${card.triggerIndex}`)?.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                              });
-                            }}
-                            onJumpToReply={() => {
-                              if (card.replyIndex == null) return;
-                              document.getElementById(`chat-message-${card.replyIndex}`)?.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                              });
-                            }}
-                          />
-                        ))}
-                    </div>
-                    );
-                  })}
+                  {messageRows}
 
                   {/* Streaming message */}
-                  {shouldRenderStreaming && (
+                  {streamState.shouldRenderStreaming && (
                     <ChatMessage
-                      message={(streamMsg
+                      message={(streamState.streamMsg
                         ? {
-                            ...(streamMsg as Record<string, unknown>),
-                            role: (typeof streamMsg.role === 'string' ? streamMsg.role : 'assistant') as RawMessage['role'],
-                            content: streamMsg.content ?? streamText,
-                            timestamp: streamMsg.timestamp ?? streamingTimestamp,
+                            ...(streamState.streamMsg as Record<string, unknown>),
+                            role: (typeof streamState.streamMsg.role === 'string' ? streamState.streamMsg.role : 'assistant') as RawMessage['role'],
+                            content: streamState.streamMsg.content ?? streamState.streamText,
+                            timestamp: streamState.streamMsg.timestamp ?? streamingTimestamp,
                           }
                         : {
                             role: 'assistant',
-                            content: streamText,
+                            content: streamState.streamText,
                             timestamp: streamingTimestamp,
                           }) as RawMessage}
                       showThinking={showThinking}
@@ -308,12 +366,12 @@ export function Chat() {
                   )}
 
                   {/* Activity indicator: waiting for next AI turn after tool execution */}
-                  {sending && pendingFinal && !shouldRenderStreaming && (
+                  {sending && pendingFinal && !streamState.shouldRenderStreaming && (
                     <ActivityIndicator phase="tool_processing" />
                   )}
 
                   {/* Typing indicator when sending but no stream content yet */}
-                  {sending && !pendingFinal && !hasAnyStreamContent && (
+                  {sending && !pendingFinal && !streamState.hasAnyStreamContent && (
                     <TypingIndicator />
                   )}
                 </>
@@ -326,7 +384,7 @@ export function Chat() {
 
       {/* Error bar */}
       {error && (
-        <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
+        <div className="relative z-10 border-t border-destructive/20 bg-destructive/10 px-4 py-2">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <p className="text-sm text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
@@ -353,8 +411,8 @@ export function Chat() {
 
       {/* Transparent loading overlay */}
       {minLoading && !sending && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[1px] rounded-xl pointer-events-auto">
-          <div className="bg-background shadow-lg rounded-full p-2.5 border border-border">
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[28px] bg-background/20 backdrop-blur-[1px] pointer-events-auto">
+          <div className="rounded-full border border-border bg-background p-2.5 shadow-lg">
             <LoadingSpinner size="md" />
           </div>
         </div>
@@ -374,20 +432,41 @@ function WelcomeScreen() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-      <h1 className="text-4xl md:text-5xl font-serif text-foreground/80 mb-8 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
-        {t('welcome.subtitle')}
-      </h1>
+    <div data-testid="chat-welcome-screen" className="flex h-[60vh] flex-col items-center justify-center text-center">
+      <div className="panel-elevated tech-border w-full max-w-3xl rounded-[32px] px-8 py-10">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/75">AI workspace</p>
+        <h1 className="text-gradient mx-auto mb-4 max-w-2xl text-4xl font-semibold md:text-5xl">
+          {t('welcome.subtitle')}
+        </h1>
+        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-muted-foreground">
+          Launch a session, route work to agents, and keep tool execution visible without changing the current workflow.
+        </p>
 
-      <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-lg w-full">
+        <div className="mb-8 grid gap-3 text-left sm:grid-cols-3">
+          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Sessions</p>
+            <p className="text-sm font-medium text-foreground">Persistent transcripts and recent runs stay attached to the active workspace.</p>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Agents</p>
+            <p className="text-sm font-medium text-foreground">Route tasks to the current agent or hand off focused work to another one.</p>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
+            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Runtime</p>
+            <p className="text-sm font-medium text-foreground">Thinking, tool calls, and execution graphs remain visible in the same chat flow.</p>
+          </div>
+        </div>
+
+        <div className="flex w-full flex-wrap items-center justify-center gap-2.5">
         {quickActions.map(({ key, label }) => (
           <button 
             key={key}
-            className="px-4 py-1.5 rounded-full border border-black/10 dark:border-white/10 text-[13px] font-medium text-foreground/70 hover:bg-black/5 dark:hover:bg-white/5 transition-colors bg-black/[0.02]"
+            className="rounded-full border border-border/70 bg-background/55 px-4 py-2 text-[13px] font-medium text-foreground/75 transition-colors hover:border-primary/30 hover:bg-primary/8 hover:text-foreground"
           >
             {label}
           </button>
         ))}
+        </div>
       </div>
     </div>
   );
@@ -398,10 +477,10 @@ function WelcomeScreen() {
 function TypingIndicator() {
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground">
+      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="bg-black/5 dark:bg-white/5 text-foreground rounded-2xl px-4 py-3">
+      <div className="rounded-2xl border border-border/60 bg-white/[0.05] px-4 py-3 text-foreground">
         <div className="flex gap-1">
           <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
           <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -418,10 +497,10 @@ function ActivityIndicator({ phase }: { phase: 'tool_processing' }) {
   void phase;
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground">
+      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="bg-black/5 dark:bg-white/5 text-foreground rounded-2xl px-4 py-3">
+      <div className="rounded-2xl border border-border/60 bg-white/[0.05] px-4 py-3 text-foreground">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
           <span>Processing tool results…</span>

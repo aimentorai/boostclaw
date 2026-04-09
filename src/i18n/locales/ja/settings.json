@@ -1,6 +1,6 @@
 {
   "title": "設定",
-  "subtitle": "Boostclaw の体験をカスタマイズ",
+  "subtitle": "BoostClaw の体験をカスタマイズ",
   "appearance": {
     "title": "通用",
     "description": "外観とスタイルをカスタマイズ",
@@ -10,7 +10,7 @@
     "system": "システム",
     "language": "言語",
     "launchAtStartup": "システム起動時に自動起動",
-    "launchAtStartupDesc": "ログイン時に Boostclaw を自動的に起動します"
+    "launchAtStartupDesc": "ログイン時に BoostClaw を自動的に起動します"
   },
   "account": {
     "title": "アカウント",
@@ -44,7 +44,7 @@
     "notRequired": "不要",
     "empty": {
       "title": "プロバイダーが構成されていません",
-      "desc": "Boostclaw の使用を開始するには AI プロバイダーを追加してください",
+      "desc": "BoostClaw の使用を開始するには AI プロバイダーを追加してください",
       "cta": "最初のプロバイダーを追加"
     },
     "dialog": {
@@ -67,7 +67,7 @@
       "protocol": "プロトコル",
       "advancedConfig": "詳細設定",
       "userAgent": "User-Agent",
-      "userAgentPlaceholder": "Boostclaw/1.0",
+      "userAgentPlaceholder": "BoostClaw/1.0",
       "fallbackModels": "フォールバックモデル",
       "fallbackProviders": "別プロバイダーへのフォールバック",
       "fallbackModelIds": "同一プロバイダーのフォールバックモデル ID",
@@ -140,7 +140,7 @@
     "appLogs": "アプリケーションログ",
     "openFolder": "フォルダーを開く",
     "autoStart": "ゲートウェイ自動起動",
-    "autoStartDesc": "Boostclaw 起動時にゲートウェイを自動起動",
+    "autoStartDesc": "BoostClaw 起動時にゲートウェイを自動起動",
     "proxyTitle": "プロキシ",
     "proxyDesc": "Electron と Gateway の通信をローカルプロキシ経由にします。",
     "proxyServer": "プロキシサーバー",
@@ -161,7 +161,7 @@
   },
   "updates": {
     "title": "アップデート",
-    "description": "Boostclaw を最新に保つ",
+    "description": "BoostClaw を最新に保つ",
     "autoCheck": "自動更新チェック",
     "autoCheckDesc": "起動時に更新を確認",
     "autoDownload": "自動アップデート",
@@ -275,7 +275,7 @@
   },
   "about": {
     "title": "バージョン情報",
-    "appName": "Boostclaw",
+    "appName": "BoostClaw",
     "tagline": "グラフィカル AI アシスタント",
     "basedOn": "OpenClaw ベース",
     "version": "バージョン {{version}}",

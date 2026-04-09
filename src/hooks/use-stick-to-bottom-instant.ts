@@ -14,7 +14,7 @@ export function useStickToBottomInstant(resetKey?: string) {
 
   const result = useStickToBottom({
     initial: "instant",
-    resize: "smooth",
+    resize: "instant",
   });
 
   const { scrollRef } = result;

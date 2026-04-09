@@ -74,7 +74,7 @@ export const ChatMessage = memo(function ChatMessage({
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground">
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-white/[0.04] text-foreground">
           <Sparkles className="h-4 w-4" />
         </div>
       )}
@@ -272,8 +272,8 @@ function ToolStatusBar({
           <div
             key={tool.toolCallId || tool.id || tool.name}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors',
-              isRunning && 'border-primary/30 bg-primary/5 text-foreground',
+              'flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition-colors',
+              isRunning && 'border-primary/30 bg-primary/8 text-foreground',
               !isRunning && !isError && 'border-border/50 bg-muted/20 text-muted-foreground',
               isError && 'border-destructive/30 bg-destructive/5 text-destructive',
             )}
@@ -306,14 +306,14 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   }, [text]);
 
   return (
-    <div className="flex items-center justify-between w-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none px-1">
+    <div className="flex w-full select-none items-center justify-between px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
       <span className="text-xs text-muted-foreground">
         {timestamp ? formatTimestamp(timestamp) : ''}
       </span>
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className="h-6 w-6 rounded-lg hover:bg-white/[0.06]"
         onClick={copyContent}
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
@@ -336,11 +336,11 @@ function MessageBubble({
   return (
     <div
       className={cn(
-        'relative rounded-2xl px-4 py-3',
+        'relative rounded-[22px] border px-4 py-3',
         !isUser && 'w-full',
         isUser
-          ? 'bg-[#0a84ff] text-white shadow-sm'
-          : 'bg-black/5 dark:bg-white/5 text-foreground',
+          ? 'border-primary/20 bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--glow)/0.1)]'
+          : 'border-border/70 bg-white/[0.04] text-foreground',
       )}
     >
       {isUser ? (
@@ -355,13 +355,13 @@ function MessageBubble({
                 const isInline = !match && !className;
                 if (isInline) {
                   return (
-                    <code className="bg-background/50 px-1.5 py-0.5 rounded text-sm font-mono break-words break-all" {...props}>
+                    <code className="rounded bg-background/50 px-1.5 py-0.5 text-sm font-mono break-all break-words" {...props}>
                       {children}
                     </code>
                   );
                 }
                 return (
-                  <pre className="bg-background/50 rounded-lg p-4 overflow-x-auto">
+                  <pre className="overflow-x-auto rounded-xl border border-border/60 bg-background/50 p-4">
                     <code className={cn('text-sm font-mono', className)} {...props}>
                       {children}
                     </code>
@@ -380,7 +380,7 @@ function MessageBubble({
             {text}
           </ReactMarkdown>
           {isStreaming && (
-            <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+            <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/50" />
           )}
         </div>
       )}
@@ -395,9 +395,9 @@ function ThinkingBlock({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]">
+    <div className="w-full rounded-2xl border border-border/70 bg-white/[0.04] text-[14px]">
       <button
-        className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setExpanded(!expanded)}
       >
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}

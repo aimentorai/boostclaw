@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { testHome, testUserData } = vi.hoisted(() => {
   const suffix = Math.random().toString(36).slice(2);
   return {
-    testHome: `/tmp/clawx-token-usage-${suffix}`,
-    testUserData: `/tmp/clawx-token-usage-user-data-${suffix}`,
+    testHome: `/tmp/BoostClaw-token-usage-${suffix}`,
+    testUserData: `/tmp/BoostClaw-token-usage-user-data-${suffix}`,
   };
 });
 

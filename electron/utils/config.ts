@@ -7,14 +7,14 @@
  * Port configuration
  */
 export const PORTS = {
-  /** ClawX GUI development server port */
-  CLAWX_DEV: 5173,
+  /** BoostClaw GUI development server port */
+  BoostClaw_DEV: 5173,
   
-  /** ClawX GUI production port (for reference) */
-  CLAWX_GUI: 23333,
+  /** BoostClaw GUI production port (for reference) */
+  BoostClaw_GUI: 23333,
 
   /** Local host API server port */
-  CLAWX_HOST_API: 13210,
+  BoostClaw_HOST_API: 13210,
   
   /** OpenClaw Gateway port */
   OPENCLAW_GATEWAY: 18789,
@@ -24,7 +24,7 @@ export const PORTS = {
  * Get port from environment or default
  */
 export function getPort(key: keyof typeof PORTS): number {
-  const envKey = `CLAWX_PORT_${key}`;
+  const envKey = `BoostClaw_PORT_${key}`;
   const envValue = process.env[envKey];
   return envValue ? parseInt(envValue, 10) : PORTS[key];
 }
@@ -36,11 +36,11 @@ export const APP_PATHS = {
   /** OpenClaw configuration directory */
   OPENCLAW_CONFIG: '~/.openclaw',
   
-  /** ClawX configuration directory */
-  CLAWX_CONFIG: '~/.boostclaw',
+  /** BoostClaw configuration directory */
+  BoostClaw_CONFIG: '~/.BoostClaw',
   
   /** Log files directory */
-  LOGS: '~/.boostclaw/logs',
+  LOGS: '~/.BoostClaw/logs',
 } as const;
 
 /**

@@ -27,7 +27,7 @@ export function ChatToolbar() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-black/10 bg-white/70 px-3 py-1.5 text-[12px] font-medium text-foreground/80 dark:border-white/10 dark:bg-white/5">
+      <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border/70 bg-white/70 px-3 py-1.5 text-[12px] font-medium text-foreground/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <Bot className="h-3.5 w-3.5 text-primary" />
         <span>{t('toolbar.currentAgent', { agent: currentAgentName })}</span>
       </div>
@@ -37,7 +37,7 @@ export function ChatToolbar() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 rounded-xl hover:bg-white/10"
             onClick={() => refresh()}
             disabled={loading}
           >
@@ -56,8 +56,8 @@ export function ChatToolbar() {
             variant="ghost"
             size="icon"
             className={cn(
-              'h-8 w-8',
-              showThinking && 'bg-primary/10 text-primary',
+              'h-8 w-8 rounded-xl hover:bg-white/10',
+              showThinking && 'bg-primary/12 text-primary',
             )}
             onClick={toggleThinking}
           >

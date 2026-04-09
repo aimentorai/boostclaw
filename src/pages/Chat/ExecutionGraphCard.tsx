@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ArrowDown, ArrowUp, Bot, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, GitBranch, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -67,7 +67,7 @@ function StepDetailCard({ step }: { step: TaskStep }) {
   );
 }
 
-export function ExecutionGraphCard({
+export const ExecutionGraphCard = memo(function ExecutionGraphCard({
   agentLabel,
   sessionLabel,
   steps,
@@ -184,4 +184,4 @@ export function ExecutionGraphCard({
       </div>
     </div>
   );
-}
+});

@@ -83,7 +83,7 @@ export function Login() {
       className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6"
     >
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/95 backdrop-blur p-8 shadow-xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">登录 Boostclaw</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">登录 BoostClaw</h1>
         <p className="mt-2 text-sm text-slate-600">
           正在跳转到组织账号登录网站。
         </p>
