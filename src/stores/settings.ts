@@ -7,6 +7,7 @@ import { persist } from 'zustand/middleware';
 import i18n from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { resolveSupportedLanguage } from '../../shared/language';
+import { rendererTimer } from '@/lib/startup-timer';
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
@@ -106,6 +107,7 @@ export const useSettingsStore = create<SettingsState>()(
           if (resolvedLanguage) {
             i18n.changeLanguage(resolvedLanguage);
           }
+          rendererTimer.mark('settings_store_init');
         } catch {
           // Keep renderer-persisted settings as a fallback when the main
           // process store is not reachable.

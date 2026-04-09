@@ -134,7 +134,6 @@ export function Channels() {
       setLoading(false);
     }
   // Stable reference — reads state via refs, no deps needed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
