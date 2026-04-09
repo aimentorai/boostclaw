@@ -265,7 +265,7 @@ export async function runStartupTasks(tasks: StartupTask[]): Promise<StartupTask
   const results: StartupTaskResult[] = [];
   const startTime = Date.now();
 
-  await Promise.allSet(
+  await Promise.allSettled(
     tasks.map(async (task) => {
     const taskStart = Date.now();
 
