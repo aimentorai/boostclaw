@@ -7,7 +7,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import { invokeIpc } from '@/lib/api-client';
 import { subscribeHostEvent } from '@/lib/host-events';
 import type { GatewayStatus } from '../types/gateway';
-import { rendererTimer } from '../lib/startup-timer';
+import { rendererTimer } from '@/lib/startup-timer';
 
 let gatewayInitPromise: Promise<void> | null = null;
 let gatewayEventUnsubscribers: Array<() => void> | null = null;
