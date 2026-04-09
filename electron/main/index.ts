@@ -290,7 +290,7 @@ async function initialize(): Promise<void> {
     // Warm up network optimization (non-blocking)
     startupTimer.mark('network_warmup_start');
     void warmupNetworkOptimization();
-    startupTimer.mark('network_warmup_done');
+    startupTimer.mark('network_warmup_queued');
 
     // Initialize Telemetry early
     startupTimer.mark('telemetry_start');
