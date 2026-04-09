@@ -4,7 +4,7 @@
         "newChat": "新对话",
         "cronTasks": "定时任务",
         "skills": "技能",
-        "agents": "Agents",
+        "agents": "智能体",
         "channels": "频道",
         "dashboard": "仪表盘",
         "settings": "设置",
@@ -53,7 +53,7 @@
     },
     "gateway": {
         "notRunning": "网关未运行",
-        "notRunningDesc": "OpenClaw 网关需要运行才能使用此功能。它将自动启动，或者您可以从设置中启动。",
+        "notRunningDesc": "此功能需要网关运行。网关会自动启动，也可在设置中手动启动",
         "warning": "网关未运行。"
     }
 }
