@@ -3,6 +3,7 @@
  * Application configuration
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sun,
   Moon,
@@ -20,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settings';
+import { useAuthStore } from '@/stores/auth';
 import { useGatewayStore } from '@/stores/gateway';
 import { useUpdateStore } from '@/stores/update';
 import { UpdateSettings } from '@/components/settings/UpdateSettings';
@@ -48,6 +50,7 @@ type ControlUiInfo = {
 
 export function Settings() {
   const { t } = useTranslation('settings');
+  const navigate = useNavigate();
   const {
     theme,
     setTheme,
@@ -113,6 +116,15 @@ export function Settings() {
     timedOut?: boolean;
     error?: string;
   } | null>(null);
+  const authEnabled = useAuthStore((state) => state.enabled);
+  const authProfile = useAuthStore((state) => state.profile);
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success(t('account.logoutSucceeded'));
+    navigate('/login');
+  };
 
   const handleShowLogs = async () => {
     try {
@@ -554,6 +566,34 @@ export function Settings() {
               </div>
             </div>
           </div>
+
+          {authEnabled && (
+            <>
+              <Separator className="bg-black/5 dark:bg-white/5" />
+              <div>
+                <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                  {t('account.title')}
+                </h2>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label className="text-[15px] font-medium text-foreground/80">{t('account.current')}</Label>
+                    <p className="text-[13px] text-muted-foreground mt-1">
+                      {authProfile?.email || authProfile?.subject || t('account.signedIn')}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleLogout()}
+                    data-testid="settings-logout-button"
+                    className="rounded-full h-10 px-5 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    {t('account.logout')}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
 
           <Separator className="bg-black/5 dark:bg-white/5" />
 

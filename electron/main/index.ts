@@ -44,10 +44,12 @@ import { deviceOAuthManager } from '../utils/device-oauth';
 import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
+import { appAuthManager } from '../utils/app-auth';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.clawx.desktop';
 const isE2EMode = process.env.CLAWX_E2E === '1';
 const requestedUserDataDir = process.env.CLAWX_USER_DATA_DIR?.trim();
+const pendingProtocolUrls: string[] = [];
 
 if (isE2EMode && requestedUserDataDir) {
   app.setPath('userData', requestedUserDataDir);
@@ -238,6 +240,38 @@ function focusMainWindow(): void {
   focusWindow(mainWindow);
 }
 
+function extractProtocolUrl(argv: string[]): string | null {
+  const protocol = appAuthManager.getAppCallbackProtocol();
+  if (!protocol) return null;
+  const prefix = `${protocol}://`;
+  for (const value of argv) {
+    if (typeof value === 'string' && value.startsWith(prefix)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+async function processProtocolUrl(url: string): Promise<void> {
+  const consumed = await appAuthManager.handleProtocolCallback(url);
+  if (!consumed) {
+    logger.debug(`[AppAuth] Ignored non-auth protocol URL: ${url}`);
+    return;
+  }
+  focusMainWindow();
+}
+
+function registerAuthProtocolClient(): void {
+  const protocol = appAuthManager.getAppCallbackProtocol();
+  if (!protocol) return;
+  const isDev = process.defaultApp || !app.isPackaged;
+  if (process.platform === 'win32' && isDev) {
+    app.setAsDefaultProtocolClient(protocol, process.execPath, [process.argv[1]]);
+    return;
+  }
+  app.setAsDefaultProtocolClient(protocol);
+}
+
 function createMainWindow(): BrowserWindow {
   const win = createWindow();
 
@@ -316,6 +350,7 @@ async function initialize(): Promise<void> {
   startupTimer.mark('window_create_start');
   const window = createMainWindow();
   startupTimer.mark('window_create_complete');
+  appAuthManager.setWindow(window);
 
   // Create system tray
   if (!isE2EMode) {
@@ -466,6 +501,31 @@ async function initialize(): Promise<void> {
     hostEventBus.emit('oauth:error', error);
   });
 
+  appAuthManager.on('auth:success', (payload) => {
+    hostEventBus.emit('auth:success', payload);
+    mainWindow?.webContents.send('auth:success', payload);
+  });
+
+  appAuthManager.on('auth:started', (payload) => {
+    hostEventBus.emit('auth:started', payload);
+    mainWindow?.webContents.send('auth:started', payload);
+  });
+
+  appAuthManager.on('auth:debug', (payload) => {
+    hostEventBus.emit('auth:debug', payload);
+    mainWindow?.webContents.send('auth:debug', payload);
+  });
+
+  appAuthManager.on('auth:error', (payload) => {
+    hostEventBus.emit('auth:error', payload);
+    mainWindow?.webContents.send('auth:error', payload);
+  });
+
+  appAuthManager.on('auth:logout', (payload) => {
+    hostEventBus.emit('auth:logout', payload);
+    mainWindow?.webContents.send('auth:logout', payload);
+  });
+
   whatsAppLoginManager.on('qr', (data) => {
     hostEventBus.emit('channel:whatsapp-qr', data);
   });
@@ -530,6 +590,11 @@ async function initialize(): Promise<void> {
   // Mark startup complete
   startupTimer.mark('complete');
   startupTimer.complete();
+  while (pendingProtocolUrls.length > 0) {
+    const nextUrl = pendingProtocolUrls.shift();
+    if (!nextUrl) continue;
+    void processProtocolUrl(nextUrl);
+  }
 }
 
 if (gotTheLock) {
@@ -553,13 +618,33 @@ if (gotTheLock) {
     app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
   }
 
+  registerAuthProtocolClient();
+
   gatewayManager = new GatewayManager();
   clawHubService = new ClawHubService();
   hostEventBus = new HostEventBus();
 
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      void processProtocolUrl(url);
+      return;
+    }
+    pendingProtocolUrls.push(url);
+  });
+
   // When a second instance is launched, focus the existing window instead.
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     logger.info('Second ClawX instance detected; redirecting to the existing window');
+
+    const protocolUrl = extractProtocolUrl(argv);
+    if (protocolUrl) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        void processProtocolUrl(protocolUrl);
+      } else {
+        pendingProtocolUrls.push(protocolUrl);
+      }
+    }
 
     const focusRequest = requestSecondInstanceFocus(
       mainWindowFocusState,
@@ -576,6 +661,11 @@ if (gotTheLock) {
 
   // Application lifecycle
   app.whenReady().then(() => {
+    const startupProtocolUrl = extractProtocolUrl(process.argv);
+    if (startupProtocolUrl) {
+      pendingProtocolUrls.push(startupProtocolUrl);
+    }
+
     void initialize().catch((error) => {
       logger.error('Application initialization failed:', error);
     });

@@ -17,11 +17,13 @@ import { Skills } from './pages/Skills';
 import { Cron } from './pages/Cron';
 import { Settings } from './pages/Settings';
 import { Setup } from './pages/Setup';
+import { Login } from './pages/Login';
 import { useSettingsStore } from './stores/settings';
 import { useGatewayStore } from './stores/gateway';
 import { useProviderStore } from './stores/providers';
 import { applyGatewayTransportPreference } from './lib/api-client';
 import { rendererTimer } from './lib/startup-timer';
+import { useAuthStore } from './stores/auth';
 
 
 /**
@@ -91,14 +93,15 @@ class ErrorBoundary extends Component<
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const skipSetupForE2E = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('e2eSkipSetup') === '1';
   const initSettings = useSettingsStore((state) => state.init);
   const theme = useSettingsStore((state) => state.theme);
   const language = useSettingsStore((state) => state.language);
-  const setupComplete = useSettingsStore((state) => state.setupComplete);
   const initGateway = useGatewayStore((state) => state.init);
   const initProviders = useProviderStore((state) => state.init);
+  const initAuth = useAuthStore((state) => state.init);
+  const authEnabled = useAuthStore((state) => state.enabled);
+  const authLoading = useAuthStore((state) => state.loading);
+  const authenticated = useAuthStore((state) => state.authenticated);
 
   useEffect(() => {
     rendererTimer.mark('renderer_mount');
@@ -125,12 +128,23 @@ function App() {
     initProviders();
   }, [initProviders]);
 
-  // Redirect to setup wizard if not complete
   useEffect(() => {
-    if (!setupComplete && !skipSetupForE2E && !location.pathname.startsWith('/setup')) {
-      navigate('/setup');
+    void initAuth();
+  }, [initAuth]);
+
+  useEffect(() => {
+    if (authLoading || !authEnabled) {
+      return;
     }
-  }, [setupComplete, skipSetupForE2E, location.pathname, navigate]);
+    const onLoginPage = location.pathname.startsWith('/login');
+    if (!authenticated && !onLoginPage) {
+      navigate('/login');
+      return;
+    }
+    if (authenticated && onLoginPage) {
+      navigate('/');
+    }
+  }, [authLoading, authEnabled, authenticated, location.pathname, navigate]);
 
   // Listen for navigation events from main process
   useEffect(() => {
@@ -178,6 +192,8 @@ function App() {
     <ErrorBoundary>
       <TooltipProvider delayDuration={300}>
         <Routes>
+          <Route path="/login" element={<Login />} />
+
           {/* Setup wizard (shown on first launch) */}
           <Route path="/setup/*" element={<Setup />} />
 

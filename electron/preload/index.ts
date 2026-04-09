@@ -178,6 +178,11 @@ const electronAPI = {
         'oauth:code',
         'oauth:success',
         'oauth:error',
+        'auth:started',
+        'auth:debug',
+        'auth:success',
+        'auth:error',
+        'auth:logout',
         'openclaw:cli-installed',
       ];
 
@@ -227,6 +232,11 @@ const electronAPI = {
         'oauth:code',
         'oauth:success',
         'oauth:error',
+        'auth:started',
+        'auth:debug',
+        'auth:success',
+        'auth:error',
+        'auth:logout',
       ];
 
       if (validChannels.includes(channel)) {

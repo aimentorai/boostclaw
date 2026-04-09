@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 
 type LaunchElectronOptions = {
   skipSetup?: boolean;
+  enableAppAuth?: boolean;
 };
 
 type IpcMockConfig = {
@@ -137,6 +138,7 @@ async function launchClawXElectron(
       CLAWX_E2E: '1',
       CLAWX_USER_DATA_DIR: userDataDir,
       ...(options.skipSetup ? { CLAWX_E2E_SKIP_SETUP: '1' } : {}),
+      ...(options.enableAppAuth ? { CLAWX_APP_AUTH_ENABLED: '1' } : {}),
       CLAWX_PORT_CLAWX_HOST_API: String(hostApiPort),
     },
     timeout: 90_000,
@@ -192,8 +194,9 @@ export const test = base.extend<ElectronFixtures>({
 });
 
 export async function completeSetup(page: Page): Promise<void> {
-  await expect(page.getByTestId('setup-page')).toBeVisible();
-  await page.getByTestId('setup-skip-button').click();
+  if (await page.getByTestId('setup-page').isVisible().catch(() => false)) {
+    await page.getByTestId('setup-skip-button').click();
+  }
   await expect(page.getByTestId('main-layout')).toBeVisible();
 }
 
