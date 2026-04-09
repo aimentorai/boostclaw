@@ -147,7 +147,7 @@ Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、wor
 
 #### 预构建版本（推荐）
 
-从 [Releases](https://github.com/ValueCell-ai/BoostClaw/releases) 页面下载适用于你平台的最新版本。
+从 [Releases](https://github.com/aimentor606/BoostClaw/releases) 页面下载适用于你平台的最新版本。
 
 #### 从源码构建
 
@@ -453,7 +453,7 @@ BoostClaw 构建于以下优秀的开源项目之上：
 
 如果你服务的客户对 AI 工具或自动化方案感兴趣，欢迎与我们合作。
 
-欢迎私信我们，或发送邮件至 [public@valuecell.ai](mailto:public@valuecell.ai) 了解更多。
+欢迎私信我们，或发送邮件至 [boostclaw@microdata-inc.com](mailto:boostclaw@microdata-inc.com) 了解更多。
 
 ---
 

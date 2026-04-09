@@ -58,7 +58,7 @@ publish:
     url: https://oss.intelli-spectrum.com/latest
     useMultipleRangeRequest: false
   - provider: github
-    owner: ValueCell-ai
+    owner: BoostClaw
     repo: BoostClaw
 
 # macOS Configuration
@@ -161,7 +161,7 @@ linux:
       arch:
         - x64
   category: Utility
-  maintainer: BoostClaw Team <public@valuecell.ai>
+  maintainer: BoostClaw Team <boostclaw@microdata-inc.com>
   vendor: BoostClaw
   synopsis: AI Assistant powered by OpenClaw
   description: BoostClaw is a graphical AI assistant application that integrates with OpenClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.

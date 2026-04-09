@@ -653,6 +653,47 @@ exports.default = async function afterPack(context) {
     }
   }
 
+  // 1.3 [macOS] Resolve pnpm symlinks to real files.
+  //
+  // pnpm creates absolute-path symlinks in node_modules that point to the
+  // .pnpm virtual store (outside the app bundle).  macOS codesign rejects
+  // symlinks with destinations outside the bundle ("invalid destination for
+  // symbolic link in bundle").  Node's cpSync({dereference:true}) does NOT
+  // resolve symlinks inside the copied tree, so we must do it manually.
+  if (platform === 'darwin') {
+    const resolveDir = (dir) => {
+      let entries;
+      try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+      let count = 0;
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isSymbolicLink()) {
+          try {
+            const realTarget = realpathSync(fullPath);
+            rmSync(fullPath, { force: true });
+            if (statSync(realTarget).isDirectory()) {
+              cpSync(realTarget, fullPath, { recursive: true, dereference: true });
+            } else {
+              cpSync(realTarget, fullPath);
+            }
+            count++;
+          } catch (err) {
+            // Remove broken symlinks — they'll cause codesign to fail
+            try { rmSync(fullPath, { force: true }); count++; } catch { /* */ }
+            console.warn(`[after-pack] ⚠️  Removed broken symlink: ${fullPath}`);
+          }
+        } else if (entry.isDirectory()) {
+          count += resolveDir(fullPath);
+        }
+      }
+      return count;
+    };
+    const resolvedLinks = resolveDir(openclawRoot);
+    if (resolvedLinks > 0) {
+      console.log(`[after-pack] ✅ Resolved ${resolvedLinks} pnpm symlink(s) to real files.`);
+    }
+  }
+
   // 2. General cleanup on the full openclaw directory (not just node_modules)
   console.log('[after-pack] 🧹 Cleaning up unnecessary files ...');
   const removedRoot = cleanupUnnecessaryFiles(openclawRoot);
@@ -668,6 +709,58 @@ exports.default = async function afterPack(context) {
   const nativeRemoved = cleanupNativePlatformPackages(dest, platform, arch);
   if (nativeRemoved > 0) {
     console.log(`[after-pack] ✅ Removed ${nativeRemoved} non-target native platform packages.`);
+  }
+
+  // 4.1 [macOS] Validate native .node binaries aren't truncated
+  //
+  // Some npm packages (e.g. @matrix-org/matrix-sdk-crypto-nodejs) download
+  // native binaries from GitHub releases during postinstall. In networks with
+  // restricted GitHub access (e.g. China), these downloads can silently fail
+  // or truncate, producing Mach-O files whose section headers reference offsets
+  // past EOF. This causes codesign to fail with "main executable failed strict
+  // validation". We detect and report such corrupted binaries early.
+  if (platform === 'darwin') {
+    const corruptedFiles = [];
+    const nmStack = [dest, join(resourcesDir, 'openclaw-plugins')];
+    while (nmStack.length > 0) {
+      const dir = nmStack.pop();
+      if (!existsSync(dir)) continue;
+      let entries;
+      try { entries = readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          nmStack.push(fullPath);
+        } else if (entry.name.endsWith('.node')) {
+          const stat = statSync(fullPath);
+          const headerBuf = Buffer.alloc(32);
+          try {
+            const fd = require('fs').openSync(fullPath, 'r');
+            require('fs').readSync(fd, headerBuf, 0, 32, 0);
+            require('fs').closeSync(fd);
+          } catch { continue; }
+          // Mach-O magic: 0xfeedfacf (64-bit) or 0xfeedface (32-bit)
+          const magic = headerBuf.readUInt32BE(0);
+          if (magic === 0xfeedfacf || magic === 0xfeedface) {
+            const sizeofcmds = headerBuf.readUInt32BE(20);
+            // Rough sanity: header + load commands should fit in the file
+            const minExpectedSize = 32 + sizeofcmds;
+            if (stat.size < minExpectedSize * 0.5) {
+              corruptedFiles.push({ path: fullPath, size: stat.size, expectedAtLeast: minExpectedSize });
+            }
+          }
+        }
+      }
+    }
+    if (corruptedFiles.length > 0) {
+      console.error('[after-pack] ❌ CORRUPTED .node binaries detected (likely truncated downloads):');
+      for (const f of corruptedFiles) {
+        console.error(`  ${relative(resourcesDir, f.path)}: ${f.size} bytes (expected ≥${f.expectedAtLeast} bytes)`);
+      }
+      console.error('[after-pack] Fix: delete node_modules and run `pnpm install` with stable GitHub access, or set https_proxy.');
+      console.error('[after-pack] Alternatively run: node node_modules/@matrix-org/matrix-sdk-crypto-nodejs/download-lib.js');
+      throw new Error(`Aborting: ${corruptedFiles.length} corrupted native .node binary(ies). See above.`);
+    }
   }
 
   // 5. Patch lru-cache in app.asar.unpacked
