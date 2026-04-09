@@ -522,8 +522,9 @@ async function initialize(): Promise<void> {
       installCompletionToProfile();
     }).catch((error) => {
       logger.warn('CLI auto-install failed:', error);
+    }).finally(() => {
+      startupTimer.mark('cli_done');
     });
-    startupTimer.mark('cli_done');
   }
 
   // Mark startup complete
