@@ -271,7 +271,7 @@ export async function runStartupTasks(tasks: StartupTask[]): Promise<StartupTask
 
     try {
       // Check cache
-      if (StartupCache.has(task.name)) {
+      if (StartupCache.getInstance().has(task.name)) {
         results.push({
           name: task.name,
           status: 'success',
