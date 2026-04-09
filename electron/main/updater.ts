@@ -70,16 +70,17 @@ export class AppUpdater extends EventEmitter {
     };
 
     // Override feed URL for prerelease channels so that
-    // alpha -> /alpha/alpha-mac.yml, beta -> /beta/beta-mac.yml, etc.
+    // alpha -> /alpha/latest-mac.yml, beta -> /beta/latest-mac.yml, etc.
+    // Channel separation is by directory (/alpha/, /beta/, /latest/), not by yml filename —
+    // electron-builder always generates latest-*.yml regardless of channel.
     const version = app.getVersion();
     const channel = detectChannel(version);
     const feedUrl = `${OSS_BASE_URL}/${channel}`;
 
     logger.info(`[Updater] Version: ${version}, channel: ${channel}, feedUrl: ${feedUrl}`);
 
-    // Set channel so electron-updater requests the correct yml filename.
-    // e.g. channel "alpha" → requests alpha-mac.yml, channel "latest" → requests latest-mac.yml
-    autoUpdater.channel = channel;
+    // Always request "latest-*.yml" filenames — channel isolation is via directory only.
+    autoUpdater.channel = 'latest';
 
     autoUpdater.setFeedURL({
       provider: 'generic',
