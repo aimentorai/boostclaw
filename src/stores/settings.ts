@@ -7,7 +7,7 @@ import { persist } from 'zustand/middleware';
 import i18n from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { resolveSupportedLanguage } from '../../shared/language';
-import { rendererTimer } from '../lib/startup-timer';
+import { rendererTimer } from '@/lib/startup-timer';
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
