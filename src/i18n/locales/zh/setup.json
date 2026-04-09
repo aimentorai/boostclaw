@@ -2,7 +2,7 @@
     "steps": {
         "welcome": {
             "title": "欢迎使用 BoostClaw",
-            "description": "您的 AI 助手已准备好进行配置"
+            "description": "AI 助手待配置"
         },
         "runtime": {
             "title": "环境检查",
@@ -27,7 +27,7 @@
     },
     "welcome": {
         "title": "欢迎使用 BoostClaw",
-        "description": "BoostClaw 是 OpenClaw 的图形界面，让您可以在喜爱的消息平台上轻松使用 AI 助手。",
+        "description": "BoostClaw 是 OpenClaw 的图形界面，在消息平台上轻松使用 AI 助手",
         "features": {
             "noCommand": "无需命令行",
             "modernUI": "现代美观的界面",
@@ -52,7 +52,7 @@
         },
         "issue": {
             "title": "检测到环境问题",
-            "desc": "请确保 OpenClaw 已正确安装。查看日志以获取详情。"
+            "desc": "请确保 OpenClaw 已正确安装。查看日志以获取详情"
         },
         "logs": {
             "title": "应用程序日志",
@@ -70,7 +70,7 @@
         "codePlanPreset": "Code Plan 预设",
         "codePlanMode": "Code Plan",
         "useCodePlanPreset": "使用 Ark Code Plan 预设",
-        "codePlanPresetDesc": "Code Plan 使用 https://ark.cn-beijing.volces.com/api/coding/v3 与模型 ark-code-latest。请勿把 /api/v3 用于 Code Plan 流量。",
+        "codePlanPresetDesc": "Code Plan 使用 https://ark.cn-beijing.volces.com/api/coding/v3 与模型 ark-code-latest。请勿把 /api/v3 用于 Code Plan 流量",
         "codePlanDoc": "Code Plan 文档",
         "protocol": "协议",
         "protocols": {
@@ -83,17 +83,17 @@
         "validateSave": "验证并保存",
         "valid": "提供商配置成功",
         "invalid": "无效的 API 密钥",
-        "storedLocally": "您的 API 密钥存储在本地机器上。"
+        "storedLocally": "API 密钥已安全存储在本地。"
     },
     "channel": {
         "title": "连接消息渠道",
-        "subtitle": "选择要连接 AI 助手的平台。您可以稍后在设置中添加更多渠道。",
+        "subtitle": "选择要连接 AI 助手的平台，可稍后在设置中添加更多",
         "configure": "配置 {{name}}",
         "howTo": "如何连接：",
         "viewDocs": "查看文档",
         "validationError": "验证失败",
         "connected": "{{name}} 已连接",
-        "connectedDesc": "您的渠道已配置。将在网关启动时连接。",
+        "connectedDesc": "您的渠道已配置。将在网关启动时连接",
         "configureAnother": "配置另一个渠道"
     },
     "installing": {
@@ -113,12 +113,12 @@
     },
     "complete": {
         "title": "设置完成！",
-        "subtitle": "BoostClaw 已配置并准备就绪。您现在可以开始与您的 AI 助手聊天了。",
+        "subtitle": "BoostClaw 已就绪，开始与 AI 助手对话吧",
         "provider": "AI 提供商",
         "components": "组件",
         "gateway": "网关",
         "running": "运行中",
-        "footer": "您可以在设置中自定义技能并连接渠道"
+        "footer": "可在设置中自定义技能和连接渠道"
     },
     "nav": {
         "next": "下一步",

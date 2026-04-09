@@ -71,7 +71,7 @@ const defaultSettings = {
   language: resolveSupportedLanguage(typeof navigator !== 'undefined' ? navigator.language : undefined),
   startMinimized: false,
   launchAtStartup: false,
-  telemetryEnabled: true,
+  telemetryEnabled: false,
   gatewayAutoStart: true,
   gatewayPort: 18789,
   proxyEnabled: false,

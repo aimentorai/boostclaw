@@ -1,17 +1,17 @@
 {
     "gatewayNotRunning": "Gateway Not Running",
-    "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings.",
+    "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings",
     "welcome": {
         "title": "BoostClaw Console",
-        "subtitle": "Connect models, channels, and agents, then start the next task from here.",
-        "hint": "Type your first question, or describe the task you want to complete.",
+        "subtitle": "Connect models, channels, and agents, then start the next task from here",
+        "hint": "Type your first question, or describe the task you want to complete",
         "eyebrow": "Agent Console",
         "sessionsTitle": "Sessions",
-        "sessionsBody": "Conversation history, recent runs, and task context stay attached to the current workspace.",
+        "sessionsBody": "Conversation history, recent runs, and task context stay attached to the current workspace",
         "agentsTitle": "Agents",
-        "agentsBody": "Choose the active chat agent or route the next message to another agent.",
+        "agentsBody": "Choose the active chat agent or route the next message to another agent",
         "runtimeTitle": "Runtime",
-        "runtimeBody": "Thinking, tool calls, and execution progress stay visible in the same conversation flow.",
+        "runtimeBody": "Thinking, tool calls, and execution progress stay visible in the same conversation flow",
         "askQuestions": "Handle tasks",
         "creativeTasks": "Connect channels",
         "brainstorming": "Configure models"
@@ -27,7 +27,7 @@
         "eyebrow": "Run View",
         "title": "Task Outline",
         "emptyTitle": "No structured steps yet",
-        "emptyBody": "Once a run starts, BoostClaw will surface thinking, tool calls, and handoff states here.",
+        "emptyBody": "Once a run starts, BoostClaw will surface thinking, tool calls, and handoff states here",
         "status": {
             "idle": "Idle",
             "running_one": "1 active step",

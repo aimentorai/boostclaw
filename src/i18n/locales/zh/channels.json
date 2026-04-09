@@ -1,6 +1,6 @@
 {
     "title": "消息频道",
-    "subtitle": "统一管理消息频道、账号、账号与智能体的绑定关系，以及频道默认账号",
+    "subtitle": "管理消息频道、账号及智能体绑定",
     "refresh": "刷新",
     "addChannel": "添加频道",
     "stats": {
@@ -8,7 +8,7 @@
         "connected": "已连接",
         "disconnected": "未连接"
     },
-    "gatewayWarning": "网关未运行。未启用网关时无法管理频道。",
+    "gatewayWarning": "网关未运行。未启用网关时无法管理频道",
     "availableChannels": "可用频道",
     "supportedChannels": "支持的频道",
     "pluginBadge": "插件",
@@ -47,7 +47,7 @@
         "mainAccount": "主账号",
         "customIdLabel": "账号 ID",
         "customIdPlaceholder": "例如：feishu-sales-bot",
-        "customIdHint": "可自定义账号 ID，用于区分同一频道下的多个账号。",
+        "customIdHint": "可自定义账号 ID，用于区分同一频道下的多个账号",
         "invalidId": "账号 ID 不能为空",
         "idLabel": "ID: {{id}}",
         "boundTo": "绑定对象：{{agent}}",
@@ -110,7 +110,7 @@
                 "allowedUsers": {
                     "label": "允许的用户 ID",
                     "placeholder": "例如 123456789, 987654321",
-                    "description": "允许使用机器人的用户 ID 列表（逗号分隔）。出于安全考虑，此项为必填。"
+                    "description": "允许使用机器人的用户 ID 列表（逗号分隔）。出于安全考虑，此项为必填"
                 }
             },
             "instructions": [
@@ -132,12 +132,12 @@
                 "guildId": {
                     "label": "服务器 ID",
                     "placeholder": "例如 123456789012345678",
-                    "description": "限制机器人仅在特定服务器工作。右键点击服务器 → 复制服务器 ID。"
+                    "description": "限制机器人仅在特定服务器工作。右键点击服务器 → 复制服务器 ID"
                 },
                 "channelId": {
                     "label": "频道 ID (可选)",
                     "placeholder": "例如 123456789012345678",
-                    "description": "限制机器人仅在特定频道工作。右键点击频道 → 复制频道 ID。"
+                    "description": "限制机器人仅在特定频道工作。右键点击频道 → 复制频道 ID"
                 }
             },
             "instructions": [

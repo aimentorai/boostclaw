@@ -83,7 +83,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       api: 'openai-completions',
       apiKeyEnv: 'OPENROUTER_API_KEY',
       headers: {
-        'HTTP-Referer': 'https://claw-x.com',
+        'HTTP-Referer': 'https://https://boostclaw.ai/',
         'X-Title': 'BoostClaw',
       },
     },

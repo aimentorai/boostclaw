@@ -1,10 +1,10 @@
 {
-    "title": "Agents",
+    "title": "エージェント",
     "subtitle": "新しい Agent を作成し、特定のチャンネルを異なるパーソナリティやワークスペースにルーティングできます。",
     "refresh": "更新",
     "addAgent": "Agent を追加",
     "gatewayWarning": "Gateway サービスが停止しています。Agent または Channel の変更が反映されるまで少し時間がかかる場合があります。",
-    "defaultBadge": "default",
+    "defaultBadge": "デフォルト",
     "inherited": "継承",
     "none": "なし",
     "modelLine": "Model: {{model}}{{suffix}}",
@@ -26,7 +26,7 @@
         "message": "BoostClaw から「{{name}}」を削除しますか？この操作により Agent と、その BoostClaw 管理下のワークスペース、実行時ファイル、セッションファイルがディスクから完全に削除されます。"
     },
     "settingsDialog": {
-        "title": "{{name}} Settings",
+        "title": "{{name}} 設定",
         "description": "Agent 名を更新し、この Agent に属する Channel を管理します。",
         "nameLabel": "Agent 名",
         "agentIdLabel": "Agent ID",

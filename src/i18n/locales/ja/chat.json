@@ -47,7 +47,7 @@
             "latest": "直近",
             "previous": "履歴"
         },
-        "branchLabel": "branch",
+        "branchLabel": "分岐",
         "userTrigger": "ユーザー入力",
         "userTriggerHint": "上のユーザーメッセージがトリガーです",
         "agentRun": "{{agent}} の実行",

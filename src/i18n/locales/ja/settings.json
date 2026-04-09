@@ -2,15 +2,15 @@
   "title": "設定",
   "subtitle": "BoostClaw の体験をカスタマイズ",
   "appearance": {
-    "title": "通用",
-    "description": "外観とスタイルをカスタマイズ",
+    "title": "一般",
+    "description": "外観をカスタマイズ",
     "theme": "テーマ",
     "light": "ライト",
     "dark": "ダーク",
     "system": "システム",
     "language": "言語",
     "launchAtStartup": "システム起動時に自動起動",
-    "launchAtStartupDesc": "ログイン時に BoostClaw を自動的に起動します"
+    "launchAtStartupDesc": "ログイン時に自動起動"
   },
   "account": {
     "title": "アカウント",
@@ -24,7 +24,7 @@
     "description": "AI モデルプロバイダーと API キーを設定",
     "overview": {
       "title": "プロバイダーアカウント",
-      "description": "現在設定されているプロバイダーアカウントとモデルの概要です。",
+      "description": "設定済みのプロバイダーとモデルの概要です。",
       "noModelSelected": "モデル未選択",
       "multiAccountReady": "複数アカウント対応",
       "singletonVendor": "単一アカウントのプロバイダー"
@@ -44,19 +44,19 @@
     "notRequired": "不要",
     "empty": {
       "title": "プロバイダーが構成されていません",
-      "desc": "BoostClaw の使用を開始するには AI プロバイダーを追加してください",
-      "cta": "最初のプロバイダーを追加"
+      "desc": "AI プロバイダーを追加して開始",
+      "cta": "プロバイダーを追加"
     },
     "dialog": {
       "title": "AI プロバイダーを追加",
       "desc": "新しい AI モデルプロバイダーを構成",
       "displayName": "表示名",
       "apiKey": "API キー",
-      "apiKeyConfigured": "このプロバイダーには API キーが保存されています。",
-      "apiKeyMissing": "このプロバイダーにはまだ API キーが保存されていません。",
-      "apiKeyStored": "API キーはローカルマシンに保存されます。",
+      "apiKeyConfigured": "API キーは保存済みです。",
+      "apiKeyMissing": "API キーは未保存です。",
+      "apiKeyStored": "API キーはローカルに保存されます。",
       "replaceApiKey": "API キーを置き換える",
-      "replaceApiKeyHelp": "現在保存されている API キーをそのまま使う場合は、この欄を空のままにしてください。",
+      "replaceApiKeyHelp": "現在のキーをそのまま使う場合は空欄にしてください。",
       "baseUrl": "ベース URL",
       "modelId": "モデル ID",
       "codePlanPreset": "Code Plan プリセット",
@@ -72,8 +72,8 @@
       "fallbackProviders": "別プロバイダーへのフォールバック",
       "fallbackModelIds": "同一プロバイダーのフォールバックモデル ID",
       "fallbackModelIdsPlaceholder": "gpt-4.1-mini\nanother-model-id",
-      "fallbackModelIdsHelp": "1 行につき 1 つのモデル ID を指定します。まず現在のプロバイダー内でこれらを試し、その後ほかのプロバイダーへフォールバックします。",
-      "noFallbackOptions": "フォールバック先にするには、先に別のプロバイダーを追加してください。",
+      "fallbackModelIdsHelp": "1 行に 1 モデル ID。現在のプロバイダー内で試した後、別プロバイダーへフォールバックします。",
+      "noFallbackOptions": "フォールバック先を追加してください。",
       "cancel": "キャンセル",
       "change": "プロバイダーを変更",
       "add": "プロバイダーを追加",
@@ -99,14 +99,14 @@
       "anthropic": "Anthropic 互換"
     },
     "toast": {
-      "added": "プロバイダーが正常に追加されました",
-      "failedAdd": "プロバイダーの追加に失敗しました",
-      "deleted": "プロバイダーが削除されました",
-      "failedDelete": "プロバイダーの削除に失敗しました",
-      "defaultUpdated": "デフォルトプロバイダーが更新されました",
-      "failedDefault": "デフォルトの設定に失敗しました",
-      "updated": "プロバイダーが更新されました",
-      "failedUpdate": "プロバイダーの更新に失敗しました",
+      "added": "プロバイダーを追加しました",
+      "failedAdd": "追加に失敗しました",
+      "deleted": "プロバイダーを削除しました",
+      "failedDelete": "削除に失敗しました",
+      "defaultUpdated": "デフォルトを更新しました",
+      "failedDefault": "デフォルト設定に失敗しました",
+      "updated": "プロバイダーを更新しました",
+      "failedUpdate": "更新に失敗しました",
       "invalidKey": "無効な API キー",
       "modelRequired": "モデル ID が必要です",
       "minimaxConflict": "MiniMax (Global) と MiniMax (CN) は同時に追加できません。"
@@ -114,20 +114,20 @@
     "oauth": {
       "loginMode": "OAuthログイン",
       "apikeyMode": "APIキー",
-      "loginPrompt": "このプロバイダーはブラウザからのサインインが必要です。",
+      "loginPrompt": "ブラウザでログインが必要です。",
       "loginButton": "ブラウザでログイン",
       "waiting": "待機中...",
       "openLoginPage": "ログインページを開く",
-      "waitingApproval": "ブラウザの承認を待っています...",
+      "waitingApproval": "ブラウザの承認待ち...",
       "cancel": "キャンセル",
       "codeCopied": "コードをクリップボードにコピーしました",
       "authFailed": "認証に失敗しました",
       "browserFlowUnavailable": "このプロバイダーのブラウザ OAuth はまだ接続されていません。",
       "tryAgain": "再試行",
       "approveLogin": "ログインを承認",
-      "step1": "以下の認証コードをコピーしてください。",
+      "step1": "認証コードをコピーしてください。",
       "step2": "ブラウザでログインページを開いてください。",
-      "step3": "コードを貼り付けてアクセスを承認してください。",
+      "step3": "コードを貼り付けて承認してください。",
       "requestingCode": "セキュアログインコードを取得中..."
     }
   },
@@ -146,16 +146,16 @@
     "proxyServer": "プロキシサーバー",
     "proxyServerHelp": "すべてのリクエストで使う基本プロキシです。host:port のみの場合は HTTP 扱いです。",
     "proxyHttpServer": "HTTP プロキシ",
-    "proxyHttpServerHelp": "HTTP リクエスト用の高度な上書き設定です。空欄の場合はプロキシサーバーを使用します。",
+    "proxyHttpServerHelp": "HTTP 用の上書き設定。空欄ならプロキシサーバーを使用。",
     "proxyHttpsServer": "HTTPS プロキシ",
-    "proxyHttpsServerHelp": "HTTPS リクエスト用の高度な上書き設定です。空欄の場合はプロキシサーバーを使用します。",
+    "proxyHttpsServerHelp": "HTTPS 用の上書き設定。空欄ならプロキシサーバーを使用。",
     "proxyAllServer": "ALL_PROXY / SOCKS",
-    "proxyAllServerHelp": "SOCKS 対応クライアントや Telegram など向けの高度なフォールバックです。空欄の場合はプロキシサーバーを使用します。",
+    "proxyAllServerHelp": "SOCKS や Telegram 向けフォールバック。空欄ならプロキシサーバーを使用。",
     "showAdvancedProxy": "高度なプロキシ項目を表示",
     "hideAdvancedProxy": "高度なプロキシ項目を非表示",
     "proxyBypass": "バイパスルール",
     "proxyBypassHelp": "直接接続するホストをセミコロン、カンマ、または改行で区切って指定します。",
-    "proxyRestartNote": "保存すると Electron のネットワーク設定を再適用し、Gateway をすぐ再起動します。プロキシ無効時の通常再起動では Telegram チャネルの既存プロキシ設定を保持し、無効状態で保存すると明示的に削除されます。",
+    "proxyRestartNote": "保存するとプロキシを適用し Gateway を再起動します。プロキシ無効時に保存すると Telegram チャンネルのプロキシを削除します。",
     "proxySaved": "プロキシ設定を保存しました",
     "proxySaveFailed": "プロキシ設定の保存に失敗しました"
   },
@@ -165,7 +165,7 @@
     "autoCheck": "自動更新チェック",
     "autoCheckDesc": "起動時に更新を確認",
     "autoDownload": "自動アップデート",
-    "autoDownloadDesc": "更新を自動的にダウンロードしてインストール",
+    "autoDownloadDesc": "更新を自動ダウンロード・インストール",
     "status": {
       "checking": "更新を確認中...",
       "downloading": "更新をダウンロード中...",
@@ -188,11 +188,11 @@
     "currentVersion": "現在のバージョン",
     "whatsNew": "更新内容：",
     "errorDetails": "エラー詳細：",
-    "help": "自動アップデートが有効な場合、更新は自動的にダウンロードされインストールされます。"
+    "help": "自動アップデート有効時、更新は自動でダウンロード・インストールされます。"
   },
   "advanced": {
     "title": "詳細設定",
-    "description": "上級ユーザー向けオプション",
+    "description": "上級オプション",
     "transport": {
       "label": "Gateway 転送優先度",
       "desc": "レンダラープロセスから Gateway RPC を呼ぶ際の優先プロトコルを選択します。",
