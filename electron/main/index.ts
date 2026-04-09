@@ -394,10 +394,13 @@ async function initialize(): Promise<void> {
   // Note: qqbot was moved to a built-in channel in OpenClaw 3.31.
   if (!isE2EMode) {
     startupTimer.mark('plugins_start');
-    void ensureAllBundledPluginsInstalled().catch((error) => {
-      logger.warn('Failed to install/upgrade bundled plugins:', error);
-    });
-    startupTimer.mark('plugins_done');
+    void ensureAllBundledPluginsInstalled()
+      .catch((error) => {
+        logger.warn('Failed to install/upgrade bundled plugins:', error);
+      })
+      .finally(() => {
+        startupTimer.mark('plugins_done');
+      });
   }
 
   // Bridge gateway and host-side events before any auto-start logic runs, so
