@@ -462,7 +462,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   title={t('composer.pickAgent')}
                 >
                   <span className="truncate text-[13px] font-medium">
-                    {t('composer.agentSelectorLabel', { agent: effectiveTargetLabel })}
+                    {effectiveTargetLabel}
                   </span>
                   <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                 </Button>
@@ -524,7 +524,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   isComposingRef.current = false;
                 }}
                 onPaste={handlePaste}
-                placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : ''}
+                placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')}
                 disabled={disabled}
                 className="min-h-[40px] max-h-[200px] resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
                 rows={1}

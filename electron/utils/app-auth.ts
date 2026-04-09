@@ -37,7 +37,7 @@ type PendingAuthFlow = {
 
 const APP_AUTH_ACCOUNT_ID = '__BoostClaw_app_auth__';
 
-const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED === '1';
+const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED !== '0';
 const AUTHORIZATION_ENDPOINT = process.env.BoostClaw_APP_AUTH_AUTHORIZATION_ENDPOINT
   || 'https://open.am.microdata-inc.com/usercenter/oauth/authorize';
 const TOKEN_ENDPOINT = process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT

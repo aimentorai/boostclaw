@@ -4,6 +4,7 @@
     "welcome": {
         "title": "BoostClaw Console",
         "subtitle": "モデル、チャンネル、Agent を接続し、ここから次のタスクを始めます。",
+        "hint": "最初の質問を入力するか、実行したいタスクをそのまま書いてください。",
         "eyebrow": "Agent Console",
         "sessionsTitle": "セッション",
         "sessionsBody": "会話履歴、直近の実行、タスク文脈は現在のワークスペースに紐づいて保持されます。",
@@ -57,6 +58,7 @@
         "attachFiles": "ファイルを添付",
         "pickAgent": "Agent を選択",
         "agentSelectorLabel": "会話 Agent: {{agent}}",
+        "placeholder": "何でも聞いてください。例: 要件整理、スクリプト作成、エラー調査",
         "clearTarget": "送信先 Agent をクリア",
         "targetChip": "@{{agent}}",
         "agentPickerTitle": "次のメッセージの送信先 Agent を選択します",

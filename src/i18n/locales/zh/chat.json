@@ -3,7 +3,8 @@
     "gatewayRequired": "OpenClaw 网关需要运行才能使用聊天。它将自动启动，或者您可以从设置中启动。",
     "welcome": {
         "title": "BoostClaw 控制台",
-        "subtitle": "连接模型、频道和 Agent，从这里开始一次任务。",
+        "subtitle": "欢迎使用 BoostClaw，开始新对话吧。",
+        "hint": "输入你的第一个问题，或直接描述你要完成的任务。",
         "eyebrow": "Agent Console",
         "sessionsTitle": "会话",
         "sessionsBody": "当前工作区的对话记录、最近运行和任务上下文都会保留在这里。",
@@ -57,6 +58,7 @@
         "attachFiles": "添加文件",
         "pickAgent": "选择 Agent",
         "agentSelectorLabel": "对话 Agent：{{agent}}",
+        "placeholder": "问我任何任务，例如：整理需求、写脚本、排查报错",
         "clearTarget": "清除目标 Agent",
         "targetChip": "@{{agent}}",
         "agentPickerTitle": "选择这条消息要发送到哪个 Agent",

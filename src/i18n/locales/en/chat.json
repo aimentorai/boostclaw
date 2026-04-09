@@ -4,6 +4,7 @@
     "welcome": {
         "title": "BoostClaw Console",
         "subtitle": "Connect models, channels, and agents, then start the next task from here.",
+        "hint": "Type your first question, or describe the task you want to complete.",
         "eyebrow": "Agent Console",
         "sessionsTitle": "Sessions",
         "sessionsBody": "Conversation history, recent runs, and task context stay attached to the current workspace.",
@@ -57,6 +58,7 @@
         "attachFiles": "Attach files",
         "pickAgent": "Choose agent",
         "agentSelectorLabel": "Chat agent: {{agent}}",
+        "placeholder": "Ask anything, for example: refine a spec, write a script, debug an error",
         "clearTarget": "Clear target agent",
         "targetChip": "@{{agent}}",
         "agentPickerTitle": "Choose which agent should receive the next message",
