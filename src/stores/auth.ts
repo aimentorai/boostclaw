@@ -49,6 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         authenticated: status.authenticated,
         profile: status.profile ?? null,
         loading: false,
+        pendingLogin: false,
       });
     } catch (error) {
       set({
@@ -56,6 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         authenticated: true,
         profile: null,
         loading: false,
+        pendingLogin: false,
         error: String(error),
       });
     }

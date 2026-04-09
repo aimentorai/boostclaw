@@ -210,7 +210,6 @@ export function shouldInvertInDark(_type: ProviderType | string): boolean {
 /** Provider list shown in the Setup wizard */
 const DOMESTIC_PROVIDER_TYPE_IDS = new Set<ProviderType>([
   'moonshot',
-  'siliconflow',
   'deepseek',
   'qwen',
   'minimax-portal-cn',

@@ -438,8 +438,6 @@ function WelcomeScreen() {
         <h1 className="text-gradient mx-auto mb-4 max-w-2xl text-4xl font-semibold md:text-5xl">
           {t('welcome.subtitle')}
         </h1>
-        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-muted-foreground">{t('welcome.title')}</p>
-
         <div className="mb-8 grid gap-3 text-left sm:grid-cols-3">
           <div className="rounded-2xl border border-border/70 bg-background/55 p-4">
             <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t('welcome.sessionsTitle')}</p>
