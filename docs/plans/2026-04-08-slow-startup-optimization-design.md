@@ -12,7 +12,6 @@
 - WebSocket (ws)
 
 ---
-```
 
 ## Task Structure
 
