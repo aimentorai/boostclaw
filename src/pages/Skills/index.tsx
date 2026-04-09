@@ -439,6 +439,10 @@ export function Skills() {
   }, [fetchSkills, isGatewayRunning]);
 
   const safeSkills = Array.isArray(skills) ? skills : [];
+  const pinnedSkillOrder = new Map<string, number>([
+    ['development-sheet-factory', 0],
+    ['product-chart-get', 1],
+  ]);
   const filteredSkills = safeSkills.filter((skill) => {
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -458,6 +462,9 @@ export function Skills() {
 
     return matchesSearch && matchesSource;
   }).sort((a, b) => {
+    const pinnedA = pinnedSkillOrder.get(a.id) ?? Number.POSITIVE_INFINITY;
+    const pinnedB = pinnedSkillOrder.get(b.id) ?? Number.POSITIVE_INFINITY;
+    if (pinnedA !== pinnedB) return pinnedA - pinnedB;
     if (a.enabled && !b.enabled) return -1;
     if (!a.enabled && b.enabled) return 1;
     if (a.isCore && !b.isCore) return -1;
