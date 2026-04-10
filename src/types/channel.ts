@@ -139,7 +139,7 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
         required: true,
       },
       {
-        key: 'clientSecret',
+        key: 'appSecret',
         label: 'channels:meta.qqbot.fields.clientSecret.label',
         type: 'password',
         placeholder: 'channels:meta.qqbot.fields.clientSecret.placeholder',

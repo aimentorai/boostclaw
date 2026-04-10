@@ -32,7 +32,7 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
       delete flat['HTTP-Referer'];
       delete flat['x-title'];
       delete flat['X-Title'];
-      flat['HTTP-Referer'] = 'https://https://boostclaw.ai/';
+      flat['HTTP-Referer'] = 'https://boostclaw.ai/';
       flat['X-Title'] = 'BoostClaw';
       init.headers = flat;
     }

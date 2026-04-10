@@ -6,7 +6,7 @@ if /i "%1"=="update" (
     echo.
     echo To update openclaw, update BoostClaw:
     echo   Open BoostClaw ^> Settings ^> Check for Updates
-    echo   Or download the latest version from https://https://boostclaw.ai/
+    echo   Or download the latest version from https://boostclaw.ai/
     exit /b 0
 )
 
