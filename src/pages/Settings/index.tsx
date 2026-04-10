@@ -1090,14 +1090,14 @@ export function Settings() {
                 <Button
                   variant="link"
                   className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://https://boostclaw.ai/')}
+                  onClick={() => window.electron.openExternal('https://boostclaw.ai/')}
                 >
                   {t('about.docs')}
                 </Button>
                 <Button
                   variant="link"
                   className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://icnnp7d0dymg.feishu.cn/wiki/UyfOwQ2cAiJIP6kqUW8cte5Bnlc')}
+                  onClick={() => window.electron.openExternal('https://boostclaw.ai/docs?doc=faq')}
                 >
                   {t('about.faq')}
                 </Button>

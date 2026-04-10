@@ -101,7 +101,7 @@
     "meta": {
         "telegram": {
             "description": "使用 @BotFather 提供的机器人令牌连接 Telegram",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/TjiGwxsMWi7hpDkDAQBc0ydMnEf#PL8ndvsEwoYVWIx1T4mcB1EvnSb",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "botToken": {
                     "label": "机器人令牌",
@@ -123,7 +123,7 @@
         },
         "discord": {
             "description": "使用开发者门户提供的机器人令牌连接 Discord",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/BkOywJYCAiYRN9k4KTTceKPMnxg#C9zjdBRT1oqZ4VxF8q7ceRxQnLk",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "token": {
                     "label": "机器人令牌",
@@ -151,7 +151,7 @@
         },
         "whatsapp": {
             "description": "通过扫描二维码连接 WhatsApp（无需手机号）",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/ES7fwUfH8iGl8FkHYfFcyWB3n4d#doxcnsDDFbeEzqgjN6HSlyonLvc",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "instructions": [
                 "在手机上打开 WhatsApp",
                 "前往 设置 > 已关联设备 >包含连接设备",
@@ -161,7 +161,7 @@
         },
         "wechat": {
             "description": "通过腾讯官方 OpenClaw 插件扫码连接个人微信",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/GHYZwuPCriF0gWkXwkFcJ9zon3b",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "instructions": [
                 "点击生成二维码，BoostClaw 会在 OpenClaw 中安装并启用官方微信插件",
                 "使用微信扫描下方二维码，并在手机上确认连接",
@@ -218,7 +218,7 @@
         },
         "feishu": {
             "description": "通过飞书官方推出的 OpenClaw 插件连接飞书/Lark 机器人",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/GKn8wOvHnibpPNkNkPzcAvGlnzK#Py88dTltfoJc1jxAhIBcW3Pkn7b",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "appId": {
                     "label": "应用 ID (App ID)",
@@ -239,7 +239,7 @@
         },
         "wecom": {
             "description": "通过插件连接企业微信机器人",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/JTGnwoV0RixKPtkr4w7c7gpAnDc",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "botId": {
                     "label": "机器人 Bot ID",
@@ -369,21 +369,21 @@
             ]
         },
         "qqbot": {
-            "description": "连接 QQ 机器人频道（OpenClaw 3.31 起内置）",
-            "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/KPIJwlyiGiupMrkiS9ice39Zn2c",
+            "description": "连接 QQ 机器人频道",
+            "docsUrl": "https://boostclaw.ai/docs?doc=channels",
             "fields": {
                 "appId": {
                     "label": "App ID",
                     "placeholder": "您的 QQ 机器人 App ID"
                 },
                 "clientSecret": {
-                    "label": "Client Secret",
-                    "placeholder": "您的 QQ 机器人 Client Secret"
+                    "label": "App Secret",
+                    "placeholder": "您的 QQ 机器人 App Secret"
                 }
             },
             "instructions": [
                 "前往 QQ 机器人开放平台注册应用",
-                "获取 App ID 和 Client Secret",
+                "获取 App ID 和 App Secret",
                 "在下方填写凭证信息"
             ]
         }
