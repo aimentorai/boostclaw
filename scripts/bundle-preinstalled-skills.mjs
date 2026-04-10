@@ -1,9 +1,15 @@
 #!/usr/bin/env zx
 
 import 'zx/globals';
+import { quotePowerShell } from 'zx';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+if (process.platform === 'win32' && !$.quote) {
+  $.quote = quotePowerShell;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -45,10 +51,22 @@ function createRepoDirName(repo, ref) {
   return `${repo.replace(/[\\/]/g, '__')}__${ref.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 }
 
-function toGitPath(inputPath) {
-  if (process.platform !== 'win32') return inputPath;
-  // Git on Windows accepts forward slashes and avoids backslash escape quirks.
-  return inputPath.replace(/\\/g, '/');
+function runGit(args, options = {}) {
+  try {
+    return execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      ...options,
+    });
+  } catch (err) {
+    const stderr = typeof err.stderr === 'string' ? err.stderr.trim() : '';
+    const stdout = typeof err.stdout === 'string' ? err.stdout.trim() : '';
+    const message = stderr || stdout || err.message || `git failed (exit ${err.status})`;
+    const wrapped = new Error(message);
+    wrapped.exitCode = err.status;
+    throw wrapped;
+  }
 }
 
 function normalizeRepoPath(repoPath) {
@@ -111,22 +129,30 @@ async function extractArchive(archiveFileName, cwd) {
 async function fetchSparseRepo(repo, ref, paths, checkoutDir) {
   const remote = `https://github.com/${repo}.git`;
   mkdirSync(checkoutDir, { recursive: true });
-  const gitCheckoutDir = toGitPath(checkoutDir);
   const archiveFileName = '.subset.tar';
   const archivePath = join(checkoutDir, archiveFileName);
   const archivePaths = [...new Set(paths.map(normalizeRepoPath))];
 
-  await $`git init ${gitCheckoutDir}`;
-  await $`git -C ${gitCheckoutDir} remote add origin ${remote}`;
-  await $`git -C ${gitCheckoutDir} fetch --depth 1 origin ${ref}`;
+  // Use execFileSync (no shell) so paths are not mangled by PowerShell quoting (zx $`...`).
+  runGit(['init', checkoutDir]);
+  runGit(['-C', checkoutDir, 'remote', 'add', 'origin', remote]);
+  runGit(['-C', checkoutDir, 'fetch', '--depth', '1', 'origin', ref]);
   // Do not checkout working tree on Windows: upstream repos may contain
   // Windows-invalid paths. Export only requested directories via git archive.
-  await $`git -C ${gitCheckoutDir} archive --format=tar --output ${archiveFileName} FETCH_HEAD ${archivePaths}`;
+  runGit([
+    '-C',
+    checkoutDir,
+    'archive',
+    '--format=tar',
+    '--output',
+    archivePath,
+    'FETCH_HEAD',
+    ...archivePaths,
+  ]);
   await extractArchive(archiveFileName, checkoutDir);
   rmSync(archivePath, { force: true });
 
-  const commit = (await $`git -C ${gitCheckoutDir} rev-parse FETCH_HEAD`).stdout.trim();
-  return commit;
+  return runGit(['-C', checkoutDir, 'rev-parse', 'FETCH_HEAD']).trim();
 }
 
 echo`Bundling preinstalled skills...`;
