@@ -176,6 +176,7 @@ function bundleOnePlugin({ npmName, pluginId }) {
   //    their JS output than what openclaw.plugin.json declares.  The Gateway
   //    validates that these match, so we fix it post-copy.
   patchPluginId(outputDir, pluginId);
+  patchPluginRuntimeInterop(outputDir, pluginId);
 
   echo`   ✅ ${pluginId}: copied ${copiedCount} deps (skipped dupes: ${skippedDupes})`;
 }
@@ -231,6 +232,34 @@ function patchPluginId(pluginDir, expectedId) {
     if (patched) {
       fs.writeFileSync(entryPath, content, 'utf8');
     }
+  }
+}
+
+/**
+ * Patch known ESM/CJS interop issues inside bundled plugin dependencies.
+ * Current fix: @wecom/aibot-node-sdk ESM entry incorrectly does
+ * `import { EventEmitter } from 'eventemitter3'`, but eventemitter3 exports
+ * default. This crashes installed apps during runtime load.
+ */
+function patchPluginRuntimeInterop(pluginDir, expectedId) {
+  if (expectedId !== 'wecom') return;
+
+  const brokenEsmPath = path.join(
+    pluginDir,
+    'node_modules',
+    '@wecom',
+    'aibot-node-sdk',
+    'dist',
+    'index.esm.js'
+  );
+  if (!fs.existsSync(brokenEsmPath)) return;
+
+  const source = fs.readFileSync(brokenEsmPath, 'utf8');
+  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
+  const fixedImport = "import EventEmitter from 'eventemitter3';";
+  if (source.includes(brokenImport)) {
+    fs.writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+    echo`   🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import`;
   }
 }
 
