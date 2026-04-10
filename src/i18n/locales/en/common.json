@@ -10,6 +10,10 @@
         "settings": "Settings",
         "devConsole": "Developer Console",
         "models": "Models",
+        "agentWorkspace": "Agent Workspace",
+        "runtimeTitle": "Runtime",
+        "runtimeOnline": "Online",
+        "runtimeReadyDesc": "This workspace is ready for managing agents, sessions, and model metrics.",
         "deleteSessionConfirm": "Are you sure you want to delete session \"{{label}}\"?",
         "openClawPage": "OpenClaw Page"
     },
@@ -35,7 +39,8 @@
         "restart": "Restart",
         "show": "Show",
         "hide": "Hide",
-        "clear": "Clear"
+        "clear": "Clear",
+        "showInFolder": "Show In Folder"
     },
     "status": {
         "running": "Running",
@@ -55,5 +60,15 @@
         "notRunning": "Gateway Not Running",
         "notRunningDesc": "The OpenClaw Gateway needs to be running to use this feature. It will start automatically, or you can start it from Settings",
         "warning": "Gateway is not running."
+    },
+    "auth": {
+        "loginTitle": "Sign In to BoostClaw",
+        "loginDescription": "Click the button below to open your organization sign-in page.",
+        "startLogin": "Start Sign In",
+        "redirecting": "Redirecting...",
+        "lastLoginAccount": "Last signed-in account: {{email}}",
+        "loginFailed": "Login failed",
+        "loggingIn": "Signing in",
+        "loggingInDesc": "Completing sign-in, please wait..."
     }
 }

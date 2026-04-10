@@ -10,6 +10,10 @@
         "settings": "設定",
         "devConsole": "開発者コンソール",
         "models": "モデル",
+        "agentWorkspace": "Agent ワークスペース",
+        "runtimeTitle": "ランタイム",
+        "runtimeOnline": "オンライン",
+        "runtimeReadyDesc": "現在のワークスペースは準備完了です。Agent、セッション、モデル統計を管理できます。",
         "deleteSessionConfirm": "セッション \"{{label}}\" を削除してもよろしいですか？",
         "openClawPage": "OpenClaw ページ"
     },
@@ -35,7 +39,8 @@
         "restart": "再起動",
         "show": "表示",
         "hide": "非表示",
-        "clear": "クリア"
+        "clear": "クリア",
+        "showInFolder": "フォルダで表示"
     },
     "status": {
         "running": "実行中",
@@ -55,5 +60,15 @@
         "notRunning": "ゲートウェイが停止中",
         "notRunningDesc": "この機能を使用するには OpenClaw ゲートウェイが実行されている必要があります。自動的に起動するか、設定から起動できます。",
         "warning": "ゲートウェイが停止中です。"
+    },
+    "auth": {
+        "loginTitle": "BoostClaw にログイン",
+        "loginDescription": "下のボタンをクリックして組織アカウントのログインページを開きます。",
+        "startLogin": "ログイン開始",
+        "redirecting": "リダイレクト中...",
+        "lastLoginAccount": "前回ログインしたアカウント：{{email}}",
+        "loginFailed": "ログインに失敗しました",
+        "loggingIn": "ログイン中",
+        "loggingInDesc": "ログインを完了しています。しばらくお待ちください..."
     }
 }

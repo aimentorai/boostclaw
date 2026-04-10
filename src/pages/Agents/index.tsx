@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Bot, Check, Plus, RefreshCw, Settings2, Trash2, X } from 'lucide-react';
+import { AlertCircle, Bot, Check, Plus, RefreshCw, Settings2, Trash2, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { useGatewayStore } from '@/stores/gateway';
 import { useProviderStore } from '@/stores/providers';
 import { hostApiFetch } from '@/lib/host-api';
 import { subscribeHostEvent } from '@/lib/host-events';
-import { CHANNEL_ICONS, CHANNEL_NAMES, type ChannelType } from '@/types/channel';
+import { CHANNEL_NAMES, getPrimaryChannels, type ChannelType } from '@/types/channel';
 import type { AgentSummary } from '@/types/agent';
 import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
@@ -94,6 +94,7 @@ function hasConfiguredProviderCredentials(
 
 export function Agents() {
   const { t } = useTranslation('agents');
+  const visibleChannelTypeSet = useMemo(() => new Set(getPrimaryChannels()), []);
   const gatewayStatus = useGatewayStore((state) => state.status);
   const refreshProviderSnapshot = useProviderStore((state) => state.refreshProviderSnapshot);
   const lastGatewayStateRef = useRef(gatewayStatus.state);
@@ -116,11 +117,11 @@ export function Agents() {
   const fetchChannelAccounts = useCallback(async () => {
     try {
       const response = await hostApiFetch<{ success: boolean; channels?: ChannelGroupItem[] }>('/api/channels/accounts');
-      setChannelGroups(response.channels || []);
+      setChannelGroups((response.channels || []).filter((group) => visibleChannelTypeSet.has(group.channelType as ChannelType)));
     } catch {
       // Keep the last rendered snapshot when channel account refresh fails.
     }
-  }, []);
+  }, [visibleChannelTypeSet]);
 
   useEffect(() => {
     let mounted = true;
@@ -432,7 +433,7 @@ function ChannelLogo({ type }: { type: ChannelType }) {
     case 'qqbot':
       return <img src={qqIcon} alt="QQ" className="w-[20px] h-[20px] dark:invert" />;
     default:
-      return <span className="text-[20px] leading-none">{CHANNEL_ICONS[type] || '💬'}</span>;
+      return <MessageCircle className="h-[20px] w-[20px] text-muted-foreground" />;
   }
 }
 

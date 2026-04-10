@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { RefreshCw, Trash2, AlertCircle, Plus } from 'lucide-react';
+import { RefreshCw, Trash2, AlertCircle, Plus, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -10,7 +10,6 @@ import { subscribeHostEvent } from '@/lib/host-events';
 import { ChannelConfigModal } from '@/components/channels/ChannelConfigModal';
 import { cn } from '@/lib/utils';
 import {
-  CHANNEL_ICONS,
   CHANNEL_NAMES,
   CHANNEL_META,
   getPrimaryChannels,
@@ -90,7 +89,8 @@ export function Channels() {
   const [initialConfigValuesForModal, setInitialConfigValuesForModal] = useState<Record<string, string> | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
-  const displayedChannelTypes = getPrimaryChannels();
+  const displayedChannelTypes = useMemo(() => getPrimaryChannels(), []);
+  const displayedChannelTypeSet = useMemo(() => new Set(displayedChannelTypes), [displayedChannelTypes]);
   const visibleChannelGroups = channelGroups;
   const visibleAgents = agents;
   const hasStableValue = visibleChannelGroups.length > 0 || visibleAgents.length > 0;
@@ -125,7 +125,7 @@ export function Channels() {
         throw new Error(agentsRes.error || 'Failed to load agents');
       }
 
-      setChannelGroups(channelsRes.channels || []);
+      setChannelGroups((channelsRes.channels || []).filter((group) => displayedChannelTypeSet.has(group.channelType as ChannelType)));
       setAgents(agentsRes.agents || []);
     } catch (fetchError) {
       // Preserve previous data on error — don't clear channelGroups/agents.
@@ -134,7 +134,7 @@ export function Channels() {
       setLoading(false);
     }
   // Stable reference — reads state via refs, no deps needed.
-  }, []);
+  }, [displayedChannelTypeSet]);
 
   useEffect(() => {
     void fetchPageData();
@@ -571,7 +571,7 @@ function ChannelLogo({ type }: { type: ChannelType }) {
     case 'qqbot':
       return <img src={qqIcon} alt="QQ" className="w-[22px] h-[22px] dark:invert" />;
     default:
-      return <span className="text-[22px]">{CHANNEL_ICONS[type] || '💬'}</span>;
+      return <MessageCircle className="h-[22px] w-[22px] text-muted-foreground" />;
   }
 }
 

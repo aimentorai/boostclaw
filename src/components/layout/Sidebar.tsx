@@ -243,7 +243,7 @@ export function Sidebar() {
                 BoostClaw
               </p>
               <p className="truncate text-[11px] text-muted-foreground">
-                Agent workspace
+                {t('sidebar.agentWorkspace')}
               </p>
             </div>
           </div>
@@ -267,13 +267,13 @@ export function Sidebar() {
         <div className="px-4 py-3">
           <div className="rounded-2xl border border-primary/12 bg-gradient-to-br from-primary/12 via-primary/6 to-transparent px-3 py-3">
             <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span>Runtime</span>
+              <span>{t('sidebar.runtimeTitle')}</span>
               <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', isGatewayRunning ? 'bg-emerald-500/14 text-emerald-300' : 'bg-amber-500/14 text-amber-300')}>
                 <span className={cn('h-1.5 w-1.5 rounded-full', isGatewayRunning ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]' : 'bg-amber-300')} />
-                {isGatewayRunning ? 'online' : gatewayStatus.state}
+                {isGatewayRunning ? t('sidebar.runtimeOnline') : gatewayStatus.state}
               </span>
             </div>
-            <p className="text-[13px] font-medium text-foreground">当前工作区已就绪，可用于管理 Agent、会话和模型统计。</p>
+            <p className="text-[13px] font-medium text-foreground">{t('sidebar.runtimeReadyDesc')}</p>
           </div>
         </div>
       )}

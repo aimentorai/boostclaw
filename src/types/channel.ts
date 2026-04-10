@@ -579,7 +579,7 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
  * Get primary supported channels (non-plugin, commonly used)
  */
 export function getPrimaryChannels(): ChannelType[] {
-  return ['telegram', 'discord', 'whatsapp', 'wechat', 'dingtalk', 'feishu', 'wecom', 'qqbot'];
+  return ['wechat', 'dingtalk', 'feishu', 'wecom', 'qqbot'];
 }
 
 /**

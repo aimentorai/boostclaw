@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth';
 import { subscribeHostEvent } from '@/lib/host-events';
+import { useTranslation } from 'react-i18next';
 
 type AuthEventPayload = {
   authenticated?: boolean;
@@ -10,6 +11,7 @@ type AuthEventPayload = {
 };
 
 export function Login() {
+  const { t } = useTranslation('common');
   const navigate = useNavigate();
   const enabled = useAuthStore((state) => state.enabled);
   const authenticated = useAuthStore((state) => state.authenticated);
@@ -29,14 +31,14 @@ export function Login() {
       await refreshStatus();
       useAuthStore.setState({
         pendingLogin: false,
-        error: payload?.reason || 'Login failed',
+        error: payload?.reason || t('auth.loginFailed'),
       });
     });
     return () => {
       offSuccess();
       offError();
     };
-  }, [navigate, refreshStatus]);
+  }, [navigate, refreshStatus, t]);
 
   useEffect(() => {
     if (enabled && authenticated) {
@@ -50,9 +52,9 @@ export function Login() {
       className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6"
     >
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/95 backdrop-blur p-8 shadow-xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">登录 BoostClaw</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{t('auth.loginTitle')}</h1>
         <p className="mt-2 text-sm text-slate-600">
-          点击下方按钮跳转到组织账号登录网站。
+          {t('auth.loginDescription')}
         </p>
 
         <Button
@@ -64,7 +66,7 @@ export function Login() {
           }}
           disabled={pendingLogin}
         >
-          {pendingLogin ? '正在跳转...' : '开始登录'}
+          {pendingLogin ? t('auth.redirecting') : t('auth.startLogin')}
         </Button>
 
         {error && (
@@ -75,7 +77,7 @@ export function Login() {
 
         {profile?.email && (
           <p className="mt-4 text-xs text-slate-500">
-            上次登录账号：{profile.email}
+            {t('auth.lastLoginAccount', { email: profile.email })}
           </p>
         )}
       </div>

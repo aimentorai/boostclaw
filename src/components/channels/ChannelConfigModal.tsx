@@ -11,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,6 @@ import { hostApiFetch } from '@/lib/host-api';
 import { subscribeHostEvent } from '@/lib/host-events';
 import { cn } from '@/lib/utils';
 import {
-  CHANNEL_ICONS,
   CHANNEL_NAMES,
   CHANNEL_META,
   getPrimaryChannels,
@@ -791,7 +791,7 @@ function ChannelLogo({ type }: { type: ChannelType }) {
     case 'qqbot':
       return <img src={qqIcon} alt="QQ" className="w-[22px] h-[22px] dark:invert" />;
     default:
-      return <span className="text-[22px]">{CHANNEL_ICONS[type] || '💬'}</span>;
+      return <MessageCircle className="h-[22px] w-[22px] text-muted-foreground" />;
   }
 }
 

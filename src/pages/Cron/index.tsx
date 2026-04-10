@@ -2,7 +2,7 @@
  * Cron Page
  * Manage scheduled tasks
  */
-import { useEffect, useState, useCallback, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useEffect, useState, useCallback, useMemo, type ReactNode, type SelectHTMLAttributes } from 'react';
 import {
   Plus,
   Clock,
@@ -20,6 +20,7 @@ import {
   History,
   Pause,
   ChevronDown,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,9 +37,17 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { formatRelativeTime, cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { CronJob, CronJobCreateInput, ScheduleType } from '@/types/cron';
-import { CHANNEL_ICONS, CHANNEL_NAMES, type ChannelType } from '@/types/channel';
+import { CHANNEL_NAMES, getPrimaryChannels, type ChannelType } from '@/types/channel';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import telegramIcon from '@/assets/channels/telegram.svg';
+import discordIcon from '@/assets/channels/discord.svg';
+import whatsappIcon from '@/assets/channels/whatsapp.svg';
+import wechatIcon from '@/assets/channels/wechat.svg';
+import dingtalkIcon from '@/assets/channels/dingtalk.svg';
+import feishuIcon from '@/assets/channels/feishu.svg';
+import wecomIcon from '@/assets/channels/wecom.svg';
+import qqIcon from '@/assets/channels/qq.svg';
 
 // Common cron schedule presets
 const schedulePresets: { key: string; value: string; type: ScheduleType }[] = [
@@ -197,6 +206,29 @@ function isKnownChannelType(value: string): value is ChannelType {
 
 function getChannelDisplayName(value: string): string {
   return isKnownChannelType(value) ? CHANNEL_NAMES[value] : value;
+}
+
+function ChannelLogo({ type }: { type: ChannelType }) {
+  switch (type) {
+    case 'telegram':
+      return <img src={telegramIcon} alt="Telegram" className="h-[14px] w-[14px] dark:invert" />;
+    case 'discord':
+      return <img src={discordIcon} alt="Discord" className="h-[14px] w-[14px] dark:invert" />;
+    case 'whatsapp':
+      return <img src={whatsappIcon} alt="WhatsApp" className="h-[14px] w-[14px] dark:invert" />;
+    case 'wechat':
+      return <img src={wechatIcon} alt="WeChat" className="h-[14px] w-[14px] dark:invert" />;
+    case 'dingtalk':
+      return <img src={dingtalkIcon} alt="DingTalk" className="h-[14px] w-[14px] dark:invert" />;
+    case 'feishu':
+      return <img src={feishuIcon} alt="Feishu" className="h-[14px] w-[14px] dark:invert" />;
+    case 'wecom':
+      return <img src={wecomIcon} alt="WeCom" className="h-[14px] w-[14px] dark:invert" />;
+    case 'qqbot':
+      return <img src={qqIcon} alt="QQ" className="h-[14px] w-[14px] dark:invert" />;
+    default:
+      return <MessageCircle className="h-[14px] w-[14px] text-muted-foreground" />;
+  }
 }
 
 function getDeliveryAccountDisplayName(account: DeliveryChannelAccount, t: TFunction): string {
@@ -708,7 +740,7 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
   const deliveryChannel = typeof job.delivery?.channel === 'string' ? job.delivery.channel : '';
   const deliveryLabel = deliveryChannel ? getChannelDisplayName(deliveryChannel) : '';
   const deliveryIcon = deliveryChannel && isKnownChannelType(deliveryChannel)
-    ? CHANNEL_ICONS[deliveryChannel]
+    ? <ChannelLogo type={deliveryChannel} />
     : null;
 
   return (
@@ -830,6 +862,7 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
 
 export function Cron() {
   const { t } = useTranslation('cron');
+  const visibleChannelTypeSet = useMemo(() => new Set(getPrimaryChannels()), []);
   const { jobs, loading, error, fetchJobs, createJob, updateJob, toggleJob, deleteJob, triggerJob } = useCronStore();
   const gatewayStatus = useGatewayStore((state) => state.status);
   const [showDialog, setShowDialog] = useState(false);
@@ -847,12 +880,12 @@ export function Cron() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to load delivery channels');
       }
-      setConfiguredChannels(response.channels || []);
+      setConfiguredChannels((response.channels || []).filter((group) => visibleChannelTypeSet.has(group.channelType as ChannelType)));
     } catch (fetchError) {
       console.warn('Failed to load delivery channels:', fetchError);
       setConfiguredChannels([]);
     }
-  }, []);
+  }, [visibleChannelTypeSet]);
 
   // Fetch jobs on mount
   useEffect(() => {

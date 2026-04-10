@@ -8,6 +8,7 @@ import { Sparkles, Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Fil
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { invokeIpc } from '@/lib/api-client';
@@ -539,6 +540,7 @@ function ImageLightbox({
   onClose: () => void;
 }) {
   void src; void base64; void mimeType; void fileName;
+  const { t } = useTranslation('common');
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -578,7 +580,7 @@ function ImageLightbox({
               size="icon"
               className="h-8 w-8 bg-white/10 hover:bg-white/20 text-white"
               onClick={handleShowInFolder}
-              title="在文件夹中显示"
+              title={t('actions.showInFolder')}
             >
               <FolderOpen className="h-4 w-4" />
             </Button>
@@ -588,7 +590,7 @@ function ImageLightbox({
             size="icon"
             className="h-8 w-8 bg-white/10 hover:bg-white/20 text-white"
             onClick={onClose}
-            title="关闭"
+            title={t('actions.close')}
           >
             <X className="h-4 w-4" />
           </Button>
