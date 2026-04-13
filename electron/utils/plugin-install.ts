@@ -223,6 +223,7 @@ function patchDepExports(targetDir: string): void {
       // best effort
     }
   }
+}
 
 /**
  * Patch the compiled JS entry files so the hardcoded `id` field in the

@@ -1042,7 +1042,7 @@ export class AppAuthManager extends EventEmitter {
 
     const currentUrl = urlText || win.webContents.getURL() || '';
 
-    let authCookie: Electron.Cookie | null = null;
+    let authCookie: Electron.Cookie | null | undefined;
 
     for (let attempt = 1; ; attempt += 1) {
       if (!this.pendingFlow || this.pendingFlow !== flow || flow.completed || win.isDestroyed()) {
