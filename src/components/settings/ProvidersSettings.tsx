@@ -28,6 +28,7 @@ import {
   type ProviderAccount,
   type ProviderConfig,
   type ProviderVendorInfo,
+  type ProviderWithKeyInfo,
 } from '@/stores/providers';
 import {
   UI_VISIBLE_PROVIDER_TYPE_INFO,
@@ -148,6 +149,10 @@ function getAuthModeLabel(
   }
 }
 
+function ensureArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export function ProvidersSettings() {
   const { t } = useTranslation('settings');
   const devModeUnlocked = useSettingsStore((state) => state.devModeUnlocked);
@@ -167,11 +172,14 @@ export function ProvidersSettings() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
-  const vendorMap = new Map(vendors.map((vendor) => [vendor.id, vendor]));
-  const existingVendorIds = new Set(accounts.map((account) => account.vendorId));
+  const safeStatuses = ensureArray<ProviderWithKeyInfo>(statuses);
+  const safeAccounts = ensureArray<ProviderAccount>(accounts);
+  const safeVendors = ensureArray<ProviderVendorInfo>(vendors);
+  const vendorMap = new Map(safeVendors.map((vendor) => [vendor.id, vendor]));
+  const existingVendorIds = new Set(safeAccounts.map((account) => account.vendorId));
   const displayProviders = useMemo(
-    () => buildProviderListItems(accounts, statuses, vendors, defaultAccountId),
-    [accounts, statuses, vendors, defaultAccountId],
+    () => buildProviderListItems(safeAccounts, safeStatuses, safeVendors, defaultAccountId),
+    [safeAccounts, safeStatuses, safeVendors, defaultAccountId],
   );
 
   // Fetch providers on mount
@@ -192,7 +200,7 @@ export function ProvidersSettings() {
     }
   ) => {
     const vendor = vendorMap.get(type);
-    const id = buildProviderAccountId(type, null, vendors);
+    const id = buildProviderAccountId(type, null, safeVendors);
     const effectiveApiKey = resolveProviderApiKeyForSave(type, apiKey);
     try {
       await createAccount({
@@ -311,7 +319,7 @@ export function ProvidersSettings() {
       {showAddDialog && (
         <AddProviderDialog
           existingVendorIds={existingVendorIds}
-          vendors={vendors}
+          vendors={safeVendors}
           onClose={() => setShowAddDialog(false)}
           onAdd={handleAddProvider}
           onValidateKey={(type, key, options) => validateAccountApiKey(type, key, options)}
@@ -966,7 +974,8 @@ function AddProviderDialog({
     : providerDocsUrl;
   const isOAuth = typeInfo?.isOAuth ?? false;
   const supportsApiKey = typeInfo?.supportsApiKey ?? false;
-  const vendorMap = new Map(vendors.map((vendor) => [vendor.id, vendor]));
+  const safeVendors = ensureArray<ProviderVendorInfo>(vendors);
+  const vendorMap = new Map(safeVendors.map((vendor) => [vendor.id, vendor]));
   const selectedVendor = selectedType ? vendorMap.get(selectedType) : undefined;
   const showUserAgentInAddDialog = shouldShowUserAgentFieldForNewProvider(selectedType);
   const preferredOAuthMode = selectedVendor?.supportedAuthModes.includes('oauth_browser')

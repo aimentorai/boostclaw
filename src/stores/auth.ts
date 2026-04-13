@@ -14,6 +14,23 @@ type AuthStatusResponse = {
   profile?: AuthProfile;
 };
 
+const AUTH_STATUS_MAX_RETRIES = 6;
+const AUTH_STATUS_RETRY_DELAY_MS = 500;
+let authStatusRetryAttempts = 0;
+
+function isTransientAuthStatusError(error: unknown): boolean {
+  const text = String(error).toLowerCase();
+  return (
+    text.includes('hostapi:fetch')
+    || text.includes('no handler registered')
+    || text.includes('invalid ipc channel')
+    || text.includes('channel_unavailable')
+    || text.includes('econnrefused')
+    || text.includes('failed to fetch')
+    || text.includes('unauthorized')
+  );
+}
+
 interface AuthState {
   enabled: boolean;
   authenticated: boolean;
@@ -29,7 +46,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  enabled: false,
+  enabled: true,
   authenticated: true,
   profile: null,
   loading: true,
@@ -44,22 +61,35 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const status = await hostApiFetch<AuthStatusResponse>('/api/auth/status');
+      authStatusRetryAttempts = 0;
       set({
         enabled: status.enabled,
         authenticated: status.authenticated,
         profile: status.profile ?? null,
         loading: false,
         pendingLogin: false,
+        error: null,
       });
     } catch (error) {
-      set({
-        enabled: false,
-        authenticated: true,
-        profile: null,
+      const transient = isTransientAuthStatusError(error);
+      if (transient && authStatusRetryAttempts < AUTH_STATUS_MAX_RETRIES) {
+        authStatusRetryAttempts += 1;
+        set({ pendingLogin: false, error: String(error), loading: true });
+        setTimeout(() => {
+          void useAuthStore.getState().refreshStatus();
+        }, AUTH_STATUS_RETRY_DELAY_MS);
+        return;
+      }
+
+      authStatusRetryAttempts = 0;
+      set((state) => ({
+        enabled: state.enabled,
+        authenticated: state.authenticated,
+        profile: state.profile,
         loading: false,
         pendingLogin: false,
         error: String(error),
-      });
+      }));
     }
   },
 
