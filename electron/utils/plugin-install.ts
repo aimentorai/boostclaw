@@ -180,6 +180,47 @@ export function fixupPluginManifest(targetDir: string): void {
   // 3. Fix hardcoded plugin IDs in compiled JS entry files.
   //    The Gateway validates that the JS export's `id` matches the manifest.
   patchPluginEntryIds(targetDir);
+
+  // 4. Patch transitive dep package.json exports maps to fix CJS/ESM interop.
+  patchDepExports(targetDir);
+}
+
+// Packages that ship CJS+ESM but lack an `exports` map, causing Electron
+// utilityProcess.fork() CJS/ESM interop failures (e.g. eventemitter3 named
+// export resolution).  Adding exports forces proper require/import routing.
+const DEP_EXPORTS_PATCHES: Record<string, { main: string; module?: string; types?: string }> = {
+  '@wecom/aibot-node-sdk': {
+    main: 'dist/index.cjs.js',
+    module: 'dist/index.esm.js',
+    types: 'dist/index.d.ts',
+  },
+};
+
+function patchDepExports(targetDir: string): void {
+  const nodeModulesDir = join(targetDir, 'node_modules');
+  if (!existsSync(fsPath(nodeModulesDir))) return;
+
+  for (const [pkgName, fields] of Object.entries(DEP_EXPORTS_PATCHES)) {
+    const pkgJsonPath = join(nodeModulesDir, ...pkgName.split('/'), 'package.json');
+    if (!existsSync(fsPath(pkgJsonPath))) continue;
+
+    try {
+      const raw = readFileSync(fsPath(pkgJsonPath), 'utf-8');
+      const pkg = JSON.parse(raw) as Record<string, unknown>;
+      if (pkg.exports) continue;
+
+      const dotEntry: Record<string, string> = {};
+      if (fields.types) dotEntry['types'] = fields.types;
+      if (fields.main) dotEntry['require'] = fields.main;
+      if (fields.module) dotEntry['import'] = fields.module;
+
+      pkg.exports = { '.': dotEntry, './package.json': './package.json' };
+      writeFileSync(fsPath(pkgJsonPath), JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+      logger.info(`[plugin] Added exports map to ${pkgName} in ${targetDir}`);
+    } catch {
+      // best effort
+    }
+  }
 }
 
 /**

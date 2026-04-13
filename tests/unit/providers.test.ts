@@ -93,10 +93,10 @@ describe('provider metadata', () => {
     expect(getProviderDocsUrl(siliconflow, 'en')).toBe('https://docs.siliconflow.cn/cn/userguide/introduction');
     expect(getProviderDocsUrl(ark, 'en')).toBe('https://www.volcengine.com/');
     expect(getProviderDocsUrl(custom, 'en')).toBe(
-      'https://boostclaw.ai/docs?doc=models'
+      'https://boostclaw.ai/docs?doc=channels'
     );
     expect(getProviderDocsUrl(custom, 'zh-CN')).toBe(
-      'https://boostclaw.ai/docs?doc=models'
+      'https://boostclaw.ai/docs?doc=channels'
     );
   });
 

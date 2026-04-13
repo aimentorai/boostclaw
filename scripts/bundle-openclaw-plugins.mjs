@@ -178,6 +178,9 @@ function bundleOnePlugin({ npmName, pluginId }) {
   patchPluginId(outputDir, pluginId);
   patchPluginRuntimeInterop(outputDir, pluginId);
 
+  // 5) Patch transitive dep package.json exports maps to fix CJS/ESM interop.
+  patchDepExports(outputDir);
+
   echo`   ✅ ${pluginId}: copied ${copiedCount} deps (skipped dupes: ${skippedDupes})`;
 }
 
@@ -235,31 +238,36 @@ function patchPluginId(pluginDir, expectedId) {
   }
 }
 
-/**
- * Patch known ESM/CJS interop issues inside bundled plugin dependencies.
- * Current fix: @wecom/aibot-node-sdk ESM entry incorrectly does
- * `import { EventEmitter } from 'eventemitter3'`, but eventemitter3 exports
- * default. This crashes installed apps during runtime load.
- */
-function patchPluginRuntimeInterop(pluginDir, expectedId) {
-  if (expectedId !== 'wecom') return;
+// Packages that ship CJS+ESM but lack an `exports` map, causing Electron
+// utilityProcess.fork() CJS/ESM interop failures (e.g. eventemitter3 named
+// export resolution).  Adding exports forces proper require/import routing.
+const DEP_EXPORTS_PATCHES = {
+  '@wecom/aibot-node-sdk': {
+    main: 'dist/index.cjs.js',
+    module: 'dist/index.esm.js',
+    types: 'dist/index.d.ts',
+  },
+};
 
-  const brokenEsmPath = path.join(
-    pluginDir,
-    'node_modules',
-    '@wecom',
-    'aibot-node-sdk',
-    'dist',
-    'index.esm.js'
-  );
-  if (!fs.existsSync(brokenEsmPath)) return;
+function patchDepExports(pluginDir) {
+  const nodeModulesDir = path.join(pluginDir, 'node_modules');
+  if (!fs.existsSync(nodeModulesDir)) return;
 
-  const source = fs.readFileSync(brokenEsmPath, 'utf8');
-  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
-  const fixedImport = "import EventEmitter from 'eventemitter3';";
-  if (source.includes(brokenImport)) {
-    fs.writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
-    echo`   🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import`;
+  for (const [pkgName, fields] of Object.entries(DEP_EXPORTS_PATCHES)) {
+    const pkgJsonPath = path.join(nodeModulesDir, ...pkgName.split('/'), 'package.json');
+    if (!fs.existsSync(pkgJsonPath)) continue;
+
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+    if (pkg.exports) continue;
+
+    const dotEntry = {};
+    if (fields.types) dotEntry.types = fields.types;
+    if (fields.main) dotEntry.require = fields.main;
+    if (fields.module) dotEntry.import = fields.module;
+
+    pkg.exports = { '.': dotEntry, './package.json': './package.json' };
+    fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    echo`   🩹 Added exports map to ${pkgName}`;
   }
 }
 
