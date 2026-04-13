@@ -183,6 +183,8 @@ export function fixupPluginManifest(targetDir: string): void {
 
   // 4. Patch transitive dep package.json exports maps to fix CJS/ESM interop.
   patchDepExports(targetDir);
+  // 5. Fix known runtime interop issues in plugin dependencies.
+  patchPluginRuntimeInterop(targetDir);
 }
 
 // Packages that ship CJS+ESM but lack an `exports` map, causing Electron
@@ -221,7 +223,6 @@ function patchDepExports(targetDir: string): void {
       // best effort
     }
   }
-}
 
 /**
  * Patch the compiled JS entry files so the hardcoded `id` field in the
@@ -266,6 +267,35 @@ function patchPluginEntryIds(targetDir: string): void {
     if (patched) {
       writeFileSync(fsPath(entryPath), content, 'utf-8');
     }
+  }
+}
+
+/**
+ * Patch known ESM/CJS interop issues inside installed plugin dependencies.
+ * Current fix: @wecom/aibot-node-sdk ESM entry incorrectly does
+ * `import { EventEmitter } from 'eventemitter3'`, but eventemitter3 exports
+ * default.
+ */
+function patchPluginRuntimeInterop(targetDir: string): void {
+  const brokenEsmPath = join(
+    targetDir,
+    'node_modules',
+    '@wecom',
+    'aibot-node-sdk',
+    'dist',
+    'index.esm.js',
+  );
+  if (!existsSync(fsPath(brokenEsmPath))) return;
+
+  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
+  const fixedImport = "import EventEmitter from 'eventemitter3';";
+  try {
+    const source = readFileSync(fsPath(brokenEsmPath), 'utf-8');
+    if (!source.includes(brokenImport)) return;
+    writeFileSync(fsPath(brokenEsmPath), source.replaceAll(brokenImport, fixedImport), 'utf-8');
+    logger.info('[plugin] Patched @wecom/aibot-node-sdk ESM EventEmitter import');
+  } catch {
+    // best-effort patch
   }
 }
 

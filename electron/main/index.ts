@@ -253,11 +253,13 @@ function extractProtocolUrl(argv: string[]): string | null {
 }
 
 async function processProtocolUrl(url: string): Promise<void> {
+  logger.info(`[AppAuth] Received protocol callback URL: ${url}`);
   const consumed = await appAuthManager.handleProtocolCallback(url);
   if (!consumed) {
     logger.debug(`[AppAuth] Ignored non-auth protocol URL: ${url}`);
     return;
   }
+  logger.info('[AppAuth] Protocol callback consumed successfully');
   focusMainWindow();
 }
 
@@ -626,6 +628,7 @@ if (gotTheLock) {
 
   app.on('open-url', (event, url) => {
     event.preventDefault();
+    logger.info(`[AppAuth] open-url event received: ${url}`);
     if (mainWindow && !mainWindow.isDestroyed()) {
       void processProtocolUrl(url);
       return;

@@ -223,6 +223,7 @@ Environment variables:
 - `BoostClaw_APP_AUTH_COOKIE_NAME` (default `Auth-Graviteeio-APIM`; captured from the redirect page cookie jar)
 - `BoostClaw_APP_AUTH_APP_CALLBACK_URI` (default `BoostClaw://auth/callback`)
 - `BoostClaw_APP_AUTH_SCOPE` (default `openid profile`)
+- `BoostClaw_APP_AUTH_PROMPT` (default empty, no forced re-login; set `login` to force IdP re-authentication each time)
 
 ---
 

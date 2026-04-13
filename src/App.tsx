@@ -24,6 +24,7 @@ import { useProviderStore } from './stores/providers';
 import { applyGatewayTransportPreference } from './lib/api-client';
 import { rendererTimer } from './lib/startup-timer';
 import { useAuthStore } from './stores/auth';
+import { subscribeHostEvent } from './lib/host-events';
 
 
 /**
@@ -99,6 +100,7 @@ function App() {
   const initGateway = useGatewayStore((state) => state.init);
   const initProviders = useProviderStore((state) => state.init);
   const initAuth = useAuthStore((state) => state.init);
+  const refreshAuthStatus = useAuthStore((state) => state.refreshStatus);
   const authEnabled = useAuthStore((state) => state.enabled);
   const authLoading = useAuthStore((state) => state.loading);
   const authenticated = useAuthStore((state) => state.authenticated);
@@ -187,6 +189,56 @@ function App() {
   useEffect(() => {
     rendererTimer.mark('routes_rendered');
     rendererTimer.complete();
+  }, []);
+
+  useEffect(() => {
+    const offSuccess = subscribeHostEvent<{
+      authenticated?: boolean;
+      profile?: {
+        email?: string;
+        subject?: string;
+        scope?: string;
+        expiresAt?: number;
+      };
+    }>('auth:success', (payload) => {
+      useAuthStore.setState((state) => ({
+        authenticated: true,
+        pendingLogin: false,
+        error: null,
+        profile: payload?.profile ?? state.profile,
+      }));
+      if (location.pathname.startsWith('/login')) {
+        navigate('/', { replace: true });
+      }
+      void refreshAuthStatus();
+    });
+
+    const offError = subscribeHostEvent<{ reason?: string }>('auth:error', (payload) => {
+      useAuthStore.setState({
+        pendingLogin: false,
+        error: payload?.reason || null,
+      });
+      void refreshAuthStatus();
+    });
+
+    return () => {
+      offSuccess();
+      offError();
+    };
+  }, [location.pathname, navigate, refreshAuthStatus]);
+
+  useEffect(() => {
+    const offAuthDebug = subscribeHostEvent<{
+      step?: string;
+      detail?: Record<string, unknown>;
+      ts?: number;
+    }>('auth:debug', (payload) => {
+      console.info('[auth:debug]', payload);
+    });
+
+    return () => {
+      offAuthDebug();
+    };
   }, []);
 
   return (

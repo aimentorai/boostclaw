@@ -223,6 +223,7 @@ BoostClaw 支持启用应用级 OIDC 登录门禁：
 - `BoostClaw_APP_AUTH_COOKIE_NAME`（默认 `Auth-Graviteeio-APIM`，从重定向页 cookie 中读取）
 - `BoostClaw_APP_AUTH_APP_CALLBACK_URI`（默认 `BoostClaw://auth/callback`）
 - `BoostClaw_APP_AUTH_SCOPE`（默认 `openid profile`）
+- `BoostClaw_APP_AUTH_PROMPT`（默认留空，不强制重复登录；如需每次强制重新登录可设为 `login`）
 
 ---
 
