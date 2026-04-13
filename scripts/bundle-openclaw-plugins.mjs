@@ -271,6 +271,34 @@ function patchDepExports(pluginDir) {
   }
 }
 
+/**
+ * Patch known ESM/CJS interop issue in @wecom/aibot-node-sdk.
+ * The ESM build imports EventEmitter as named export, but package exports default.
+ */
+function patchPluginRuntimeInterop(pluginDir, pluginId) {
+  if (pluginId !== 'wecom') return;
+  const brokenEsmPath = path.join(
+    pluginDir,
+    'node_modules',
+    '@wecom',
+    'aibot-node-sdk',
+    'dist',
+    'index.esm.js',
+  );
+  if (!fs.existsSync(brokenEsmPath)) return;
+
+  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
+  const fixedImport = "import EventEmitter from 'eventemitter3';";
+  try {
+    const source = fs.readFileSync(brokenEsmPath, 'utf8');
+    if (!source.includes(brokenImport)) return;
+    fs.writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+    echo`   🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import`;
+  } catch {
+    // best effort patch
+  }
+}
+
 echo`📦 Bundling OpenClaw plugin mirrors...`;
 fs.mkdirSync(OUTPUT_ROOT, { recursive: true });
 
