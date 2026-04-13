@@ -177,6 +177,9 @@ function bundleOnePlugin({ npmName, pluginId }) {
   //    validates that these match, so we fix it post-copy.
   patchPluginId(outputDir, pluginId);
 
+  // 5) Patch transitive dep package.json exports maps to fix CJS/ESM interop.
+  patchDepExports(outputDir);
+
   echo`   ✅ ${pluginId}: copied ${copiedCount} deps (skipped dupes: ${skippedDupes})`;
 }
 
@@ -231,6 +234,39 @@ function patchPluginId(pluginDir, expectedId) {
     if (patched) {
       fs.writeFileSync(entryPath, content, 'utf8');
     }
+  }
+}
+
+// Packages that ship CJS+ESM but lack an `exports` map, causing Electron
+// utilityProcess.fork() CJS/ESM interop failures (e.g. eventemitter3 named
+// export resolution).  Adding exports forces proper require/import routing.
+const DEP_EXPORTS_PATCHES = {
+  '@wecom/aibot-node-sdk': {
+    main: 'dist/index.cjs.js',
+    module: 'dist/index.esm.js',
+    types: 'dist/index.d.ts',
+  },
+};
+
+function patchDepExports(pluginDir) {
+  const nodeModulesDir = path.join(pluginDir, 'node_modules');
+  if (!fs.existsSync(nodeModulesDir)) return;
+
+  for (const [pkgName, fields] of Object.entries(DEP_EXPORTS_PATCHES)) {
+    const pkgJsonPath = path.join(nodeModulesDir, ...pkgName.split('/'), 'package.json');
+    if (!fs.existsSync(pkgJsonPath)) continue;
+
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+    if (pkg.exports) continue;
+
+    const dotEntry = {};
+    if (fields.types) dotEntry.types = fields.types;
+    if (fields.main) dotEntry.require = fields.main;
+    if (fields.module) dotEntry.import = fields.module;
+
+    pkg.exports = { '.': dotEntry, './package.json': './package.json' };
+    fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    echo`   🩹 Added exports map to ${pkgName}`;
   }
 }
 

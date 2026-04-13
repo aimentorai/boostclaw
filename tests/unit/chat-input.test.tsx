@@ -131,13 +131,13 @@ describe('ChatInput agent targeting', () => {
 
     render(<ChatInput onSend={onSend} />);
 
-    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Chat agent: Main');
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Main');
 
     fireEvent.click(screen.getByTitle('Choose agent'));
     fireEvent.click(screen.getByText('Research'));
 
     expect(screen.getByText('@Research')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Chat agent: Research');
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Research');
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Hello direct agent' } });
     fireEvent.click(screen.getByTitle('Send'));
