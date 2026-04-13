@@ -176,6 +176,7 @@ function bundleOnePlugin({ npmName, pluginId }) {
   //    their JS output than what openclaw.plugin.json declares.  The Gateway
   //    validates that these match, so we fix it post-copy.
   patchPluginId(outputDir, pluginId);
+  patchPluginRuntimeInterop(outputDir, pluginId);
 
   // 5) Patch transitive dep package.json exports maps to fix CJS/ESM interop.
   patchDepExports(outputDir);

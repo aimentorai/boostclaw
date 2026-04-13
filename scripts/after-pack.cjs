@@ -412,6 +412,29 @@ function patchPluginIds(pluginDir, expectedId) {
   }
 }
 
+function patchPluginRuntimeInterop(pluginDir, expectedId) {
+  const { readFileSync, writeFileSync } = require('fs');
+  if (expectedId !== 'wecom') return;
+
+  const brokenEsmPath = join(
+    pluginDir,
+    'node_modules',
+    '@wecom',
+    'aibot-node-sdk',
+    'dist',
+    'index.esm.js'
+  );
+  if (!existsSync(brokenEsmPath)) return;
+
+  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
+  const fixedImport = "import EventEmitter from 'eventemitter3';";
+  const source = readFileSync(brokenEsmPath, 'utf8');
+  if (source.includes(brokenImport)) {
+    writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+    console.log('[after-pack] 🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import');
+  }
+}
+
 // ── Plugin bundler ───────────────────────────────────────────────────────────
 // Bundles a single OpenClaw plugin (and its transitive deps) from node_modules
 // directly into the packaged resources directory.  Mirrors the logic in
@@ -593,6 +616,7 @@ exports.default = async function afterPack(context) {
       }
       // Fix hardcoded plugin ID mismatches in compiled JS
       patchPluginIds(pluginDestDir, pluginId);
+      patchPluginRuntimeInterop(pluginDestDir, pluginId);
     }
   }
 
