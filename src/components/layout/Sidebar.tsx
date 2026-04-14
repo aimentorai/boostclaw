@@ -57,7 +57,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
       className={({ isActive }) =>
         cn(
           'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all duration-200',
-          'text-white/82 hover:bg-white/14 hover:text-white',
+          'text-white hover:bg-white/14 hover:text-white',
           isActive
             ? 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
             : '',
@@ -67,7 +67,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
     >
       {({ isActive }) => (
         <>
-          <div className={cn("flex shrink-0 items-center justify-center transition-colors", isActive ? "text-[#3964F2]" : "text-white/88 group-hover:text-white")}>
+          <div className={cn("flex shrink-0 items-center justify-center transition-colors", isActive ? "text-[#3964F2]" : "text-white group-hover:text-white")}>
             {icon}
           </div>
           {!collapsed && !hideLabel && label && (
@@ -245,7 +245,7 @@ export function Sidebar() {
               className={({ isActive }) =>
                 cn(
                   'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all',
-                  'text-white/82 hover:bg-white/14 hover:text-white',
+                  'text-white hover:bg-white/14 hover:text-white',
                   isActive && 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]',
                 )
               }
@@ -256,7 +256,7 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="mx-auto h-7 w-7 rounded-lg text-white/82 hover:bg-white/14 hover:text-white"
+                className="mx-auto h-7 w-7 rounded-lg text-white hover:bg-white/14 hover:text-white"
                 onClick={() => setSidebarCollapsed(false)}
               >
                 <PanelLeft className="h-[16px] w-[16px]" />
