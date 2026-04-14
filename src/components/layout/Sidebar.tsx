@@ -6,18 +6,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Network,
+  MessageCircle,
+  Monitor,
   Bot,
-  Puzzle,
+  Wrench,
   Clock,
   Settings as SettingsIcon,
   PanelLeftClose,
   PanelLeft,
   Plus,
-  Terminal,
-  ExternalLink,
   Trash2,
-  Cpu,
+  Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings';
@@ -27,7 +26,6 @@ import { useAgentsStore } from '@/stores/agents';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { hostApiFetch } from '@/lib/host-api';
 import { useTranslation } from 'react-i18next';
 import logoSvg from '@/assets/logo.svg';
 
@@ -45,11 +43,12 @@ interface NavItemProps {
   label: string;
   badge?: string;
   collapsed?: boolean;
+  hideLabel?: boolean;
   onClick?: () => void;
   testId?: string;
 }
 
-function NavItem({ to, icon, label, badge, collapsed, onClick, testId }: NavItemProps) {
+function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -57,33 +56,25 @@ function NavItem({ to, icon, label, badge, collapsed, onClick, testId }: NavItem
       data-testid={testId}
       className={({ isActive }) =>
         cn(
-          'group relative flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200',
-          'text-foreground/72 hover:bg-white/[0.06] hover:text-foreground',
+          'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all duration-200',
+          'text-white/82 hover:bg-white/14 hover:text-white',
           isActive
-            ? 'bg-white/[0.06] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
+            ? 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
             : '',
-          collapsed && 'justify-center px-0'
+          collapsed && 'px-0'
         )
       }
     >
       {({ isActive }) => (
         <>
-          {!collapsed && (
-            <span
-              className={cn(
-                'absolute inset-y-2 left-1 w-[3px] rounded-full bg-primary/0 transition-all duration-200',
-                isActive && 'bg-primary shadow-[0_0_14px_hsl(var(--glow)/0.55)]'
-              )}
-            />
-          )}
-          <div className={cn("flex shrink-0 items-center justify-center transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")}>
+          <div className={cn("flex shrink-0 items-center justify-center transition-colors", isActive ? "text-[#3964F2]" : "text-white/88 group-hover:text-white")}>
             {icon}
           </div>
-          {!collapsed && (
+          {!collapsed && !hideLabel && label && (
             <>
-              <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+              <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center leading-none">{label}</span>
               {badge && (
-                <Badge variant="secondary" className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/10 text-[10px]">
+                <Badge variant="secondary" className="shrink-0 rounded-full border border-[#dbe3ff] bg-[#eef2ff] text-[9px] text-[#3964F2]">
                   {badge}
                 </Badge>
               )}
@@ -159,23 +150,6 @@ export function Sidebar() {
   const getSessionLabel = (key: string, displayName?: string, label?: string) =>
     sessionLabels[key] ?? label ?? displayName ?? key;
 
-  const openDevConsole = async () => {
-    try {
-      const result = await hostApiFetch<{
-        success: boolean;
-        url?: string;
-        error?: string;
-      }>('/api/gateway/control-ui');
-      if (result.success && result.url) {
-        window.electron.openExternal(result.url);
-      } else {
-        console.error('Failed to get Dev Console URL:', result.error);
-      }
-    } catch (err) {
-      console.error('Error opening Dev Console:', err);
-    }
-  };
-
   const { t } = useTranslation(['common', 'chat']);
   const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(null);
   const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
@@ -215,199 +189,173 @@ export function Sidebar() {
     sessionBucketMap[bucketKey].sessions.push(session);
   }
 
-  const navItems = [
-    { to: '/models', icon: <Cpu className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.models'), testId: 'sidebar-nav-models' },
-    { to: '/agents', icon: <Bot className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.agents'), testId: 'sidebar-nav-agents' },
-    { to: '/channels', icon: <Network className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.channels'), testId: 'sidebar-nav-channels' },
-    { to: '/skills', icon: <Puzzle className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
-    { to: '/cron', icon: <Clock className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
+  const topNavItems = [
+    { to: '/', icon: <MessageCircle className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('common:sidebar.chat'), testId: 'sidebar-nav-chat' },
+    { to: '/agents', icon: <Bot className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.agents'), testId: 'sidebar-nav-agents' },
+    { to: '/skills', icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
+    { to: '/cron', icon: <Clock className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
+  ];
+  const bottomNavItems = [
+    { to: '/models', icon: <Box className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.models'), testId: 'sidebar-nav-models' },
+    { to: '/channels', icon: <Monitor className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.channels'), testId: 'sidebar-nav-channels' },
   ];
 
   return (
     <aside
       data-testid="sidebar"
       className={cn(
-        'panel-surface flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border/60 transition-all duration-300',
-        sidebarCollapsed ? 'w-16' : 'w-64'
+        'flex min-h-0 shrink-0 overflow-hidden border-r border-[#e9edf9] bg-[#3964F2] transition-all duration-300',
+        sidebarCollapsed || !isOnChat ? 'w-[72px]' : 'w-[286px]'
       )}
     >
-      {/* Top Header Toggle */}
-      <div className={cn("flex h-14 items-center border-b border-border/50 px-2.5", sidebarCollapsed ? "justify-center" : "justify-between")}>
-        {!sidebarCollapsed && (
-          <div className="flex items-center gap-3 px-2 overflow-hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 tech-glow">
+      <div className="flex min-h-0 flex-1">
+        {/* Left icon rail */}
+        <div className={cn("flex min-h-0 shrink-0 flex-col border-r border-white/20 bg-[#3964F2]", sidebarCollapsed ? "w-[72px]" : "w-[76px]")}>
+          <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-white/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white shadow-sm">
               <img src={logoSvg} alt="BoostClaw" className="h-4.5 w-auto shrink-0" />
             </div>
-            <div className="min-w-0">
-              <p className="truncate whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.22em] text-primary/80">
-                BoostClaw
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {t('sidebar.agentWorkspace')}
-              </p>
+            <span className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-bold leading-none text-white">
+              BoostClaw
+            </span>
+          </div>
+
+          <nav className="flex flex-1 flex-col gap-3 px-2 py-2">
+            {topNavItems.map((item) => (
+              <NavItem
+                key={item.to}
+                {...item}
+                collapsed={false}
+              />
+            ))}
+          </nav>
+
+          <div className="mt-auto flex flex-col gap-4 border-t border-white/20 px-2 py-4">
+            {bottomNavItems.map((item) => (
+              <NavItem
+                key={item.to}
+                {...item}
+                collapsed={false}
+                hideLabel
+              />
+            ))}
+            <NavLink
+              to="/settings"
+              data-testid="sidebar-nav-settings"
+              className={({ isActive }) =>
+                cn(
+                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all',
+                  'text-white/82 hover:bg-white/14 hover:text-white',
+                  isActive && 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]',
+                )
+              }
+            >
+              <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
+            </NavLink>
+            {sidebarCollapsed && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mx-auto h-7 w-7 rounded-lg text-white/82 hover:bg-white/14 hover:text-white"
+                onClick={() => setSidebarCollapsed(false)}
+              >
+                <PanelLeft className="h-[16px] w-[16px]" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Right history pane */}
+        {!sidebarCollapsed && isOnChat && (
+          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-[#ffffff]">
+            <div className="px-2.5 py-2">
+              <button
+                data-testid="sidebar-new-chat"
+                onClick={() => {
+                  const { messages } = useChatStore.getState();
+                  if (messages.length > 0) newSession();
+                  navigate('/');
+                }}
+                className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[#dfe6fb] bg-white px-2 py-1.5 text-[12px] font-medium text-[#3f4768] shadow-sm transition-colors hover:bg-[#f2f5ff]"
+              >
+                <Plus className="h-4 w-4 shrink-0 text-[#3964F2]" strokeWidth={2} />
+                <span className="min-w-0 truncate text-center">{t('sidebar.newChat')}</span>
+              </button>
+            </div>
+
+            {sessions.length > 0 && (
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1">
+                {sessionBuckets.map((bucket) => (
+                  bucket.sessions.length > 0 ? (
+                    <div key={bucket.key} className="pt-1">
+                      <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-[#8a92b3]">
+                        {bucket.label}
+                      </div>
+                      {bucket.sessions.map((s) => {
+                        const agentId = getAgentIdFromSessionKey(s.key);
+                        const agentName = agentNameById[agentId] || agentId;
+                        const isActiveSession = isOnChat && currentSessionKey === s.key;
+                        return (
+                          <div key={s.key} className="group relative flex items-center">
+                            <button
+                              onClick={() => { switchSession(s.key); navigate('/'); }}
+                              className={cn(
+                                'w-full min-w-0 rounded-sm px-2 py-1.5 pr-6 text-left text-[12px] transition-all',
+                                'hover:bg-[#f1f4ff]',
+                                isActiveSession
+                                  ? 'bg-[#3964F2] text-white hover:bg-[#3964F2]'
+                                  : 'text-[#4d5579]',
+                              )}
+                            >
+                              <div className="flex min-w-0 items-center gap-1">
+                                <span className={cn(
+                                  'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[9px] font-medium',
+                                  isActiveSession
+                                    ? 'border-white/35 bg-white/15 text-white'
+                                    : 'border-[#d8e0fb] bg-white text-[#6370a0]',
+                                )}>
+                                  {agentName}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">{getSessionLabel(s.key, s.displayName, s.label)}</span>
+                              </div>
+                            </button>
+                            <button
+                              aria-label="Delete session"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSessionToDelete({
+                                  key: s.key,
+                                  label: getSessionLabel(s.key, s.displayName, s.label),
+                                });
+                              }}
+                              className={cn(
+                                'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
+                                'opacity-0 group-hover:opacity-100',
+                                'text-[#8e96b7] hover:text-[#3964F2] hover:bg-[#eaf0ff]',
+                              )}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null
+                ))}
+              </div>
+            )}
+            <div className="mt-auto border-t border-[#e8ecf9] px-2 py-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto h-7 w-7 rounded-lg text-[#7d86b0] hover:bg-white hover:text-[#3964F2]"
+                onClick={() => setSidebarCollapsed(true)}
+              >
+                <PanelLeftClose className="h-[16px] w-[16px]" />
+              </Button>
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        >
-          {sidebarCollapsed ? (
-            <PanelLeft className="h-[18px] w-[18px]" />
-          ) : (
-            <PanelLeftClose className="h-[18px] w-[18px]" />
-          )}
-        </Button>
-      </div>
-
-      {/* Navigation */}
-      {!sidebarCollapsed && (
-        <div className="px-4 py-3">
-          <div className="rounded-2xl border border-primary/12 bg-gradient-to-br from-primary/12 via-primary/6 to-transparent px-3 py-3">
-            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span>{t('sidebar.runtimeTitle')}</span>
-              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', isGatewayRunning ? 'bg-emerald-500/14 text-emerald-300' : 'bg-amber-500/14 text-amber-300')}>
-                <span className={cn('h-1.5 w-1.5 rounded-full', isGatewayRunning ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]' : 'bg-amber-300')} />
-                {isGatewayRunning ? t('sidebar.runtimeOnline') : gatewayStatus.state}
-              </span>
-            </div>
-            <p className="text-[13px] font-medium text-foreground">{t('sidebar.runtimeReadyDesc')}</p>
-          </div>
-        </div>
-      )}
-
-      <nav className="flex flex-col px-2.5 gap-1">
-        <button
-          data-testid="sidebar-new-chat"
-          onClick={() => {
-            const { messages } = useChatStore.getState();
-            if (messages.length > 0) newSession();
-            navigate('/');
-          }}
-          className={cn(
-            'mb-2 flex w-full items-center gap-2.5 rounded-2xl px-3 py-3 text-[13px] font-semibold transition-all',
-            'bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--glow)/0.25)] hover:brightness-110',
-            sidebarCollapsed && 'justify-center px-0',
-          )}
-        >
-          <div className="flex shrink-0 items-center justify-center text-primary-foreground">
-            <Plus className="h-[18px] w-[18px]" strokeWidth={2} />
-          </div>
-          {!sidebarCollapsed && <span className="flex-1 text-left overflow-hidden text-ellipsis whitespace-nowrap">{t('sidebar.newChat')}</span>}
-        </button>
-
-        {navItems.map((item) => (
-          <NavItem
-            key={item.to}
-            {...item}
-            collapsed={sidebarCollapsed}
-          />
-        ))}
-      </nav>
-
-      {/* Session list — below Settings, only when expanded */}
-      {!sidebarCollapsed && sessions.length > 0 && (
-        <div className="mt-4 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 space-y-1">
-          {sessionBuckets.map((bucket) => (
-            bucket.sessions.length > 0 ? (
-              <div key={bucket.key} className="pt-2">
-                <div className="px-2.5 pb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
-                  {bucket.label}
-                </div>
-                {bucket.sessions.map((s) => {
-                  const agentId = getAgentIdFromSessionKey(s.key);
-                  const agentName = agentNameById[agentId] || agentId;
-                  return (
-                    <div key={s.key} className="group relative flex items-center">
-                      <button
-                        onClick={() => { switchSession(s.key); navigate('/'); }}
-                        className={cn(
-                          'w-full rounded-2xl border px-3 py-2.5 pr-8 text-left text-[13px] transition-all',
-                          'hover:border-white/8 hover:bg-white/[0.04]',
-                          isOnChat && currentSessionKey === s.key
-                            ? 'border-primary/20 bg-white/[0.06] text-foreground shadow-[0_0_20px_hsl(var(--glow)/0.08)]'
-                            : 'border-transparent text-foreground/75',
-                        )}
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="shrink-0 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-foreground/70">
-                            {agentName}
-                          </span>
-                          <span className="truncate">{getSessionLabel(s.key, s.displayName, s.label)}</span>
-                        </div>
-                      </button>
-                      <button
-                        aria-label="Delete session"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSessionToDelete({
-                            key: s.key,
-                            label: getSessionLabel(s.key, s.displayName, s.label),
-                          });
-                        }}
-                        className={cn(
-                          'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
-                          'opacity-0 group-hover:opacity-100',
-                          'text-muted-foreground hover:text-destructive hover:bg-destructive/10',
-                        )}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null
-          ))}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="mt-auto border-t border-border/50 p-2.5">
-        <NavLink
-            to="/settings"
-            data-testid="sidebar-nav-settings"
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-[13px] font-medium transition-all',
-                'text-foreground/80 hover:bg-white/[0.06] hover:text-foreground',
-                isActive && 'bg-white/[0.06] text-foreground',
-                sidebarCollapsed ? 'justify-center px-0' : ''
-              )
-            }
-          >
-          {({ isActive }) => (
-            <>
-              <div className={cn("flex shrink-0 items-center justify-center", isActive ? "text-primary" : "text-muted-foreground")}>
-                <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
-              </div>
-              {!sidebarCollapsed && <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{t('sidebar.settings')}</span>}
-            </>
-          )}
-        </NavLink>
-
-        <Button
-          data-testid="sidebar-open-dev-console"
-          variant="ghost"
-          className={cn(
-            'mt-1 flex h-auto w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-[13px] font-medium transition-all',
-            'text-foreground/80 hover:bg-white/[0.06] hover:text-foreground',
-            sidebarCollapsed ? 'justify-center px-0' : 'justify-start'
-          )}
-          onClick={openDevConsole}
-        >
-          <div className="flex shrink-0 items-center justify-center text-muted-foreground">
-            <Terminal className="h-[18px] w-[18px]" strokeWidth={2} />
-          </div>
-          {!sidebarCollapsed && (
-            <>
-              <span className="flex-1 text-left overflow-hidden text-ellipsis whitespace-nowrap">{t('common:sidebar.openClawPage')}</span>
-              <ExternalLink className="h-3 w-3 shrink-0 ml-auto opacity-50 text-muted-foreground" />
-            </>
-          )}
-        </Button>
       </div>
 
       <ConfirmDialog

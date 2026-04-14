@@ -4,7 +4,7 @@
  * with markdown, thinking sections, images, and tool cards.
  */
 import { useState, useCallback, useEffect, memo } from 'react';
-import { Sparkles, Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
@@ -73,11 +73,8 @@ export const ChatMessage = memo(function ChatMessage({
         isUser ? 'flex-row-reverse' : 'flex-row',
       )}
     >
-      {/* Avatar */}
       {!isUser && (
-        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-white/[0.04] text-foreground">
-          <Sparkles className="h-4 w-4" />
-        </div>
+        <div className="mt-1 h-8 w-8 shrink-0" aria-hidden="true" />
       )}
 
       {/* Content */}
@@ -337,11 +334,11 @@ function MessageBubble({
   return (
     <div
       className={cn(
-        'relative rounded-[22px] border px-4 py-3',
+        'relative rounded-[22px] px-4 py-3',
         !isUser && 'w-full',
         isUser
-          ? 'border-primary/20 bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--glow)/0.1)]'
-          : 'border-border/70 bg-white/[0.04] text-foreground',
+          ? 'bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--glow)/0.1)]'
+          : 'bg-primary/8 text-foreground',
       )}
     >
       {isUser ? (

@@ -1,7 +1,7 @@
 {
     "sidebar": {
-        "chat": "聊天",
-        "newChat": "新对话",
+        "chat": "对话",
+        "newChat": "新建对话",
         "cronTasks": "定时任务",
         "skills": "技能",
         "agents": "智能体",

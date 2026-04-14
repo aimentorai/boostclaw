@@ -326,8 +326,7 @@ export function Chat() {
   }), [messages, showThinking, suppressedToolIndexes, userRunCards]);
 
   return (
-    <div className={cn("relative flex min-h-0 flex-col overflow-hidden rounded-[28px] transition-colors duration-500")} style={{ height: '100%' }}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--glow)/0.08),transparent_24%)]" />
+    <div className={cn("relative flex min-h-0 flex-col overflow-hidden bg-white transition-colors duration-500")} style={{ height: '100%' }}>
 
       {isEmpty ? (
         /* ── 新对话欢迎状态：居中布局，标题 + 输入框上下垂直居中 ── */
@@ -348,7 +347,7 @@ export function Chat() {
         /* ── 正常对话状态：工具栏 + 消息列表 + 底部输入框 ── */
         <>
           {/* Toolbar */}
-          <div className="relative z-10 flex shrink-0 items-center justify-end border-b border-border/50 px-5 py-3">
+          <div className="relative z-10 flex shrink-0 items-center justify-end px-5 py-3">
             <ChatToolbar />
           </div>
 
@@ -425,7 +424,7 @@ export function Chat() {
 
       {/* Transparent loading overlay */}
       {minLoading && !sending && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[28px] bg-background/20 backdrop-blur-[1px] pointer-events-auto">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-[1px] pointer-events-auto">
           <div className="rounded-full border border-border bg-background p-2.5 shadow-lg">
             <LoadingSpinner size="md" />
           </div>

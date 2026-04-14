@@ -228,6 +228,28 @@ export function Settings() {
     }
   };
 
+  const handleOpenControlUi = async () => {
+    try {
+      const result = await hostApiFetch<{
+        success: boolean;
+        url?: string;
+        token?: string;
+        port?: number;
+        error?: string;
+      }>('/api/gateway/control-ui');
+      if (result.success && result.url) {
+        if (result.token && typeof result.port === 'number') {
+          setControlUiInfo({ url: result.url, token: result.token, port: result.port });
+        }
+        window.electron.openExternal(result.url);
+      } else {
+        toast.error(result.error || t('developer.tokenUnavailable'));
+      }
+    } catch (error) {
+      toast.error(toUserMessage(error) || t('developer.tokenUnavailable'));
+    }
+  };
+
   const handleCopyGatewayToken = async () => {
     if (!controlUiInfo?.token) return;
     try {
@@ -626,6 +648,10 @@ export function Settings() {
                   <Button variant="outline" size="sm" onClick={handleShowLogs} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
                     <FileText className="h-3.5 w-3.5 mr-1.5" />
                     {t('gateway.logs')}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleOpenControlUi} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    {t('developer.console')}
                   </Button>
                 </div>
               </div>

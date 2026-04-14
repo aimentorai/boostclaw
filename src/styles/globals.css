@@ -10,8 +10,8 @@
     --card-foreground: 223 34% 12%;
     --popover: 220 30% 99%;
     --popover-foreground: 223 34% 12%;
-    --primary: 197 100% 56%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 226 88% 59%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 215 48% 95%;
     --secondary-foreground: 223 34% 14%;
     --muted: 215 42% 94%;
@@ -22,13 +22,13 @@
     --destructive-foreground: 210 40% 98%;
     --border: 215 35% 86%;
     --input: 215 35% 88%;
-    --ring: 197 100% 56%;
+    --ring: 226 88% 59%;
     --radius: 1rem;
     --panel: 220 40% 98%;
     --panel-foreground: 223 34% 12%;
     --panel-elevated: 220 37% 96%;
     --panel-overlay: 220 45% 99%;
-    --glow: 197 100% 56%;
+    --glow: 226 88% 59%;
     --grid-line: 213 32% 90%;
     --font-display: "Space Grotesk", "Avenir Next", "Segoe UI Variable Display", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
     --font-body: "Manrope", "Inter", "Segoe UI Variable Text", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
@@ -42,8 +42,8 @@
     --card-foreground: 210 32% 96%;
     --popover: 224 34% 11%;
     --popover-foreground: 210 32% 96%;
-    --primary: 191 96% 61%;
-    --primary-foreground: 224 43% 8%;
+    --primary: 226 88% 59%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 222 28% 16%;
     --secondary-foreground: 210 32% 96%;
     --muted: 223 25% 15%;
@@ -54,12 +54,12 @@
     --destructive-foreground: 210 32% 96%;
     --border: 221 24% 22%;
     --input: 222 24% 18%;
-    --ring: 191 96% 61%;
+    --ring: 226 88% 59%;
     --panel: 223 36% 10%;
     --panel-foreground: 210 32% 96%;
     --panel-elevated: 223 31% 14%;
     --panel-overlay: 223 32% 12%;
-    --glow: 191 96% 61%;
+    --glow: 226 88% 59%;
     --grid-line: 222 21% 18%;
   }
 }
@@ -74,26 +74,15 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: var(--font-body);
-    background-image:
-      radial-gradient(circle at top, hsl(var(--glow) / 0.12), transparent 24%),
-      radial-gradient(circle at 80% 20%, hsl(255 85% 65% / 0.05), transparent 16%),
-      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    background-image: none;
     min-height: 100vh;
   }
 
   body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(hsl(var(--grid-line) / 0.12) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line) / 0.12) 1px, transparent 1px);
-    background-size: 44px 44px;
-    opacity: 0.18;
+    content: none;
   }
 
   #root {
@@ -219,12 +208,7 @@
 }
 
 .app-shell::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 0%, hsl(var(--glow) / 0.05), transparent 18%);
+  content: none;
 }
 
 .panel-surface {
