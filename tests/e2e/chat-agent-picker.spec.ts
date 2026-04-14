@@ -23,7 +23,7 @@ test.describe('BoostClaw chat agent picker', () => {
       await expect(pickerButton).toContainText(/Main|main/);
 
       await pickerButton.click();
-      await expect(page.getByTestId('chat-agent-option-current')).toBeVisible();
+      await expect(page.getByTestId('chat-agent-option-main')).toBeVisible();
       await page.getByTestId('chat-agent-option-research').click();
 
       await expect(page.getByTestId('chat-agent-picker-button')).toContainText('Research');

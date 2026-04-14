@@ -7,7 +7,7 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot } from 'lucide-react';
+import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -19,6 +19,8 @@ import { useChatStore } from '@/stores/chat';
 import { useSkillsStore } from '@/stores/skills';
 import type { AgentSummary } from '@/types/agent';
 import type { Skill } from '@/types/skill';
+import { useProviderStore } from '@/stores/providers';
+import type { ProviderAccount, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -103,6 +105,48 @@ function buildSkillInjectedMessage(baseText: string, skill: Skill | null, hasAtt
     .join('\n');
 }
 
+function resolveRuntimeProviderKey(account: ProviderAccount): string {
+  if (account.authMode === 'oauth_browser') {
+    if (account.vendorId === 'google') return 'google-gemini-cli';
+    if (account.vendorId === 'openai') return 'openai-codex';
+  }
+  if (account.vendorId === 'custom' || account.vendorId === 'ollama') {
+    const suffix = account.id.replace(/-/g, '').slice(0, 8);
+    return `${account.vendorId}-${suffix}`;
+  }
+  if (account.vendorId === 'minimax-portal-cn') return 'minimax-portal';
+  return account.vendorId;
+}
+
+function hasConfiguredProviderCredentials(
+  account: ProviderAccount,
+  statusById: Map<string, ProviderWithKeyInfo>,
+): boolean {
+  if (account.authMode === 'oauth_device' || account.authMode === 'oauth_browser' || account.authMode === 'local') {
+    return true;
+  }
+  return statusById.get(account.id)?.hasKey ?? false;
+}
+
+function formatModelLabel(modelRef: string): string {
+  const separatorIndex = modelRef.indexOf('/');
+  if (separatorIndex <= 0 || separatorIndex >= modelRef.length - 1) return modelRef;
+  return modelRef.slice(separatorIndex + 1);
+}
+
+function shouldOpenDropdownUpward(
+  triggerEl: HTMLElement | null,
+  estimatedPanelHeight = 220,
+): boolean {
+  if (!triggerEl || typeof window === 'undefined') return true;
+  const rect = triggerEl.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  if (spaceBelow >= estimatedPanelHeight) return false;
+  if (spaceAbove >= estimatedPanelHeight) return true;
+  return spaceAbove > spaceBelow;
+}
+
 // ── Component ────────────────────────────────────────────────────
 
 export function ChatInput({ onSend, onStop, disabled = false, sending = false, isEmpty = false }: ChatInputProps) {
@@ -111,31 +155,42 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [targetAgentId, setTargetAgentId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerUpward, setPickerUpward] = useState(true);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [skillPickerUpward, setSkillPickerUpward] = useState(true);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [modelPickerUpward, setModelPickerUpward] = useState(true);
+  const [switchingModel, setSwitchingModel] = useState(false);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const skillPickerRef = useRef<HTMLDivElement>(null);
+  const modelPickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
+  const updateAgentModel = useAgentsStore((s) => s.updateAgentModel);
+  const defaultModelRef = useAgentsStore((s) => s.defaultModelRef);
   const skills = useSkillsStore((s) => s.skills);
   const fetchSkills = useSkillsStore((s) => s.fetchSkills);
+  const providerAccounts = useProviderStore((s) => s.accounts);
+  const providerStatuses = useProviderStore((s) => s.statuses);
+  const providerDefaultAccountId = useProviderStore((s) => s.defaultAccountId);
+  const refreshProviderSnapshot = useProviderStore((s) => s.refreshProviderSnapshot);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const currentAgent = useMemo(
     () => (agents ?? []).find((agent) => agent.id === currentAgentId) ?? null,
     [agents, currentAgentId],
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
-  /** 当前 Agent 绑定的模型展示名，用于输入框底部右侧 */
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
+  const currentModelRef = useMemo(
+    () => (currentAgent?.overrideModelRef || currentAgent?.modelRef || defaultModelRef || '').trim(),
+    [currentAgent?.modelRef, currentAgent?.overrideModelRef, defaultModelRef],
+  );
   const selectableAgents = useMemo(
     () => (agents ?? []),
     [agents],
-  );
-  const mentionableAgents = useMemo(
-    () => selectableAgents.filter((agent) => agent.id !== currentAgentId),
-    [selectableAgents, currentAgentId],
   );
   const selectedTarget = useMemo(
     () => (agents ?? []).find((agent) => agent.id === targetAgentId) ?? null,
@@ -148,6 +203,37 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     () => (skills ?? []).find((s) => s.id === selectedSkillId) ?? null,
     [skills, selectedSkillId],
   );
+  const modelOptions = useMemo(() => {
+    const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
+    const entries = providerAccounts
+      .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
+      .sort((left, right) => {
+        if (left.id === providerDefaultAccountId) return -1;
+        if (right.id === providerDefaultAccountId) return 1;
+        return right.updatedAt.localeCompare(left.updatedAt);
+      });
+
+    const options = new Map<string, { modelRef: string; label: string; description: string }>();
+    for (const account of entries) {
+      const runtimeProviderKey = resolveRuntimeProviderKey(account);
+      const modelId = (account.model || '').trim();
+      if (!runtimeProviderKey || !modelId) continue;
+      const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
+        ? modelId.slice(runtimeProviderKey.length + 1)
+        : modelId;
+      if (!normalizedModelId) continue;
+      const modelRef = `${runtimeProviderKey}/${normalizedModelId}`;
+      if (!options.has(modelRef)) {
+        options.set(modelRef, {
+          modelRef,
+          label: normalizedModelId,
+          description: account.label,
+        });
+      }
+    }
+
+    return [...options.values()];
+  }, [providerStatuses, providerAccounts, providerDefaultAccountId]);
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -177,22 +263,27 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   }, [agents, currentAgentId, targetAgentId]);
 
   useEffect(() => {
-    if (!pickerOpen) return;
+    if (!pickerOpen && !skillPickerOpen && !modelPickerOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       const node = event.target as Node;
       if (!pickerRef.current?.contains(node)) setPickerOpen(false);
       if (!skillPickerRef.current?.contains(node)) setSkillPickerOpen(false);
+      if (!modelPickerRef.current?.contains(node)) setModelPickerOpen(false);
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [pickerOpen, skillPickerOpen]);
+  }, [pickerOpen, skillPickerOpen, modelPickerOpen]);
 
   // Skills 列表用于下拉选择（静默刷新）
   useEffect(() => {
     void fetchSkills();
   }, [fetchSkills]);
+
+  useEffect(() => {
+    void refreshProviderSnapshot();
+  }, [refreshProviderSnapshot]);
 
   // ── File staging via native dialog ─────────────────────────────
 
@@ -429,8 +520,9 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   return (
     <div
       className={cn(
-        "relative z-10 w-full mx-auto px-4 py-3 transition-all duration-300",
-        isEmpty ? "max-w-3xl" : "max-w-4xl"
+        "relative z-10 w-full mx-auto transition-all duration-300",
+        isEmpty ? "px-5 py-4" : "px-4 py-3",
+        isEmpty ? "max-w-4xl" : "max-w-4xl"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -454,7 +546,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         <div
           data-testid="chat-composer-shell"
           className={cn(
-            'panel-elevated tech-border relative rounded-[24px] transition-all',
+            'panel-elevated tech-border relative rounded-[20px] border-[#f2f4fc] transition-all',
             dragOver && 'border-primary ring-1 ring-primary shadow-[0_0_14px_hsl(var(--glow)/0.12)]'
           )}
         >
@@ -503,12 +595,12 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
               onPaste={handlePaste}
               placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')}
               disabled={disabled}
-              className="min-h-[44px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+              className="min-h-[48px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
               rows={1}
             />
           </div>
 
-          {/* 底部工具栏：左侧选择器与图标，右侧模型与发送 */}
+          {/* 底部工具栏：左侧选择器与图标，右侧发送 */}
           <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
 
             {/* 左侧：Agent 选择器 + 附件 + Skills */}
@@ -520,11 +612,16 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   data-testid="chat-agent-picker-button"
                   variant="ghost"
                   className={cn(
-                    'h-9 max-w-[220px] gap-2 rounded-2xl px-3 text-[13px] font-medium text-foreground transition-colors',
+                    'h-8 max-w-[180px] gap-1.5 rounded-xl px-2.5 text-[12px] font-medium text-foreground transition-colors',
                     'border border-border/70 bg-background/60 shadow-sm hover:bg-background/80',
                     (pickerOpen || selectedTarget) && 'bg-primary/12 text-primary border-primary/30 hover:bg-primary/16'
                   )}
-                  onClick={() => setPickerOpen((open) => !open)}
+                  onClick={() => {
+                    if (!pickerOpen) {
+                      setPickerUpward(shouldOpenDropdownUpward(pickerRef.current, 220));
+                    }
+                    setPickerOpen((open) => !open);
+                  }}
                   disabled={disabled || sending}
                   title={t('composer.pickAgent')}
                 >
@@ -537,38 +634,18 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                 </Button>
                 {/* Agent 下拉面板 */}
                 {pickerOpen && (
-                  <div className="panel-elevated absolute bottom-full left-0 z-20 mb-2 w-72 overflow-hidden rounded-3xl border border-border/70 p-1.5 shadow-xl">
-                    <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/80">
-                      {t('composer.agentPickerTitle', { currentAgent: currentAgentName })}
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <button
-                        type="button"
-                        data-testid="chat-agent-option-current"
-                        onClick={() => {
-                          setTargetAgentId(null);
-                          setPickerOpen(false);
-                          textareaRef.current?.focus();
-                        }}
-                        className={cn(
-                          'flex w-full flex-col items-start rounded-2xl px-3 py-2 text-left transition-colors',
-                          !selectedTarget ? 'bg-primary/10 text-foreground' : 'hover:bg-white/[0.06]'
-                        )}
-                      >
-                        <span className="text-[14px] font-medium text-foreground">
-                          {t('composer.currentAgentOption', { agent: currentAgentName })}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {t('composer.currentAgentOptionDesc')}
-                        </span>
-                      </button>
-                      {mentionableAgents.map((agent) => (
+                  <div className={cn(
+                    "panel-elevated absolute left-0 z-20 w-40 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
+                    pickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                  )}>
+                    <div className="max-h-56 overflow-y-auto">
+                      {selectableAgents.map((agent) => (
                         <AgentPickerItem
                           key={agent.id}
                           agent={agent}
-                          selected={agent.id === targetAgentId}
+                          selected={(targetAgentId ?? currentAgentId) === agent.id}
                           onSelect={() => {
-                            setTargetAgentId(agent.id);
+                            setTargetAgentId(agent.id === currentAgentId ? null : agent.id);
                             setPickerOpen(false);
                             textareaRef.current?.focus();
                           }}
@@ -604,19 +681,26 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   )}
                   disabled={disabled || sending}
                   title={selectedSkill ? `Skill: ${selectedSkill.name}` : 'Skills'}
-                  onClick={() => setSkillPickerOpen((open) => !open)}
+                  onClick={() => {
+                    if (!skillPickerOpen) {
+                      setSkillPickerUpward(shouldOpenDropdownUpward(skillPickerRef.current, 240));
+                    }
+                    setSkillPickerOpen((open) => !open);
+                  }}
                 >
                   <Wand2 className="h-4 w-4" />
                 </Button>
 
                 {skillPickerOpen && (
-                  <div className="panel-elevated absolute bottom-full left-0 z-20 mb-2 w-80 overflow-hidden rounded-3xl border border-border/70 p-1.5 shadow-xl">
-                    <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/80">Skills</div>
-                    <div className="max-h-64 overflow-y-auto">
+                  <div className={cn(
+                    "panel-elevated absolute left-0 z-20 w-40 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
+                    skillPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                  )}>
+                    <div className="max-h-56 overflow-y-auto">
                       <button
                         type="button"
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition-colors",
+                          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
                           !selectedSkillId ? "bg-primary/10 text-foreground" : "hover:bg-white/[0.06]"
                         )}
                         onClick={() => {
@@ -629,8 +713,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                           <Wand2 className="h-3.5 w-3.5 text-muted-foreground" />
                         </span>
                         <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-foreground">不使用 Skill</div>
-                          <div className="text-[11px] text-muted-foreground">按当前 Agent 配置运行</div>
+                          <div className="text-[12px] font-medium text-foreground">不使用 Skill</div>
+                          <div className="text-[10px] text-muted-foreground">按当前 Agent 配置运行</div>
                         </div>
                       </button>
 
@@ -639,7 +723,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                           key={skill.id}
                           type="button"
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition-colors",
+                            "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
                             skill.id === selectedSkillId ? "bg-primary/10 text-foreground" : "hover:bg-white/[0.06]"
                           )}
                           onClick={() => {
@@ -654,7 +738,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="truncate text-[13px] font-medium text-foreground">{skill.name}</span>
+                              <span className="truncate text-[12px] font-medium text-foreground">{skill.name}</span>
                               {!skill.enabled && (
                                 <span className="shrink-0 rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
                                   disabled
@@ -662,7 +746,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                               )}
                             </div>
                             {skill.description && (
-                              <div className="truncate text-[11px] text-muted-foreground">{skill.description}</div>
+                              <div className="truncate text-[10px] text-muted-foreground">{skill.description}</div>
                             )}
                           </div>
                         </button>
@@ -673,26 +757,74 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
               </div>
             </div>
 
-            {/* 右侧：模型名称 + 发送按钮 */}
+            {/* 右侧：模型入口 + 发送按钮 */}
             <div className="flex shrink-0 items-center gap-2">
-
-              {/* 当前 Agent 绑定的模型名（只读展示） */}
-              {currentModelDisplay && (
+              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
+                <div ref={modelPickerRef} className="relative shrink-0">
                 <Button
                   type="button"
                   variant="ghost"
                   className={cn(
-                    'h-9 gap-2 rounded-2xl px-3 text-[13px] font-medium text-foreground',
-                    'border border-border/70 bg-background/60 shadow-sm',
+                    'h-8 gap-1.5 rounded-xl px-2.5 text-[12px] font-medium text-foreground',
+                    'border border-border/70 bg-background/60 shadow-sm hover:bg-background/80',
+                    modelPickerOpen && 'bg-primary/12 text-primary border-primary/30 hover:bg-primary/16',
                   )}
-                  disabled
-                  title={currentModelDisplay}
+                  disabled={disabled || sending || switchingModel || modelOptions.length === 0}
+                  onClick={() => {
+                    if (!modelPickerOpen) {
+                      setModelPickerUpward(shouldOpenDropdownUpward(modelPickerRef.current, 220));
+                    }
+                    setModelPickerOpen((open) => !open);
+                  }}
+                  title="Select model"
                 >
-                  <span className="truncate max-w-[140px]">{currentModelDisplay}</span>
+                  <span className="truncate max-w-[140px]">{currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                 </Button>
+                {modelPickerOpen && (
+                  <div className={cn(
+                    "panel-elevated absolute right-0 z-20 w-40 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
+                    modelPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                  )}>
+                    <div className="max-h-56 overflow-y-auto">
+                      {modelOptions.map((option) => (
+                        <button
+                          key={option.modelRef}
+                          type="button"
+                          className={cn(
+                            'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
+                            option.modelRef === currentModelRef ? 'bg-primary/10 text-foreground' : 'hover:bg-white/[0.06]',
+                          )}
+                          onClick={async () => {
+                            if (switchingModel || option.modelRef === currentModelRef) {
+                              setModelPickerOpen(false);
+                              return;
+                            }
+                            setSwitchingModel(true);
+                            try {
+                              const normalizedDefaultModelRef = (defaultModelRef || '').trim();
+                              await updateAgentModel(
+                                currentAgentId,
+                                normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
+                              );
+                            } finally {
+                              setSwitchingModel(false);
+                              setModelPickerOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[12px] font-medium text-foreground">{option.label}</span>
+                            <span className="block truncate text-[10px] text-muted-foreground">{option.description}</span>
+                          </span>
+                          <Check className={cn('h-4 w-4 shrink-0', option.modelRef === currentModelRef ? 'opacity-100 text-primary' : 'opacity-0')} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </div>
               )}
-
               {/* 发送 / 停止按钮：始终显示主色填充圆，无输入时降低透明度 */}
               <Button
                 onClick={sending ? handleStop : handleSend}
@@ -819,14 +951,22 @@ function AgentPickerItem({
       data-testid={`chat-agent-option-${agent.id}`}
       onClick={onSelect}
       className={cn(
-        'flex w-full flex-col items-start rounded-2xl px-3 py-2 text-left transition-colors',
+        'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
         selected ? 'bg-primary/10 text-foreground' : 'hover:bg-white/[0.06]'
       )}
     >
-      <span className="text-[14px] font-medium text-foreground">{agent.name}</span>
-      <span className="text-[11px] text-muted-foreground">
-        {agent.modelDisplay}
-      </span>
+      <div className="min-w-0 flex items-center gap-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/5 text-[11px] font-semibold text-foreground dark:bg-white/10">
+          {agent.name?.trim()?.charAt(0)?.toUpperCase() || 'A'}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-medium text-foreground">{agent.name}</span>
+          <span className="block truncate text-[10px] text-muted-foreground">
+            {agent.modelDisplay || 'Agent'}
+          </span>
+        </span>
+      </div>
+      <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-primary' : 'opacity-0')} />
     </button>
   );
 }

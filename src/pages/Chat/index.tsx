@@ -334,7 +334,7 @@ export function Chat() {
         <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-4">
           <WelcomeScreen />
           {/* 将输入框嵌入欢迎区域，与标题保持统一的视觉重心 */}
-          <div className="w-full max-w-2xl">
+          <div className="w-full max-w-3xl">
             <ChatInput
               onSend={sendMessage}
               onStop={abortRun}

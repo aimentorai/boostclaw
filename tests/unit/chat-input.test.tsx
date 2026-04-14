@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ChatInput } from '@/pages/Chat/ChatInput';
 
-const { agentsState, chatState, gatewayState, skillsState } = vi.hoisted(() => ({
+const { agentsState, chatState, gatewayState, skillsState, providersState } = vi.hoisted(() => ({
   agentsState: {
     agents: [] as Array<Record<string, unknown>>,
+    updateAgentModel: vi.fn(async () => undefined),
+    defaultModelRef: null as string | null,
   },
   chatState: {
     currentAgentId: 'main',
@@ -15,6 +17,12 @@ const { agentsState, chatState, gatewayState, skillsState } = vi.hoisted(() => (
   skillsState: {
     skills: [] as Array<Record<string, unknown>>,
     fetchSkills: vi.fn(async () => undefined),
+  },
+  providersState: {
+    accounts: [] as Array<Record<string, unknown>>,
+    statuses: [] as Array<Record<string, unknown>>,
+    defaultAccountId: null as string | null,
+    refreshProviderSnapshot: vi.fn(async () => undefined),
   },
 }));
 
@@ -32,6 +40,10 @@ vi.mock('@/stores/gateway', () => ({
 
 vi.mock('@/stores/skills', () => ({
   useSkillsStore: (selector: (state: typeof skillsState) => unknown) => selector(skillsState),
+}));
+
+vi.mock('@/stores/providers', () => ({
+  useProviderStore: (selector: (state: typeof providersState) => unknown) => selector(providersState),
 }));
 
 vi.mock('@/lib/host-api', () => ({
@@ -83,13 +95,23 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 describe('ChatInput agent targeting', () => {
   beforeEach(() => {
     agentsState.agents = [];
     chatState.currentAgentId = 'main';
     gatewayState.status = { state: 'running', port: 18789 };
+    agentsState.defaultModelRef = null;
+    agentsState.updateAgentModel.mockClear();
     skillsState.skills = [];
     skillsState.fetchSkills.mockClear();
+    providersState.accounts = [];
+    providersState.statuses = [];
+    providersState.defaultAccountId = null;
+    providersState.refreshProviderSnapshot.mockClear();
   });
 
   it('shows current agent in picker when only one agent is configured', () => {
@@ -198,5 +220,54 @@ describe('ChatInput agent targeting', () => {
     expect(firstArg).toContain('Use this skill as the primary approach for this request.');
     expect(firstArg).toContain('<user_request>');
     expect(firstArg).toContain('Find failed orders');
+  });
+
+  it('updates agent model when selecting from model dropdown', () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'gpt-5.4',
+        modelRef: 'openai/gpt-5.4',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace',
+        agentDir: '~/.openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'acc-openai',
+        vendorId: 'openai',
+        label: 'OpenAI Primary',
+        authMode: 'api_key',
+        model: 'openai/gpt-5.4',
+        enabled: true,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'acc-anthropic',
+        vendorId: 'anthropic',
+        label: 'Anthropic Primary',
+        authMode: 'api_key',
+        model: 'claude-sonnet-4',
+        enabled: true,
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ];
+    providersState.statuses = [
+      { id: 'acc-openai', hasKey: true },
+      { id: 'acc-anthropic', hasKey: true },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Select model'));
+    fireEvent.click(screen.getByText('claude-sonnet-4'));
+
+    expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'anthropic/claude-sonnet-4');
   });
 });
