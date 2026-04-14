@@ -328,20 +328,35 @@ export function Chat() {
   return (
     <div className={cn("relative flex min-h-0 flex-col overflow-hidden rounded-[28px] transition-colors duration-500")} style={{ height: '100%' }}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--glow)/0.08),transparent_24%)]" />
-      {/* Toolbar */}
-      <div className="relative z-10 flex shrink-0 items-center justify-end border-b border-border/50 px-5 py-3">
-        <ChatToolbar />
-      </div>
 
-      {/* Messages Area */}
-      <div className="relative z-10 min-h-0 flex-1 overflow-hidden px-5 py-5">
-        <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-4 lg:flex-row lg:items-stretch">
-          <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div ref={contentRef} className="max-w-4xl space-y-4">
-              {isEmpty ? (
-                <WelcomeScreen />
-              ) : (
-                <>
+      {isEmpty ? (
+        /* ── 新对话欢迎状态：居中布局，标题 + 输入框上下垂直居中 ── */
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-4">
+          <WelcomeScreen />
+          {/* 将输入框嵌入欢迎区域，与标题保持统一的视觉重心 */}
+          <div className="w-full max-w-2xl">
+            <ChatInput
+              onSend={sendMessage}
+              onStop={abortRun}
+              disabled={!isGatewayRunning}
+              sending={sending}
+              isEmpty={isEmpty}
+            />
+          </div>
+        </div>
+      ) : (
+        /* ── 正常对话状态：工具栏 + 消息列表 + 底部输入框 ── */
+        <>
+          {/* Toolbar */}
+          <div className="relative z-10 flex shrink-0 items-center justify-end border-b border-border/50 px-5 py-3">
+            <ChatToolbar />
+          </div>
+
+          {/* Messages Area */}
+          <div className="relative z-10 min-h-0 flex-1 overflow-hidden px-5 py-5">
+            <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-4 lg:flex-row lg:items-stretch">
+              <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                <div ref={contentRef} className="max-w-4xl space-y-4">
                   {messageRows}
 
                   {/* Streaming message */}
@@ -374,40 +389,39 @@ export function Chat() {
                   {sending && !pendingFinal && !streamState.hasAnyStreamContent && (
                     <TypingIndicator />
                   )}
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </div>
 
-        </div>
-      </div>
+          {/* Error bar */}
+          {error && (
+            <div className="relative z-10 border-t border-destructive/20 bg-destructive/10 px-4 py-2">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <p className="text-sm text-destructive flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  {error}
+                </p>
+                <button
+                  onClick={clearError}
+                  className="text-xs text-destructive/60 hover:text-destructive underline"
+                >
+                  {t('common:actions.dismiss')}
+                </button>
+              </div>
+            </div>
+          )}
 
-      {/* Error bar */}
-      {error && (
-        <div className="relative z-10 border-t border-destructive/20 bg-destructive/10 px-4 py-2">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-destructive flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
-            </p>
-            <button
-              onClick={clearError}
-              className="text-xs text-destructive/60 hover:text-destructive underline"
-            >
-              {t('common:actions.dismiss')}
-            </button>
-          </div>
-        </div>
+          {/* Input Area */}
+          <ChatInput
+            onSend={sendMessage}
+            onStop={abortRun}
+            disabled={!isGatewayRunning}
+            sending={sending}
+            isEmpty={isEmpty}
+          />
+        </>
       )}
-
-      {/* Input Area */}
-      <ChatInput
-        onSend={sendMessage}
-        onStop={abortRun}
-        disabled={!isGatewayRunning}
-        sending={sending}
-        isEmpty={isEmpty}
-      />
 
       {/* Transparent loading overlay */}
       {minLoading && !sending && (
@@ -422,19 +436,19 @@ export function Chat() {
 }
 
 // ── Welcome Screen ──────────────────────────────────────────────
+// 新对话欢迎区：展示品牌欢迎语和功能标语，位于居中布局内，紧跟输入框上方
 
 function WelcomeScreen() {
   const { t } = useTranslation('chat');
 
   return (
-    <div data-testid="chat-welcome-screen" className="flex h-[40vh] flex-col items-center justify-center px-4 text-center">
-      <div className="w-full max-w-2xl">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/70">{t('welcome.eyebrow')}</p>
-        <h1 className="mx-auto max-w-xl text-2xl font-semibold text-foreground md:text-3xl">
-          {t('welcome.subtitle')}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground/70">{t('welcome.hint')}</p>
-      </div>
+    <div data-testid="chat-welcome-screen" className="w-full max-w-2xl px-4 text-center mb-8">
+      {/* 主欢迎标题 */}
+      <h1 className="text-2xl font-semibold text-foreground md:text-3xl leading-snug">
+        {t('welcome.greeting')}
+      </h1>
+      {/* 功能标语副标题 */}
+      <p className="mt-2 text-sm text-muted-foreground/70">{t('welcome.tagline')}</p>
     </div>
   );
 }

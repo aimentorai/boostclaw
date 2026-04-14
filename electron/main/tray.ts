@@ -21,30 +21,53 @@ function getIconsDir(): string {
  * Create system tray icon and menu
  */
 export function createTray(mainWindow: BrowserWindow): Tray {
-  // Use platform-appropriate icon for system tray
   const iconsDir = getIconsDir();
-  let iconPath: string;
 
-  if (process.platform === 'win32') {
-    // Windows: use .ico for best quality in system tray
-    iconPath = join(iconsDir, 'icon.ico');
-  } else if (process.platform === 'darwin') {
-    // macOS: use app icon
-    iconPath = join(iconsDir, 'icon.png');
-  } else {
-    // Linux: use 32x32 PNG
-    iconPath = join(iconsDir, '32x32.png');
+  const iconCandidates =
+    process.platform === 'darwin'
+      ? [
+          // macOS: use app icon and scale down for status bar.
+          join(iconsDir, 'icon.png'),
+          join(iconsDir, '32x32.png'),
+        ]
+      : process.platform === 'win32'
+        ? [
+            // Windows: use ICO first for better quality in tray.
+            join(iconsDir, 'icon.ico'),
+            join(iconsDir, '32x32.png'),
+            join(iconsDir, 'icon.png'),
+          ]
+        : [join(iconsDir, '32x32.png'), join(iconsDir, 'icon.png')];
+
+  let icon = nativeImage.createFromPath(iconCandidates[0]);
+  for (const candidate of iconCandidates) {
+    const candidateIcon = nativeImage.createFromPath(candidate);
+    if (!candidateIcon.isEmpty()) {
+      icon = candidateIcon;
+      break;
+    }
   }
 
-  let icon = nativeImage.createFromPath(iconPath);
+  if (process.platform === 'darwin') {
+    icon = icon.resize({ width: 18, height: 18 });
+  } else if (process.platform === 'win32') {
+    icon = icon.resize({ width: 16, height: 16 });
+  } else {
+    icon = icon.resize({ width: 22, height: 22 });
+  }
 
-  // Fallback to icon.png if platform-specific icon not found
   if (icon.isEmpty()) {
     icon = nativeImage.createFromPath(join(iconsDir, 'icon.png'));
   }
-  
+
   tray = new Tray(icon);
-  
+
+  if (process.platform === 'darwin') {
+    tray.setIgnoreDoubleClickEvents(true);
+    tray.setImage(icon);
+    tray.setPressedImage(icon);
+  }
+
   // Set tooltip
   tray.setToolTip('BoostClaw - AI Assistant');
   
@@ -117,9 +140,9 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       },
     },
   ]);
-  
+
   tray.setContextMenu(contextMenu);
-  
+
   // Click to show window (Windows/Linux)
   tray.on('click', () => {
     if (mainWindow.isDestroyed()) return;
@@ -130,14 +153,14 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       mainWindow.focus();
     }
   });
-  
+
   // Double-click to show window (Windows)
   tray.on('double-click', () => {
     if (mainWindow.isDestroyed()) return;
     mainWindow.show();
     mainWindow.focus();
   });
-  
+
   return tray;
 }
 

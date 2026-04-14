@@ -10,6 +10,7 @@ test.describe('BoostClaw main navigation without setup flow', () => {
       await expect(page.getByTestId('main-layout')).toBeVisible();
       await expect(page.getByTestId('chat-welcome-screen')).toBeVisible();
       await expect(page.getByTestId('chat-composer-shell')).toBeVisible();
+      await expect(page.getByRole('textbox')).toHaveClass(/min-h-\[44px\]/);
 
       await page.getByTestId('sidebar-nav-models').click();
       await expect(page.getByTestId('models-page')).toBeVisible();

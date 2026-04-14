@@ -7,7 +7,7 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { SendHorizontal, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils';
 import { useGatewayStore } from '@/stores/gateway';
 import { useAgentsStore } from '@/stores/agents';
 import { useChatStore } from '@/stores/chat';
+import { useSkillsStore } from '@/stores/skills';
 import type { AgentSummary } from '@/types/agent';
+import type { Skill } from '@/types/skill';
 import { useTranslation } from 'react-i18next';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -82,6 +84,25 @@ function readFileAsBase64(file: globalThis.File): Promise<string> {
   });
 }
 
+function buildSkillInjectedMessage(baseText: string, skill: Skill | null, hasAttachments: boolean): string {
+  if (!skill) return baseText;
+  const userPrompt = baseText.trim();
+  const fallbackPrompt = hasAttachments ? 'Please process the attached file(s).' : 'Please help with this task.';
+
+  return [
+    `<skill_context name="${skill.name}" id="${skill.id}">`,
+    `Use this skill as the primary approach for this request.`,
+    skill.description ? `Skill description: ${skill.description}` : null,
+    `</skill_context>`,
+    '',
+    `<user_request>`,
+    userPrompt || fallbackPrompt,
+    `</user_request>`,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join('\n');
+}
+
 // ── Component ────────────────────────────────────────────────────
 
 export function ChatInput({ onSend, onStop, disabled = false, sending = false, isEmpty = false }: ChatInputProps) {
@@ -90,16 +111,24 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [targetAgentId, setTargetAgentId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const skillPickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
+  const skills = useSkillsStore((s) => s.skills);
+  const fetchSkills = useSkillsStore((s) => s.fetchSkills);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
-  const currentAgentName = useMemo(
-    () => (agents ?? []).find((agent) => agent.id === currentAgentId)?.name ?? currentAgentId,
+  const currentAgent = useMemo(
+    () => (agents ?? []).find((agent) => agent.id === currentAgentId) ?? null,
     [agents, currentAgentId],
   );
+  const currentAgentName = currentAgent?.name ?? currentAgentId;
+  /** 当前 Agent 绑定的模型展示名，用于输入框底部右侧 */
+  const currentModelDisplay = currentAgent?.modelDisplay ?? null;
   const selectableAgents = useMemo(
     () => (agents ?? []),
     [agents],
@@ -113,8 +142,12 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     [agents, targetAgentId],
   );
   const effectiveTargetLabel = selectedTarget?.name || currentAgentName;
-  const showAgentPicker = selectableAgents.length > 1;
 
+  /** 当前输入框选择的 skill（仅用于 UI 选择，不会改变发送链路） */
+  const selectedSkill: Skill | null = useMemo(
+    () => (skills ?? []).find((s) => s.id === selectedSkillId) ?? null,
+    [skills, selectedSkillId],
+  );
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -146,15 +179,20 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   useEffect(() => {
     if (!pickerOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
-      if (!pickerRef.current?.contains(event.target as Node)) {
-        setPickerOpen(false);
-      }
+      const node = event.target as Node;
+      if (!pickerRef.current?.contains(node)) setPickerOpen(false);
+      if (!skillPickerRef.current?.contains(node)) setSkillPickerOpen(false);
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [pickerOpen]);
+  }, [pickerOpen, skillPickerOpen]);
+
+  // Skills 列表用于下拉选择（静默刷新）
+  useEffect(() => {
+    void fetchSkills();
+  }, [fetchSkills]);
 
   // ── File staging via native dialog ─────────────────────────────
 
@@ -298,7 +336,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     const readyAttachments = attachments.filter(a => a.status === 'ready');
     // Capture values before clearing — clear input immediately for snappy UX,
     // but keep attachments available for the async send
-    const textToSend = input.trim();
+    const textToSend = buildSkillInjectedMessage(input, selectedSkill, readyAttachments.length > 0);
     const attachmentsToSend = readyAttachments.length > 0 ? readyAttachments : undefined;
     console.log(`[handleSend] text="${textToSend.substring(0, 50)}", attachments=${attachments.length}, ready=${readyAttachments.length}, sending=${!!attachmentsToSend}`);
     if (attachmentsToSend) {
@@ -315,7 +353,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     onSend(textToSend, attachmentsToSend, targetAgentId);
     setTargetAgentId(null);
     setPickerOpen(false);
-  }, [input, attachments, canSend, onSend, targetAgentId]);
+  }, [input, attachments, canSend, onSend, selectedSkill, targetAgentId]);
 
   const handleStop = useCallback(() => {
     if (!canStop) return;
@@ -391,7 +429,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   return (
     <div
       className={cn(
-        "relative z-10 w-full mx-auto p-4 pb-6 transition-all duration-300",
+        "relative z-10 w-full mx-auto px-4 py-3 transition-all duration-300",
         isEmpty ? "max-w-3xl" : "max-w-4xl"
       )}
       onDragOver={handleDragOver}
@@ -412,60 +450,92 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
           </div>
         )}
 
-        {/* Input Row */}
+        {/* Input Box - 卡片式竖向布局：文本框在上，工具栏在下 */}
         <div
           data-testid="chat-composer-shell"
           className={cn(
-            'panel-elevated tech-border relative rounded-[30px] p-2 transition-all',
+            'panel-elevated tech-border relative rounded-[24px] transition-all',
             dragOver && 'border-primary ring-1 ring-primary shadow-[0_0_14px_hsl(var(--glow)/0.12)]'
           )}
         >
+          {/* 顶部光效装饰线 */}
           <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          {selectedTarget && (
-            <div className="px-2.5 pt-2 pb-1">
-              <button
-                type="button"
-                onClick={() => setTargetAgentId(null)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[13px] font-medium text-foreground transition-colors hover:bg-primary/16"
-                title={t('composer.clearTarget')}
-              >
-                <span>{t('composer.targetChip', { agent: selectedTarget.name })}</span>
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
+
+          {/* 顶部状态标签：目标 Agent / Skill */}
+          {(selectedTarget || selectedSkill) && (
+            <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-0">
+              {selectedTarget && (
+                <button
+                  type="button"
+                  onClick={() => setTargetAgentId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[13px] font-medium text-foreground transition-colors hover:bg-primary/16"
+                  title={t('composer.clearTarget')}
+                >
+                  <span>{t('composer.targetChip', { agent: selectedTarget.name })}</span>
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+              {selectedSkill && (
+                <button
+                  type="button"
+                  data-testid="chat-skill-chip"
+                  onClick={() => setSelectedSkillId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[13px] font-medium text-foreground transition-colors hover:bg-primary/16"
+                  title={`Clear skill: ${selectedSkill.name}`}
+                >
+                  <Wand2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{selectedSkill.name}</span>
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
             </div>
           )}
 
-          <div className="flex items-end gap-1.5">
-            {/* Attach Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 h-10 w-10 rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
-              onClick={pickFiles}
-              disabled={disabled || sending}
-              title={t('composer.attachFiles')}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+          {/* 文本输入区：rounded-none 消除 textarea 自带圆角对文字的裁切 */}
+          <div className="px-4 pt-4 pb-1">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onCompositionStart={() => { isComposingRef.current = true; }}
+              onCompositionEnd={() => { isComposingRef.current = false; }}
+              onPaste={handlePaste}
+              placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')}
+              disabled={disabled}
+              className="min-h-[44px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+              rows={1}
+            />
+          </div>
 
-            {showAgentPicker && (
+          {/* 底部工具栏：左侧选择器与图标，右侧模型与发送 */}
+          <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
+
+            {/* 左侧：Agent 选择器 + 附件 + Skills */}
+            <div className="flex items-center gap-1 min-w-0">
+
+              {/* Agent 选择器按钮 - 胶囊背景样式（参考原型） */}
               <div ref={pickerRef} className="relative shrink-0">
                 <Button
                   data-testid="chat-agent-picker-button"
                   variant="ghost"
                   className={cn(
-                    'h-10 max-w-[220px] rounded-2xl px-3 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground',
-                    (pickerOpen || selectedTarget) && 'bg-primary/12 text-primary hover:bg-primary/20'
+                    'h-9 max-w-[220px] gap-2 rounded-2xl px-3 text-[13px] font-medium text-foreground transition-colors',
+                    'border border-border/70 bg-background/60 shadow-sm hover:bg-background/80',
+                    (pickerOpen || selectedTarget) && 'bg-primary/12 text-primary border-primary/30 hover:bg-primary/16'
                   )}
                   onClick={() => setPickerOpen((open) => !open)}
                   disabled={disabled || sending}
                   title={t('composer.pickAgent')}
                 >
-                  <span className="truncate text-[13px] font-medium">
-                    {effectiveTargetLabel}
+                  {/* 左侧圆形“头像”位 */}
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10">
+                    <Bot className="h-3.5 w-3.5" />
                   </span>
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{effectiveTargetLabel}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                 </Button>
+                {/* Agent 下拉面板 */}
                 {pickerOpen && (
                   <div className="panel-elevated absolute bottom-full left-0 z-20 mb-2 w-72 overflow-hidden rounded-3xl border border-border/70 p-1.5 shadow-xl">
                     <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/80">
@@ -508,61 +578,151 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Textarea */}
-            <div className="flex-1 relative">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={() => {
-                  isComposingRef.current = true;
-                }}
-                onCompositionEnd={() => {
-                  isComposingRef.current = false;
-                }}
-                onPaste={handlePaste}
-                placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')}
-                disabled={disabled}
-                className="min-h-[40px] max-h-[200px] resize-none border-0 bg-transparent px-2 py-2.5 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
-                rows={1}
-              />
+              {/* 附件按钮 */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-8 w-8 rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
+                onClick={pickFiles}
+                disabled={disabled || sending}
+                title={t('composer.attachFiles')}
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+              </Button>
+
+              {/* 技能选择：下拉框选择（不跳转） */}
+              <div ref={skillPickerRef} className="relative shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-9 w-9 rounded-full transition-colors",
+                    "border border-border/70 bg-background/60 shadow-sm hover:bg-background/80",
+                    (skillPickerOpen || selectedSkill) && "bg-primary/12 text-primary border-primary/30"
+                  )}
+                  disabled={disabled || sending}
+                  title={selectedSkill ? `Skill: ${selectedSkill.name}` : 'Skills'}
+                  onClick={() => setSkillPickerOpen((open) => !open)}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+
+                {skillPickerOpen && (
+                  <div className="panel-elevated absolute bottom-full left-0 z-20 mb-2 w-80 overflow-hidden rounded-3xl border border-border/70 p-1.5 shadow-xl">
+                    <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/80">Skills</div>
+                    <div className="max-h-64 overflow-y-auto">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition-colors",
+                          !selectedSkillId ? "bg-primary/10 text-foreground" : "hover:bg-white/[0.06]"
+                        )}
+                        onClick={() => {
+                          setSelectedSkillId(null);
+                          setSkillPickerOpen(false);
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/5 dark:bg-white/10">
+                          <Wand2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium text-foreground">不使用 Skill</div>
+                          <div className="text-[11px] text-muted-foreground">按当前 Agent 配置运行</div>
+                        </div>
+                      </button>
+
+                      {(skills ?? []).map((skill) => (
+                        <button
+                          key={skill.id}
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition-colors",
+                            skill.id === selectedSkillId ? "bg-primary/10 text-foreground" : "hover:bg-white/[0.06]"
+                          )}
+                          onClick={() => {
+                            setSelectedSkillId(skill.id);
+                            setSkillPickerOpen(false);
+                            textareaRef.current?.focus();
+                          }}
+                          title={skill.description}
+                        >
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[13px]">
+                            {skill.icon || "✨"}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[13px] font-medium text-foreground">{skill.name}</span>
+                              {!skill.enabled && (
+                                <span className="shrink-0 rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                                  disabled
+                                </span>
+                              )}
+                            </div>
+                            {skill.description && (
+                              <div className="truncate text-[11px] text-muted-foreground">{skill.description}</div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Send Button */}
-            <Button
-              onClick={sending ? handleStop : handleSend}
-              disabled={sending ? !canStop : !canSend}
-              size="icon"
-              className={`shrink-0 h-10 w-10 rounded-full transition-colors ${
-                (sending || canSend)
-                  ? 'bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--glow)/0.16)] hover:brightness-110'
-                  : 'text-muted-foreground/50 hover:bg-transparent bg-transparent'
-              }`}
-              variant="ghost"
-              title={sending ? t('composer.stop') : t('composer.send')}
-            >
-              {sending ? (
-                <Square className="h-4 w-4" fill="currentColor" />
-              ) : (
-                <SendHorizontal className="h-[18px] w-[18px]" strokeWidth={2} />
+            {/* 右侧：模型名称 + 发送按钮 */}
+            <div className="flex shrink-0 items-center gap-2">
+
+              {/* 当前 Agent 绑定的模型名（只读展示） */}
+              {currentModelDisplay && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className={cn(
+                    'h-9 gap-2 rounded-2xl px-3 text-[13px] font-medium text-foreground',
+                    'border border-border/70 bg-background/60 shadow-sm',
+                  )}
+                  disabled
+                  title={currentModelDisplay}
+                >
+                  <span className="truncate max-w-[140px]">{currentModelDisplay}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                </Button>
               )}
-            </Button>
+
+              {/* 发送 / 停止按钮：始终显示主色填充圆，无输入时降低透明度 */}
+              <Button
+                onClick={sending ? handleStop : handleSend}
+                disabled={sending ? !canStop : !canSend}
+                size="icon"
+                className={cn(
+                  'shrink-0 h-8 w-8 rounded-full transition-all bg-primary text-primary-foreground',
+                  (sending || canSend)
+                    ? 'shadow-[0_0_10px_hsl(var(--glow)/0.20)] hover:brightness-110'
+                    : 'opacity-40'
+                )}
+                variant="ghost"
+                title={sending ? t('composer.stop') : t('composer.send')}
+              >
+                {sending ? (
+                  <Square className="h-3.5 w-3.5" fill="currentColor" />
+                ) : (
+                  <ArrowUp className="h-[16px] w-[16px]" strokeWidth={2.5} />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
         <div className="mt-2.5 flex items-center justify-between gap-2 px-4 text-[11px] text-muted-foreground/60">
           <div className="flex items-center gap-1.5">
             <div className={cn("h-1.5 w-1.5 rounded-full", gatewayStatus.state === 'running' ? "bg-green-500/80 shadow-[0_0_10px_rgba(34,197,94,0.6)]" : "bg-red-500/80")} />
             <span>
-              {t('composer.gatewayStatus', {
-                state: gatewayStatus.state === 'running'
-                  ? t('composer.gatewayConnected')
-                  : gatewayStatus.state,
-                port: gatewayStatus.port,
-                pid: gatewayStatus.pid ? `| pid: ${gatewayStatus.pid}` : '',
-              })}
+              {gatewayStatus.state === 'running'
+                ? t('composer.gatewayConnected')
+                : gatewayStatus.state}
             </span>
           </div>
           {hasFailedAttachments && (

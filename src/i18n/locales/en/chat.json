@@ -3,6 +3,8 @@
     "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings",
     "welcome": {
         "title": "BoostClaw Console",
+        "greeting": "Hi, I'm BoostClaw, your cross-border AI assistant",
+        "tagline": "Data, product selection, research, analysis...",
         "subtitle": "Connect models, channels, and agents, then start the next task from here",
         "hint": "Type your first question, or describe the task you want to complete",
         "eyebrow": "Agent Console",
@@ -58,7 +60,7 @@
         "attachFiles": "Attach files",
         "pickAgent": "Choose agent",
         "agentSelectorLabel": "Chat agent: {{agent}}",
-        "placeholder": "Ask anything, for example: refine a spec, write a script, debug an error",
+        "placeholder": "Help me analyze competitors~",
         "clearTarget": "Clear target agent",
         "targetChip": "@{{agent}}",
         "agentPickerTitle": "Choose which agent should receive the next message",

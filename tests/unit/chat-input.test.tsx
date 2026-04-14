@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ChatInput } from '@/pages/Chat/ChatInput';
 
-const { agentsState, chatState, gatewayState } = vi.hoisted(() => ({
+const { agentsState, chatState, gatewayState, skillsState } = vi.hoisted(() => ({
   agentsState: {
     agents: [] as Array<Record<string, unknown>>,
   },
@@ -11,6 +11,10 @@ const { agentsState, chatState, gatewayState } = vi.hoisted(() => ({
   },
   gatewayState: {
     status: { state: 'running', port: 18789 },
+  },
+  skillsState: {
+    skills: [] as Array<Record<string, unknown>>,
+    fetchSkills: vi.fn(async () => undefined),
   },
 }));
 
@@ -24,6 +28,10 @@ vi.mock('@/stores/chat', () => ({
 
 vi.mock('@/stores/gateway', () => ({
   useGatewayStore: (selector: (state: typeof gatewayState) => unknown) => selector(gatewayState),
+}));
+
+vi.mock('@/stores/skills', () => ({
+  useSkillsStore: (selector: (state: typeof skillsState) => unknown) => selector(skillsState),
 }));
 
 vi.mock('@/lib/host-api', () => ({
@@ -80,9 +88,11 @@ describe('ChatInput agent targeting', () => {
     agentsState.agents = [];
     chatState.currentAgentId = 'main';
     gatewayState.status = { state: 'running', port: 18789 };
+    skillsState.skills = [];
+    skillsState.fetchSkills.mockClear();
   });
 
-  it('hides the @agent picker when only one agent is configured', () => {
+  it('shows current agent in picker when only one agent is configured', () => {
     agentsState.agents = [
       {
         id: 'main',
@@ -99,7 +109,8 @@ describe('ChatInput agent targeting', () => {
 
     render(<ChatInput onSend={vi.fn()} />);
 
-    expect(screen.queryByTitle('Choose agent')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Choose agent')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Main');
   });
 
   it('lets the user select an agent target and sends it with the message', () => {
@@ -143,5 +154,49 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByTitle('Send'));
 
     expect(onSend).toHaveBeenCalledWith('Hello direct agent', undefined, 'research');
+  });
+
+  it('shows a skill chip after selecting a skill', () => {
+    skillsState.skills = [
+      {
+        id: 'sql-toolkit',
+        name: 'SQL Toolkit',
+        description: 'Query helper',
+        enabled: true,
+      },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Skills'));
+    fireEvent.click(screen.getByText('SQL Toolkit'));
+
+    expect(screen.getByTestId('chat-skill-chip')).toHaveTextContent('SQL Toolkit');
+  });
+
+  it('injects selected skill context into the sent prompt', () => {
+    const onSend = vi.fn();
+    skillsState.skills = [
+      {
+        id: 'sql-toolkit',
+        name: 'SQL Toolkit',
+        description: 'Query helper',
+        enabled: true,
+      },
+    ];
+
+    render(<ChatInput onSend={onSend} />);
+
+    fireEvent.click(screen.getByTitle('Skills'));
+    fireEvent.click(screen.getByText('SQL Toolkit'));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Find failed orders' } });
+    fireEvent.click(screen.getByTitle('Send'));
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    const firstArg = onSend.mock.calls[0][0] as string;
+    expect(firstArg).toContain('<skill_context name="SQL Toolkit" id="sql-toolkit">');
+    expect(firstArg).toContain('Use this skill as the primary approach for this request.');
+    expect(firstArg).toContain('<user_request>');
+    expect(firstArg).toContain('Find failed orders');
   });
 });
