@@ -1,8 +1,10 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Bot, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, GitBranch, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { TaskProgressText } from './TaskProgressText';
 import type { TaskStep } from './task-visualization';
+import { formatReadableText, parseTaskProgressText } from './text-formatting';
 
 interface ExecutionGraphCardProps {
   agentLabel: string;
@@ -23,6 +25,14 @@ function StepDetailCard({ step }: { step: TaskStep }) {
   const { t } = useTranslation('chat');
   const [expanded, setExpanded] = useState(false);
   const hasDetail = !!step.detail;
+  const displayDetail = useMemo(
+    () => (step.detail ? formatReadableText(step.detail) : ''),
+    [step.detail]
+  );
+  const taskProgress = useMemo(
+    () => (step.detail ? parseTaskProgressText(step.detail) : null),
+    [step.detail]
+  );
 
   return (
     <div className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white/40 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
@@ -47,7 +57,9 @@ function StepDetailCard({ step }: { step: TaskStep }) {
             )}
           </div>
           {step.detail && !expanded && (
-            <p className="mt-1 text-[12px] leading-5 text-muted-foreground line-clamp-2">{step.detail}</p>
+            <p className="mt-1 whitespace-pre-line text-[12px] leading-5 text-muted-foreground line-clamp-2">
+              {displayDetail}
+            </p>
           )}
         </div>
         {hasDetail && (
@@ -57,10 +69,14 @@ function StepDetailCard({ step }: { step: TaskStep }) {
         )}
       </button>
       {step.detail && expanded && (
-        <div className="mt-3 rounded-lg border border-black/10 bg-black/[0.03] px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
-          <pre className="whitespace-pre-wrap break-all text-[12px] leading-5 text-muted-foreground">
-            {step.detail}
-          </pre>
+        <div className="mt-3 rounded-md bg-black/[0.03] px-3 py-2 dark:bg-white/[0.03]">
+          {taskProgress ? (
+            <TaskProgressText progress={taskProgress} title={t('taskProgress.processing')} />
+          ) : (
+            <pre className="whitespace-pre-wrap break-all text-[12px] leading-5 text-muted-foreground">
+              {displayDetail}
+            </pre>
+          )}
         </div>
       )}
     </div>

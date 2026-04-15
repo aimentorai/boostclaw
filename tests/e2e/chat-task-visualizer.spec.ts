@@ -94,7 +94,10 @@ status: completed successfully`,
   },
   {
     role: 'assistant',
-    content: [{ type: 'text', text: '我让 coder 分析完了，下面是结论。' }],
+    content: [{
+      type: 'text',
+      text: '好的！我来为另外7个没有竞品数据的女性大衣产品补充竞品信息。让我先查看当前的竞品数据，然后为剩余的产品添加模拟的竞品数据。现在我为剩余的7个产品添加竞品数据',
+    }],
     timestamp: Date.now(),
   },
 ];
@@ -214,6 +217,9 @@ test.describe('BoostClaw chat execution graph', () => {
         page.locator('[data-testid="chat-execution-graph"] [data-testid="chat-execution-step"]').getByText('exec', { exact: true }),
       ).toBeVisible();
       await expect(page.locator('[data-testid="chat-execution-graph"]').getByText('我让 coder 去拆 ~/Velaria 当前未提交改动的核心块了，等它回来我直接给你结论。')).toBeVisible();
+      await expect(page.getByTestId('chat-task-progress-text')).toBeVisible();
+      await expect(page.getByText('查看当前的竞品数据，然后为剩余的产品添加模拟的竞品数据。')).toBeVisible();
+      await expect(page.getByText('为剩余的7个产品添加竞品数据')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }

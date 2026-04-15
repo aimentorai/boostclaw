@@ -37,6 +37,8 @@ import {
   extractToolUse,
   formatTimestamp,
 } from './message-utils';
+import { TaskProgressText } from './TaskProgressText';
+import { formatReadableText, parseTaskProgressText } from './text-formatting';
 
 interface ChatMessageProps {
   message: RawMessage;
@@ -458,12 +460,13 @@ function formatTextBlock(content: string): React.ReactNode[] {
 }
 
 const StreamingText = memo(function StreamingText({ text }: { text: string }) {
+  const displayText = useMemo(() => formatReadableText(text), [text]);
   const parts = useMemo(() => {
     // Fast-path: no backticks at all → text with inline formatting
-    if (!text.includes('```')) {
+    if (!displayText.includes('```')) {
       return [
         <span key="t" className="whitespace-pre-wrap break-words text-sm">
-          {formatTextBlock(text)}
+          {formatTextBlock(displayText)}
         </span>,
       ];
     }
@@ -473,15 +476,15 @@ const StreamingText = memo(function StreamingText({ text }: { text: string }) {
     let lastIndex = 0;
     const re = /```(\w*)\n([\s\S]*?)```/g;
     let match;
-    while ((match = re.exec(text)) !== null) {
+    while ((match = re.exec(displayText)) !== null) {
       if (match.index > lastIndex) {
-        segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+        segments.push({ type: 'text', content: displayText.slice(lastIndex, match.index) });
       }
       segments.push({ type: 'code', content: match[2], lang: match[1] || undefined });
       lastIndex = match.index + match[0].length;
     }
-    if (lastIndex < text.length) {
-      const remaining = text.slice(lastIndex);
+    if (lastIndex < displayText.length) {
+      const remaining = displayText.slice(lastIndex);
       const openBlock = remaining.match(/^```(\w*)\n([\s\S]*)$/);
       if (openBlock) {
         segments.push({ type: 'code', content: openBlock[2], lang: openBlock[1] || undefined });
@@ -507,7 +510,7 @@ const StreamingText = memo(function StreamingText({ text }: { text: string }) {
         </span>
       );
     });
-  }, [text]);
+  }, [displayText]);
 
   return <>{parts}</>;
 });
@@ -568,13 +571,19 @@ const MessageBubble = memo(function MessageBubble({
   isUser: boolean;
   isStreaming: boolean;
 }) {
+  const { t } = useTranslation('chat');
+  const displayText = useMemo(() => (isUser ? text : formatReadableText(text)), [isUser, text]);
+  const taskProgress = useMemo(
+    () => (!isUser && !isStreaming ? parseTaskProgressText(text) : null),
+    [isStreaming, isUser, text]
+  );
   const markdownContent = useMemo(
     () => (
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {text}
+        {displayText}
       </ReactMarkdown>
     ),
-    [text]
+    [displayText]
   );
 
   return (
@@ -591,7 +600,13 @@ const MessageBubble = memo(function MessageBubble({
         <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
       ) : (
         <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
-          {isStreaming ? <StreamingText text={text} /> : markdownContent}
+          {taskProgress ? (
+            <TaskProgressText progress={taskProgress} title={t('taskProgress.processing')} />
+          ) : isStreaming ? (
+            <StreamingText text={displayText} />
+          ) : (
+            markdownContent
+          )}
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/50" />
           )}
@@ -604,7 +619,10 @@ const MessageBubble = memo(function MessageBubble({
 // ── Thinking Block ──────────────────────────────────────────────
 
 function ThinkingBlock({ content }: { content: string }) {
+  const { t } = useTranslation('chat');
   const [expanded, setExpanded] = useState(false);
+  const displayContent = useMemo(() => formatReadableText(content), [content]);
+  const taskProgress = useMemo(() => parseTaskProgressText(content), [content]);
 
   return (
     <div className="w-full rounded-2xl border border-border/70 bg-white/[0.04] text-[14px]">
@@ -622,7 +640,11 @@ function ThinkingBlock({ content }: { content: string }) {
       {expanded && (
         <div className="px-3 pb-3 text-muted-foreground">
           <div className="prose prose-sm dark:prose-invert max-w-none opacity-75">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            {taskProgress ? (
+              <TaskProgressText progress={taskProgress} title={t('taskProgress.processing')} />
+            ) : (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+            )}
           </div>
         </div>
       )}
