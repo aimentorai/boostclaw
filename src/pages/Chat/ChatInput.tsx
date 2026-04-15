@@ -603,7 +603,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
           {/* 底部工具栏：左侧选择器与图标，右侧发送 */}
           <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
 
-            {/* 左侧：Agent 选择器 + 附件 + Skills */}
+            {/* 左侧：Agent + 模型 + Skill + 附件 */}
             <div className="flex items-center gap-1 min-w-0">
 
               {/* Agent 选择器按钮 - 胶囊背景样式（参考原型） */}
@@ -656,17 +656,76 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                 )}
               </div>
 
-              {/* 附件按钮 */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-8 w-8 rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
-                onClick={pickFiles}
-                disabled={disabled || sending}
-                title={t('composer.attachFiles')}
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-              </Button>
+              {/* 模型选择器 */}
+              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
+                <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={cn(
+                      'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground',
+                      'border border-border/70 bg-[#f7f7f7] shadow-sm hover:bg-[#efefef]',
+                      modelPickerOpen && 'border-primary bg-primary text-primary-foreground hover:bg-primary/90',
+                    )}
+                    disabled={disabled || sending || switchingModel || modelOptions.length === 0}
+                    onClick={() => {
+                      if (!modelPickerOpen) {
+                        setModelPickerUpward(shouldOpenDropdownUpward(modelPickerRef.current, 220));
+                      }
+                      setModelPickerOpen((open) => !open);
+                    }}
+                    title="Select model"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-left">{currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                  </Button>
+                  {modelPickerOpen && (
+                    <div className={cn(
+                      "absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl",
+                      modelPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                    )}>
+                      <div className="max-h-56 overflow-y-auto">
+                        {modelOptions.map((option) => {
+                          const selected = option.modelRef === currentModelRef;
+                          return (
+                            <button
+                              key={option.modelRef}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
+                                selected ? 'bg-primary text-primary-foreground' : 'hover:bg-white/[0.06]',
+                              )}
+                              onClick={async () => {
+                                if (switchingModel || selected) {
+                                  setModelPickerOpen(false);
+                                  return;
+                                }
+                                setSwitchingModel(true);
+                                try {
+                                  const normalizedDefaultModelRef = (defaultModelRef || '').trim();
+                                  await updateAgentModel(
+                                    currentAgentId,
+                                    normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
+                                  );
+                                } finally {
+                                  setSwitchingModel(false);
+                                  setModelPickerOpen(false);
+                                }
+                              }}
+                            >
+                              <span className="min-w-0">
+                                <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-primary-foreground' : 'text-foreground')}>{option.label}</span>
+                                <span className={cn('block truncate text-[9px]', selected ? 'text-primary-foreground/75' : 'text-muted-foreground')}>{option.description}</span>
+                              </span>
+                              <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-primary-foreground' : 'opacity-0')} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 技能选择：下拉框选择（不跳转） */}
               <div ref={skillPickerRef} className="relative shrink-0">
@@ -767,79 +826,22 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   </div>
                 )}
               </div>
+
+              {/* 附件按钮 */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-8 w-8 rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
+                onClick={pickFiles}
+                disabled={disabled || sending}
+                title={t('composer.attachFiles')}
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+              </Button>
             </div>
 
-            {/* 右侧：模型入口 + 发送按钮 */}
+            {/* 右侧：发送按钮 */}
             <div className="flex shrink-0 items-center gap-2">
-              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
-                <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className={cn(
-                    'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground',
-                    'border border-border/70 bg-[#f7f7f7] shadow-sm hover:bg-[#efefef]',
-                    modelPickerOpen && 'border-primary bg-primary text-primary-foreground hover:bg-primary/90',
-                  )}
-                  disabled={disabled || sending || switchingModel || modelOptions.length === 0}
-                  onClick={() => {
-                    if (!modelPickerOpen) {
-                      setModelPickerUpward(shouldOpenDropdownUpward(modelPickerRef.current, 220));
-                    }
-                    setModelPickerOpen((open) => !open);
-                  }}
-                  title="Select model"
-                >
-                  <span className="min-w-0 flex-1 truncate text-left">{currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
-                </Button>
-                {modelPickerOpen && (
-                  <div className={cn(
-                    "absolute right-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl",
-                    modelPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
-                  )}>
-                    <div className="max-h-56 overflow-y-auto">
-                      {modelOptions.map((option) => {
-                        const selected = option.modelRef === currentModelRef;
-                        return (
-                          <button
-                            key={option.modelRef}
-                            type="button"
-                            className={cn(
-                              'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                              selected ? 'bg-primary text-primary-foreground' : 'hover:bg-white/[0.06]',
-                            )}
-                            onClick={async () => {
-                              if (switchingModel || selected) {
-                                setModelPickerOpen(false);
-                                return;
-                              }
-                              setSwitchingModel(true);
-                              try {
-                                const normalizedDefaultModelRef = (defaultModelRef || '').trim();
-                                await updateAgentModel(
-                                  currentAgentId,
-                                  normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
-                                );
-                              } finally {
-                                setSwitchingModel(false);
-                                setModelPickerOpen(false);
-                              }
-                            }}
-                          >
-                            <span className="min-w-0">
-                              <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-primary-foreground' : 'text-foreground')}>{option.label}</span>
-                              <span className={cn('block truncate text-[9px]', selected ? 'text-primary-foreground/75' : 'text-muted-foreground')}>{option.description}</span>
-                            </span>
-                            <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-primary-foreground' : 'opacity-0')} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                </div>
-              )}
               {/* 发送 / 停止按钮：始终显示主色填充圆，无输入时降低透明度 */}
               <Button
                 onClick={sending ? handleStop : handleSend}
