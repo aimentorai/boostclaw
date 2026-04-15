@@ -7,7 +7,7 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot, Check } from 'lucide-react';
+import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot, Check, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -162,6 +162,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [modelPickerUpward, setModelPickerUpward] = useState(true);
   const [switchingModel, setSwitchingModel] = useState(false);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [skillSearchQuery, setSkillSearchQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const skillPickerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +204,22 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     () => (skills ?? []).find((s) => s.id === selectedSkillId) ?? null,
     [skills, selectedSkillId],
   );
+  const filteredSkills = useMemo(() => {
+    const query = skillSearchQuery.trim().toLowerCase();
+    if (!query) return skills ?? [];
+    return (skills ?? []).filter((skill) => {
+      const searchable = [
+        skill.name,
+        skill.id,
+        skill.slug,
+        skill.description,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [skillSearchQuery, skills]);
   const modelOptions = useMemo(() => {
     const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
     const entries = providerAccounts
@@ -743,6 +760,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   onClick={() => {
                     if (!skillPickerOpen) {
                       setSkillPickerUpward(shouldOpenDropdownUpward(skillPickerRef.current, 240));
+                      setSkillSearchQuery('');
                     }
                     setSkillPickerOpen((open) => !open);
                   }}
@@ -752,9 +770,25 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
 
                 {skillPickerOpen && (
                   <div className={cn(
-                    "panel-elevated absolute left-0 z-20 w-40 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
+                    "panel-elevated absolute left-0 z-20 w-48 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
                     skillPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
                   )}>
+                    <div className="relative mb-1">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        value={skillSearchQuery}
+                        onChange={(event) => setSkillSearchQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            setSkillPickerOpen(false);
+                            textareaRef.current?.focus();
+                          }
+                        }}
+                        placeholder="搜索 Skill"
+                        className="h-8 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
+                        autoFocus
+                      />
+                    </div>
                     <div className="max-h-56 overflow-y-auto">
                       <button
                         type="button"
@@ -764,6 +798,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                         )}
                         onClick={() => {
                           setSelectedSkillId(null);
+                          setSkillSearchQuery('');
                           setSkillPickerOpen(false);
                           textareaRef.current?.focus();
                         }}
@@ -780,7 +815,13 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                         </div>
                       </button>
 
-                      {(skills ?? []).map((skill) => {
+                      {filteredSkills.length === 0 && (
+                        <div className="px-2 py-3 text-center text-[11px] text-muted-foreground">
+                          没有匹配的 Skill
+                        </div>
+                      )}
+
+                      {filteredSkills.map((skill) => {
                         const selected = skill.id === selectedSkillId;
                         return (
                           <button
@@ -792,6 +833,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                             )}
                             onClick={() => {
                               setSelectedSkillId(skill.id);
+                              setSkillSearchQuery('');
                               setSkillPickerOpen(false);
                               textareaRef.current?.focus();
                             }}

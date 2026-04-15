@@ -196,6 +196,31 @@ describe('ChatInput agent targeting', () => {
     expect(screen.getByTestId('chat-skill-chip')).toHaveTextContent('SQL Toolkit');
   });
 
+  it('filters skills by keyword in the skill picker', () => {
+    skillsState.skills = [
+      {
+        id: 'sql-toolkit',
+        name: 'SQL Toolkit',
+        description: 'Query helper',
+        enabled: true,
+      },
+      {
+        id: 'copywriter',
+        name: 'Copywriter',
+        description: 'Marketing copy',
+        enabled: true,
+      },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Skills'));
+    fireEvent.change(screen.getByPlaceholderText('搜索 Skill'), { target: { value: 'copy' } });
+
+    expect(screen.getByText('Copywriter')).toBeInTheDocument();
+    expect(screen.queryByText('SQL Toolkit')).not.toBeInTheDocument();
+  });
+
   it('injects selected skill context into the sent prompt', () => {
     const onSend = vi.fn();
     skillsState.skills = [
