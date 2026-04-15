@@ -3,8 +3,25 @@
  * Renders user / assistant / system / toolresult messages
  * with markdown, thinking sections, images, and tool cards.
  */
-import { useState, useCallback, useEffect, memo } from 'react';
-import { Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import {
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Wrench,
+  FileText,
+  Film,
+  Music,
+  FileArchive,
+  File,
+  X,
+  FolderOpen,
+  ZoomIn,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
@@ -13,7 +30,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { invokeIpc } from '@/lib/api-client';
 import type { RawMessage, AttachedFileMeta } from '@/stores/chat';
-import { extractText, extractThinking, extractImages, extractToolUse, formatTimestamp } from './message-utils';
+import {
+  extractText,
+  extractThinking,
+  extractImages,
+  extractToolUse,
+  formatTimestamp,
+} from './message-utils';
 
 interface ChatMessageProps {
   message: RawMessage;
@@ -30,7 +53,11 @@ interface ChatMessageProps {
   }>;
 }
 
-interface ExtractedImage { url?: string; data?: string; mimeType: string; }
+interface ExtractedImage {
+  url?: string;
+  data?: string;
+  mimeType: string;
+}
 
 /** Resolve an ExtractedImage to a displayable src string, or null if not possible. */
 function imageSrc(img: ExtractedImage): string | null {
@@ -58,30 +85,37 @@ export const ChatMessage = memo(function ChatMessage({
   const visibleTools = suppressToolCards ? [] : tools;
 
   const attachedFiles = message._attachedFiles || [];
-  const [lightboxImg, setLightboxImg] = useState<{ src: string; fileName: string; filePath?: string; base64?: string; mimeType?: string } | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<{
+    src: string;
+    fileName: string;
+    filePath?: string;
+    base64?: string;
+    mimeType?: string;
+  } | null>(null);
 
   // Never render tool result messages in chat UI
   if (isToolResult) return null;
 
   const hasStreamingToolStatus = isStreaming && streamingTools.length > 0;
-  if (!hasText && !visibleThinking && images.length === 0 && visibleTools.length === 0 && attachedFiles.length === 0 && !hasStreamingToolStatus) return null;
+  if (
+    !hasText &&
+    !visibleThinking &&
+    images.length === 0 &&
+    visibleTools.length === 0 &&
+    attachedFiles.length === 0 &&
+    !hasStreamingToolStatus
+  )
+    return null;
 
   return (
-    <div
-      className={cn(
-        'flex gap-3 group',
-        isUser ? 'flex-row-reverse' : 'flex-row',
-      )}
-    >
-      {!isUser && (
-        <div className="mt-1 h-8 w-8 shrink-0" aria-hidden="true" />
-      )}
+    <div className={cn('flex gap-3 group', isUser ? 'flex-row-reverse' : 'flex-row')}>
+      {!isUser && <div className="mt-1 h-8 w-8 shrink-0" aria-hidden="true" />}
 
       {/* Content */}
       <div
         className={cn(
           'flex flex-col w-full min-w-0 max-w-[80%] space-y-2',
-          isUser ? 'items-end' : 'items-start',
+          isUser ? 'items-end' : 'items-start'
         )}
       >
         {isStreaming && !isUser && streamingTools.length > 0 && (
@@ -89,9 +123,7 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Thinking section */}
-        {visibleThinking && (
-          <ThinkingBlock content={visibleThinking} />
-        )}
+        {visibleThinking && <ThinkingBlock content={visibleThinking} />}
 
         {/* Tool use cards */}
         {visibleTools.length > 0 && (
@@ -116,7 +148,14 @@ export const ChatMessage = memo(function ChatMessage({
                   fileName="image"
                   base64={img.data}
                   mimeType={img.mimeType}
-                  onPreview={() => setLightboxImg({ src, fileName: 'image', base64: img.data, mimeType: img.mimeType })}
+                  onPreview={() =>
+                    setLightboxImg({
+                      src,
+                      fileName: 'image',
+                      base64: img.data,
+                      mimeType: img.mimeType,
+                    })
+                  }
                 />
               );
             })}
@@ -138,7 +177,14 @@ export const ChatMessage = memo(function ChatMessage({
                     fileName={file.fileName}
                     filePath={file.filePath}
                     mimeType={file.mimeType}
-                    onPreview={() => setLightboxImg({ src: file.preview!, fileName: file.fileName, filePath: file.filePath, mimeType: file.mimeType })}
+                    onPreview={() =>
+                      setLightboxImg({
+                        src: file.preview!,
+                        fileName: file.fileName,
+                        filePath: file.filePath,
+                        mimeType: file.mimeType,
+                      })
+                    }
                   />
                 ) : (
                   <div
@@ -156,13 +202,7 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Main text bubble */}
-        {hasText && (
-          <MessageBubble
-            text={text}
-            isUser={isUser}
-            isStreaming={isStreaming}
-          />
-        )}
+        {hasText && <MessageBubble text={text} isUser={isUser} isStreaming={isStreaming} />}
 
         {/* Images from content blocks — assistant messages (below text) */}
         {!isUser && images.length > 0 && (
@@ -177,7 +217,14 @@ export const ChatMessage = memo(function ChatMessage({
                   fileName="image"
                   base64={img.data}
                   mimeType={img.mimeType}
-                  onPreview={() => setLightboxImg({ src, fileName: 'image', base64: img.data, mimeType: img.mimeType })}
+                  onPreview={() =>
+                    setLightboxImg({
+                      src,
+                      fileName: 'image',
+                      base64: img.data,
+                      mimeType: img.mimeType,
+                    })
+                  }
                 />
               );
             })}
@@ -198,13 +245,23 @@ export const ChatMessage = memo(function ChatMessage({
                     fileName={file.fileName}
                     filePath={file.filePath}
                     mimeType={file.mimeType}
-                    onPreview={() => setLightboxImg({ src: file.preview!, fileName: file.fileName, filePath: file.filePath, mimeType: file.mimeType })}
+                    onPreview={() =>
+                      setLightboxImg({
+                        src: file.preview!,
+                        fileName: file.fileName,
+                        filePath: file.filePath,
+                        mimeType: file.mimeType,
+                      })
+                    }
                   />
                 );
               }
               if (isImage && !file.preview) {
                 return (
-                  <div key={`local-${i}`} className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground">
+                  <div
+                    key={`local-${i}`}
+                    className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground"
+                  >
                     <File className="h-8 w-8" />
                   </div>
                 );
@@ -222,9 +279,7 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Hover row for assistant messages — only when there is real text content */}
-        {!isUser && hasText && (
-          <AssistantHoverBar text={text} timestamp={message.timestamp} />
-        )}
+        {!isUser && hasText && <AssistantHoverBar text={text} timestamp={message.timestamp} />}
       </div>
 
       {/* Image lightbox portal */}
@@ -273,15 +328,21 @@ function ToolStatusBar({
               'flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition-colors',
               isRunning && 'border-primary/30 bg-primary/8 text-foreground',
               !isRunning && !isError && 'border-border/50 bg-muted/20 text-muted-foreground',
-              isError && 'border-destructive/30 bg-destructive/5 text-destructive',
+              isError && 'border-destructive/30 bg-destructive/5 text-destructive'
             )}
           >
             {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />}
-            {!isRunning && !isError && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+            {!isRunning && !isError && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+            )}
             {isError && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
             <Wrench className="h-3 w-3 shrink-0 opacity-60" />
             <span className="font-mono text-[12px] font-medium">{tool.name}</span>
-            {duration && <span className="text-[11px] opacity-60">{tool.summary ? `(${duration})` : duration}</span>}
+            {duration && (
+              <span className="text-[11px] opacity-60">
+                {tool.summary ? `(${duration})` : duration}
+              </span>
+            )}
             {tool.summary && (
               <span className="truncate text-[11px] opacity-70">{tool.summary}</span>
             )}
@@ -320,9 +381,185 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   );
 }
 
+// ── Streaming Text Renderer ────────────────────────────────────
+// Lightweight text display for streaming — avoids O(n²) ReactMarkdown
+// parsing on every delta. Supports fenced code blocks, inline code,
+// bold, italic, and headings via cheap regex splits. Full markdown
+// renders only after streaming completes.
+
+/** Apply lightweight inline formatting (bold, italic, inline code) to a text span. */
+function formatInlineSegments(text: string): React.ReactNode[] {
+  // Single pass: split on inline patterns
+  // Order matters: `code` first (greedy), then **bold**, then *italic*
+  const inlineRe = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+  let keyIdx = 0;
+  while ((match = inlineRe.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      nodes.push(text.slice(lastIdx, match.index));
+    }
+    if (match[1]) {
+      // Inline code: `code`
+      nodes.push(
+        <code
+          key={`ic-${keyIdx++}`}
+          className="rounded bg-background/50 px-1 py-0.5 text-sm font-mono"
+        >
+          {match[1].slice(1, -1)}
+        </code>
+      );
+    } else if (match[2]) {
+      // Bold: **text**
+      nodes.push(<strong key={`b-${keyIdx++}`}>{match[2].slice(2, -2)}</strong>);
+    } else if (match[3]) {
+      // Italic: *text*
+      nodes.push(<em key={`i-${keyIdx++}`}>{match[3].slice(1, -1)}</em>);
+    }
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < text.length) {
+    nodes.push(text.slice(lastIdx));
+  }
+  return nodes.length > 0 ? nodes : [text];
+}
+
+/** Apply lightweight heading rendering to line-based text. */
+function formatTextBlock(content: string): React.ReactNode[] {
+  const lines = content.split('\n');
+  return lines.map((line, i) => {
+    const key = `l-${i}`;
+    // Heading detection: ### text, ## text, # text
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const headingText = headingMatch[2];
+      const sizeClass =
+        level === 1
+          ? 'text-lg font-bold'
+          : level === 2
+            ? 'text-base font-semibold'
+            : 'text-sm font-semibold';
+      return (
+        <div key={key} className={`${sizeClass} mt-3 mb-1`}>
+          {formatInlineSegments(headingText)}
+        </div>
+      );
+    }
+    // Regular line with inline formatting
+    return (
+      <span key={key}>
+        {i > 0 && '\n'}
+        {formatInlineSegments(line)}
+      </span>
+    );
+  });
+}
+
+const StreamingText = memo(function StreamingText({ text }: { text: string }) {
+  const parts = useMemo(() => {
+    // Fast-path: no backticks at all → text with inline formatting
+    if (!text.includes('```')) {
+      return [
+        <span key="t" className="whitespace-pre-wrap break-words text-sm">
+          {formatTextBlock(text)}
+        </span>,
+      ];
+    }
+
+    // Split on fenced code blocks
+    const segments: Array<{ type: 'text' | 'code'; content: string; lang?: string }> = [];
+    let lastIndex = 0;
+    const re = /```(\w*)\n([\s\S]*?)```/g;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      }
+      segments.push({ type: 'code', content: match[2], lang: match[1] || undefined });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      const remaining = text.slice(lastIndex);
+      const openBlock = remaining.match(/^```(\w*)\n([\s\S]*)$/);
+      if (openBlock) {
+        segments.push({ type: 'code', content: openBlock[2], lang: openBlock[1] || undefined });
+      } else {
+        segments.push({ type: 'text', content: remaining });
+      }
+    }
+
+    return segments.map((seg, i) => {
+      if (seg.type === 'code') {
+        return (
+          <pre
+            key={`c-${i}`}
+            className="overflow-x-auto rounded-xl border border-border/60 bg-background/50 p-4 my-2"
+          >
+            <code className="text-sm font-mono">{seg.content}</code>
+          </pre>
+        );
+      }
+      return (
+        <span key={`t-${i}`} className="whitespace-pre-wrap break-words text-sm">
+          {formatTextBlock(seg.content)}
+        </span>
+      );
+    });
+  }, [text]);
+
+  return <>{parts}</>;
+});
+
+// ── Markdown Components (shared config) ────────────────────────
+
+const markdownComponents = {
+  code({
+    className,
+    children,
+    ...props
+  }: React.HTMLAttributes<HTMLElement> & { className?: string }) {
+    const match = /language-(\w+)/.exec(className || '');
+    const isInline = !match && !className;
+    if (isInline) {
+      return (
+        <code
+          className="rounded bg-background/50 px-1.5 py-0.5 text-sm font-mono break-all break-words"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+    return (
+      <pre className="overflow-x-auto rounded-xl border border-border/60 bg-background/50 p-4">
+        <code className={cn('text-sm font-mono', className)} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
+  a({
+    href,
+    children,
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode }) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline break-words break-all"
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
 // ── Message Bubble ──────────────────────────────────────────────
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   text,
   isUser,
   isStreaming,
@@ -331,6 +568,15 @@ function MessageBubble({
   isUser: boolean;
   isStreaming: boolean;
 }) {
+  const markdownContent = useMemo(
+    () => (
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {text}
+      </ReactMarkdown>
+    ),
+    [text]
+  );
+
   return (
     <div
       className={cn(
@@ -338,54 +584,22 @@ function MessageBubble({
         !isUser && 'w-full',
         isUser
           ? 'bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--glow)/0.1)]'
-          : 'bg-primary/8 text-foreground',
+          : 'bg-primary/8 text-foreground'
       )}
     >
       {isUser ? (
         <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
       ) : (
         <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '');
-                const isInline = !match && !className;
-                if (isInline) {
-                  return (
-                    <code className="rounded bg-background/50 px-1.5 py-0.5 text-sm font-mono break-all break-words" {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-                return (
-                  <pre className="overflow-x-auto rounded-xl border border-border/60 bg-background/50 p-4">
-                    <code className={cn('text-sm font-mono', className)} {...props}>
-                      {children}
-                    </code>
-                  </pre>
-                );
-              },
-              a({ href, children }) {
-                return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words break-all">
-                    {children}
-                  </a>
-                );
-              },
-            }}
-          >
-            {text}
-          </ReactMarkdown>
+          {isStreaming ? <StreamingText text={text} /> : markdownContent}
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/50" />
           )}
         </div>
       )}
-
     </div>
   );
-}
+});
 
 // ── Thinking Block ──────────────────────────────────────────────
 
@@ -398,7 +612,11 @@ function ThinkingBlock({ content }: { content: string }) {
         className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setExpanded(!expanded)}
       >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        {expanded ? (
+          <ChevronDown className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" />
+        )}
         <span className="font-medium">Thinking</span>
       </button>
       {expanded && (
@@ -424,8 +642,21 @@ function formatFileSize(bytes: number): string {
 function FileIcon({ mimeType, className }: { mimeType: string; className?: string }) {
   if (mimeType.startsWith('video/')) return <Film className={className} />;
   if (mimeType.startsWith('audio/')) return <Music className={className} />;
-  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml') return <FileText className={className} />;
-  if (mimeType.includes('zip') || mimeType.includes('compressed') || mimeType.includes('archive') || mimeType.includes('tar') || mimeType.includes('rar') || mimeType.includes('7z')) return <FileArchive className={className} />;
+  if (
+    mimeType.startsWith('text/') ||
+    mimeType === 'application/json' ||
+    mimeType === 'application/xml'
+  )
+    return <FileText className={className} />;
+  if (
+    mimeType.includes('zip') ||
+    mimeType.includes('compressed') ||
+    mimeType.includes('archive') ||
+    mimeType.includes('tar') ||
+    mimeType.includes('rar') ||
+    mimeType.includes('7z')
+  )
+    return <FileArchive className={className} />;
   if (mimeType === 'application/pdf') return <FileText className={className} />;
   return <File className={className} />;
 }
@@ -438,13 +669,13 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
   }, [file.filePath]);
 
   return (
-    <div 
+    <div
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/10 px-3 py-2.5 bg-black/5 dark:bg-white/5 max-w-[220px]",
-        file.filePath && "cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        'flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/10 px-3 py-2.5 bg-black/5 dark:bg-white/5 max-w-[220px]',
+        file.filePath && 'cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors'
       )}
       onClick={handleOpen}
-      title={file.filePath ? "Open file" : undefined}
+      title={file.filePath ? 'Open file' : undefined}
     >
       <FileIcon mimeType={file.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 overflow-hidden">
@@ -474,7 +705,9 @@ function ImageThumbnail({
   mimeType?: string;
   onPreview: () => void;
 }) {
-  void filePath; void base64; void mimeType;
+  void filePath;
+  void base64;
+  void mimeType;
   return (
     <div
       className="relative w-36 h-36 rounded-xl border overflow-hidden border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 group/img cursor-zoom-in"
@@ -505,7 +738,9 @@ function ImagePreviewCard({
   mimeType?: string;
   onPreview: () => void;
 }) {
-  void filePath; void base64; void mimeType;
+  void filePath;
+  void base64;
+  void mimeType;
   return (
     <div
       className="relative max-w-xs rounded-xl border overflow-hidden border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 group/img cursor-zoom-in"
@@ -536,7 +771,10 @@ function ImageLightbox({
   mimeType?: string;
   onClose: () => void;
 }) {
-  void src; void base64; void mimeType; void fileName;
+  void src;
+  void base64;
+  void mimeType;
+  void fileName;
   const { t } = useTranslation('common');
 
   useEffect(() => {
@@ -559,10 +797,7 @@ function ImageLightbox({
       onClick={onClose}
     >
       {/* Image + buttons stacked */}
-      <div
-        className="flex flex-col items-center gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
         <img
           src={src}
           alt={fileName}
@@ -594,7 +829,7 @@ function ImageLightbox({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }
 
@@ -612,11 +847,15 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
         <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
         <Wrench className="h-3 w-3 shrink-0 opacity-60" />
         <span className="font-mono text-xs">{name}</span>
-        {expanded ? <ChevronDown className="h-3 w-3 ml-auto" /> : <ChevronRight className="h-3 w-3 ml-auto" />}
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 ml-auto" />
+        ) : (
+          <ChevronRight className="h-3 w-3 ml-auto" />
+        )}
       </button>
       {expanded && input != null && (
         <pre className="px-3 pb-2 text-xs text-muted-foreground overflow-x-auto">
-          {typeof input === 'string' ? input : JSON.stringify(input, null, 2) as string}
+          {typeof input === 'string' ? input : (JSON.stringify(input, null, 2) as string)}
         </pre>
       )}
     </div>

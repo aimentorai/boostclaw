@@ -80,10 +80,7 @@ function shouldProcessGatewayEvent(event: Record<string, unknown>): boolean {
   return true;
 }
 
-function maybeLoadSessions(
-  state: { loadSessions: () => Promise<void> },
-  force = false,
-): void {
+function maybeLoadSessions(state: { loadSessions: () => Promise<void> }, force = false): void {
   const now = Date.now();
   if (!force && now - lastLoadSessionsAt < LOAD_SESSIONS_MIN_INTERVAL_MS) return;
   lastLoadSessionsAt = now;
@@ -92,7 +89,7 @@ function maybeLoadSessions(
 
 function maybeLoadHistory(
   state: { loadHistory: (quiet?: boolean) => Promise<void> },
-  force = false,
+  force = false
 ): void {
   const now = Date.now();
   if (!force && now - lastLoadHistoryAt < LOAD_HISTORY_MIN_INTERVAL_MS) return;
@@ -100,14 +97,21 @@ function maybeLoadHistory(
   void state.loadHistory(true);
 }
 
-function handleGatewayNotification(notification: { method?: string; params?: Record<string, unknown> } | undefined): void {
+function handleGatewayNotification(
+  notification: { method?: string; params?: Record<string, unknown> } | undefined
+): void {
   const payload = notification;
-  if (!payload || payload.method !== 'agent' || !payload.params || typeof payload.params !== 'object') {
+  if (
+    !payload ||
+    payload.method !== 'agent' ||
+    !payload.params ||
+    typeof payload.params !== 'object'
+  ) {
     return;
   }
 
   const p = payload.params;
-  const data = (p.data && typeof p.data === 'object') ? (p.data as Record<string, unknown>) : {};
+  const data = p.data && typeof p.data === 'object' ? (p.data as Record<string, unknown>) : {};
   const phase = data.phase ?? p.phase;
   const hasChatData = (p.state ?? data.state) || (p.message ?? data.message);
 
@@ -138,8 +142,8 @@ function handleGatewayNotification(notification: { method?: string; params?: Rec
         const state = useChatStore.getState();
         const resolvedSessionKey = String(sessionKey);
         const shouldRefreshSessions =
-          resolvedSessionKey !== state.currentSessionKey
-          || !state.sessions.some((session) => session.key === resolvedSessionKey);
+          resolvedSessionKey !== state.currentSessionKey ||
+          !state.sessions.some((session) => session.key === resolvedSessionKey);
         if (shouldRefreshSessions) {
           maybeLoadSessions(state, true);
         }
@@ -158,16 +162,18 @@ function handleGatewayNotification(notification: { method?: string; params?: Rec
       .then(({ useChatStore }) => {
         const state = useChatStore.getState();
         const resolvedSessionKey = sessionKey != null ? String(sessionKey) : null;
-        const shouldRefreshSessions = resolvedSessionKey != null && (
-          resolvedSessionKey !== state.currentSessionKey
-          || !state.sessions.some((session) => session.key === resolvedSessionKey)
-        );
+        const shouldRefreshSessions =
+          resolvedSessionKey != null &&
+          (resolvedSessionKey !== state.currentSessionKey ||
+            !state.sessions.some((session) => session.key === resolvedSessionKey));
         if (shouldRefreshSessions) {
           maybeLoadSessions(state);
         }
 
-        const matchesCurrentSession = resolvedSessionKey == null || resolvedSessionKey === state.currentSessionKey;
-        const matchesActiveRun = runId != null && state.activeRunId != null && String(runId) === state.activeRunId;
+        const matchesCurrentSession =
+          resolvedSessionKey == null || resolvedSessionKey === state.currentSessionKey;
+        const matchesActiveRun =
+          runId != null && state.activeRunId != null && String(runId) === state.activeRunId;
 
         if (matchesCurrentSession || matchesActiveRun) {
           maybeLoadHistory(state);
@@ -187,26 +193,29 @@ function handleGatewayNotification(notification: { method?: string; params?: Rec
 }
 
 function handleGatewayChatMessage(data: unknown): void {
-  import('./chat').then(({ useChatStore }) => {
-    const chatData = data as Record<string, unknown>;
-    const payload = ('message' in chatData && typeof chatData.message === 'object')
-      ? chatData.message as Record<string, unknown>
-      : chatData;
+  import('./chat')
+    .then(({ useChatStore }) => {
+      const chatData = data as Record<string, unknown>;
+      const payload =
+        'message' in chatData && typeof chatData.message === 'object'
+          ? (chatData.message as Record<string, unknown>)
+          : chatData;
 
-    if (payload.state) {
-      if (!shouldProcessGatewayEvent(payload)) return;
-      useChatStore.getState().handleChatEvent(payload);
-      return;
-    }
+      if (payload.state) {
+        if (!shouldProcessGatewayEvent(payload)) return;
+        useChatStore.getState().handleChatEvent(payload);
+        return;
+      }
 
-    const normalized = {
-      state: 'final',
-      message: payload,
-      runId: chatData.runId ?? payload.runId,
-    };
-    if (!shouldProcessGatewayEvent(normalized)) return;
-    useChatStore.getState().handleChatEvent(normalized);
-  }).catch(() => {});
+      const normalized = {
+        state: 'final',
+        message: payload,
+        runId: chatData.runId ?? payload.runId,
+      };
+      if (!shouldProcessGatewayEvent(normalized)) return;
+      useChatStore.getState().handleChatEvent(normalized);
+    })
+    .catch(() => {});
 }
 
 function mapChannelStatus(status: string): 'connected' | 'connecting' | 'disconnected' | 'error' {
@@ -248,43 +257,53 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
 
         if (!gatewayEventUnsubscribers) {
           const unsubscribers: Array<() => void> = [];
-          unsubscribers.push(subscribeHostEvent<GatewayStatus>('gateway:status', (payload) => {
-            set({ status: payload });
-          }));
-          unsubscribers.push(subscribeHostEvent<{ message?: string }>('gateway:error', (payload) => {
-            set({ lastError: payload.message || 'Gateway error' });
-          }));
-          unsubscribers.push(subscribeHostEvent<{ method?: string; params?: Record<string, unknown> }>(
-            'gateway:notification',
-            (payload) => {
-              handleGatewayNotification(payload);
-            },
-          ));
-          unsubscribers.push(subscribeHostEvent('gateway:chat-message', (payload) => {
-            handleGatewayChatMessage(payload);
-          }));
-          unsubscribers.push(subscribeHostEvent<{ channelId?: string; status?: string }>(
-            'gateway:channel-status',
-            (update) => {
-              import('./channels')
-                .then(({ useChannelsStore }) => {
-                  if (!update.channelId || !update.status) return;
-                  const state = useChannelsStore.getState();
-                  const channel = state.channels.find((item) => item.type === update.channelId);
-                  if (channel) {
-                    const newStatus = mapChannelStatus(update.status);
-                    state.updateChannel(channel.id, { status: newStatus });
-                    
-                    if (newStatus === 'disconnected' || newStatus === 'error') {
-                      state.scheduleAutoReconnect(channel.id);
-                    } else if (newStatus === 'connected' || newStatus === 'connecting') {
-                      state.clearAutoReconnect(channel.id);
+          unsubscribers.push(
+            subscribeHostEvent<GatewayStatus>('gateway:status', (payload) => {
+              set({ status: payload });
+            })
+          );
+          unsubscribers.push(
+            subscribeHostEvent<{ message?: string }>('gateway:error', (payload) => {
+              set({ lastError: payload.message || 'Gateway error' });
+            })
+          );
+          unsubscribers.push(
+            subscribeHostEvent<{ method?: string; params?: Record<string, unknown> }>(
+              'gateway:notification',
+              (payload) => {
+                handleGatewayNotification(payload);
+              }
+            )
+          );
+          unsubscribers.push(
+            subscribeHostEvent('gateway:chat-message', (payload) => {
+              handleGatewayChatMessage(payload);
+            })
+          );
+          unsubscribers.push(
+            subscribeHostEvent<{ channelId?: string; status?: string }>(
+              'gateway:channel-status',
+              (update) => {
+                import('./channels')
+                  .then(({ useChannelsStore }) => {
+                    if (!update.channelId || !update.status) return;
+                    const state = useChannelsStore.getState();
+                    const channel = state.channels.find((item) => item.type === update.channelId);
+                    if (channel) {
+                      const newStatus = mapChannelStatus(update.status);
+                      state.updateChannel(channel.id, { status: newStatus });
+
+                      if (newStatus === 'disconnected' || newStatus === 'error') {
+                        state.scheduleAutoReconnect(channel.id);
+                      } else if (newStatus === 'connected' || newStatus === 'connecting') {
+                        state.clearAutoReconnect(channel.id);
+                      }
                     }
-                  }
-                })
-                .catch(() => {});
-            },
-          ));
+                  })
+                  .catch(() => {});
+              }
+            )
+          );
           gatewayEventUnsubscribers = unsubscribers;
 
           // Periodic reconciliation safety net: every 30 seconds, check if the
@@ -298,18 +317,21 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
           gatewayReconcileTimer = setInterval(() => {
             const ipc = window.electron?.ipcRenderer;
             if (!ipc) return;
-            ipc.invoke('gateway:status')
+            ipc
+              .invoke('gateway:status')
               .then((result: unknown) => {
                 const latest = result as GatewayStatus;
                 const current = get().status;
                 if (latest.state !== current.state) {
                   console.info(
-                    `[gateway-store] reconciled stale state: ${current.state} → ${latest.state}`,
+                    `[gateway-store] reconciled stale state: ${current.state} → ${latest.state}`
                   );
                   set({ status: latest });
                 }
               })
-              .catch(() => { /* ignore */ });
+              .catch(() => {
+                /* ignore */
+              });
           }, 30_000);
         }
 
@@ -341,9 +363,12 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   start: async () => {
     try {
       set({ status: { ...get().status, state: 'starting' }, lastError: null });
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/gateway/start', {
-        method: 'POST',
-      });
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        '/api/gateway/start',
+        {
+          method: 'POST',
+        }
+      );
       if (!result.success) {
         set({
           status: { ...get().status, state: 'error', error: result.error },
@@ -371,9 +396,12 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   restart: async () => {
     try {
       set({ status: { ...get().status, state: 'starting' }, lastError: null });
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/gateway/restart', {
-        method: 'POST',
-      });
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        '/api/gateway/restart',
+        {
+          method: 'POST',
+        }
+      );
       if (!result.success) {
         set({
           status: { ...get().status, state: 'error', error: result.error },

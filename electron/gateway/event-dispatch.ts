@@ -8,7 +8,7 @@ type GatewayEventEmitter = {
 export function dispatchProtocolEvent(
   emitter: GatewayEventEmitter,
   event: string,
-  payload: unknown,
+  payload: unknown
 ): void {
   switch (event) {
     case 'tick':
@@ -32,7 +32,7 @@ export function dispatchProtocolEvent(
 
 export function dispatchJsonRpcNotification(
   emitter: GatewayEventEmitter,
-  notification: JsonRpcNotification,
+  notification: JsonRpcNotification
 ): void {
   emitter.emit('notification', notification);
   switch (notification.method) {
