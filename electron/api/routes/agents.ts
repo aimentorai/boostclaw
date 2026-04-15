@@ -9,7 +9,7 @@ import {
   resolveAccountIdForAgent,
   setDefaultAgent,
   updateAgentModel,
-  updateAgentName,
+  updateAgentProfile,
 } from '../../utils/agent-config';
 import { deleteChannelAccountConfig } from '../../utils/channel-config';
 import { syncAgentModelOverrideToRuntime, syncAllProviderAuthToRuntime } from '../../services/providers/provider-runtime-sync';
@@ -119,8 +119,11 @@ export async function handleAgentRoutes(
 
   if (url.pathname === '/api/agents' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<{ name: string; inheritWorkspace?: boolean }>(req);
-      const snapshot = await createAgent(body.name, { inheritWorkspace: body.inheritWorkspace });
+      const body = await parseJsonBody<{ name: string; description?: string; inheritWorkspace?: boolean }>(req);
+      const snapshot = await createAgent(body.name, {
+        inheritWorkspace: body.inheritWorkspace,
+        description: body.description,
+      });
       // Sync provider API keys to the new agent's auth-profiles.json so the
       // embedded runner can authenticate with LLM providers when messages
       // arrive via channel bots (e.g. Feishu). Without this, the copied
@@ -142,9 +145,12 @@ export async function handleAgentRoutes(
 
     if (parts.length === 1) {
       try {
-        const body = await parseJsonBody<{ name: string }>(req);
+        const body = await parseJsonBody<{ name: string; description?: string | null }>(req);
         const agentId = decodeURIComponent(parts[0]);
-        const snapshot = await updateAgentName(agentId, body.name);
+        const snapshot = await updateAgentProfile(agentId, {
+          name: body.name,
+          description: body.description,
+        });
         scheduleGatewayReload(ctx, 'update-agent');
         sendJson(res, 200, { success: true, ...snapshot });
       } catch (error) {

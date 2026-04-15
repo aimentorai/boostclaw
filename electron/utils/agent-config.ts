@@ -40,6 +40,7 @@ interface AgentDefaultsConfig {
 interface AgentListEntry extends Record<string, unknown> {
   id: string;
   name?: string;
+  description?: string;
   default?: boolean;
   workspace?: string;
   agentDir?: string;
@@ -80,6 +81,7 @@ interface AgentConfigDocument extends Record<string, unknown> {
 export interface AgentSummary {
   id: string;
   name: string;
+  description?: string;
   isDefault: boolean;
   modelDisplay: string;
   modelRef: string | null;
@@ -128,6 +130,11 @@ function formatModelLabel(model: unknown): string | null {
 
 function normalizeAgentName(name: string): string {
   return name.trim() || 'Agent';
+}
+
+function normalizeAgentDescription(description?: string | null): string | undefined {
+  const normalized = typeof description === 'string' ? description.trim() : '';
+  return normalized || undefined;
 }
 
 function slugifyAgentId(name: string): string {
@@ -511,6 +518,7 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument, preloadedCha
     return {
       id: entry.id,
       name: entry.name || (entry.id === MAIN_AGENT_ID ? MAIN_AGENT_NAME : entry.id),
+      description: normalizeAgentDescription(entry.description),
       isDefault: entry.id === defaultAgentId,
       modelDisplay: modelLabel,
       modelRef: explicitModelRef || defaultModelRef || null,
@@ -553,7 +561,7 @@ export async function listConfiguredAgentIds(): Promise<string[]> {
 
 export async function createAgent(
   name: string,
-  options?: { inheritWorkspace?: boolean },
+  options?: { inheritWorkspace?: boolean; description?: string },
 ): Promise<AgentsSnapshot> {
   return withConfigLock(async () => {
     const config = await readOpenClawConfig() as AgentConfigDocument;
@@ -576,6 +584,10 @@ export async function createAgent(
       workspace: `~/.openclaw/workspace-${nextId}`,
       agentDir: getDefaultAgentDirPath(nextId),
     };
+    const normalizedDescription = normalizeAgentDescription(options?.description);
+    if (normalizedDescription) {
+      newAgent.description = normalizedDescription;
+    }
 
     if (!nextEntries.some((entry) => entry.id === MAIN_AGENT_ID) && syntheticMain) {
       nextEntries.unshift(createImplicitMainEntry(config));
@@ -616,6 +628,43 @@ export async function updateAgentName(agentId: string, name: string): Promise<Ag
 
     await writeOpenClawConfig(config);
     logger.info('Updated agent name', { agentId, name: normalizedName });
+    return buildSnapshotFromConfig(config);
+  });
+}
+
+export async function updateAgentProfile(
+  agentId: string,
+  profile: { name: string; description?: string | null },
+): Promise<AgentsSnapshot> {
+  return withConfigLock(async () => {
+    const config = await readOpenClawConfig() as AgentConfigDocument;
+    const { agentsConfig, entries } = normalizeAgentsConfig(config);
+    const normalizedName = normalizeAgentName(profile.name);
+    const index = entries.findIndex((entry) => entry.id === agentId);
+    if (index === -1) {
+      throw new Error(`Agent "${agentId}" not found`);
+    }
+
+    const nextEntry: AgentListEntry = {
+      ...entries[index],
+      name: normalizedName,
+    };
+    const normalizedDescription = normalizeAgentDescription(profile.description);
+    if (normalizedDescription) {
+      nextEntry.description = normalizedDescription;
+    } else {
+      delete nextEntry.description;
+    }
+
+    entries[index] = nextEntry;
+
+    config.agents = {
+      ...agentsConfig,
+      list: entries,
+    };
+
+    await writeOpenClawConfig(config);
+    logger.info('Updated agent profile', { agentId, name: normalizedName });
     return buildSnapshotFromConfig(config);
   });
 }

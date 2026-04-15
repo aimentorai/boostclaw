@@ -137,6 +137,50 @@ describe('agent config lifecycle', () => {
     });
   });
 
+  it('persists agent descriptions in openclaw.json and exposes them in snapshots', async () => {
+    await writeOpenClawJson({
+      agents: {
+        list: [
+          { id: 'main', name: 'Main', default: true },
+        ],
+      },
+    });
+
+    const { createAgent, listAgentsSnapshot, updateAgentProfile } = await import('@electron/utils/agent-config');
+
+    await createAgent('Content Summary', {
+      description: 'Summarizes product reviews and competitor notes',
+    });
+
+    let config = await readOpenClawJson();
+    let created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
+      .find((agent) => agent.id === 'content-summary');
+    expect(created?.description).toBe('Summarizes product reviews and competitor notes');
+
+    let snapshot = await listAgentsSnapshot();
+    expect(snapshot.agents.find((agent) => agent.id === 'content-summary')).toMatchObject({
+      description: 'Summarizes product reviews and competitor notes',
+    });
+
+    await updateAgentProfile('content-summary', {
+      name: 'Content Summary',
+      description: 'Creates short summaries for marketplace research',
+    });
+    config = await readOpenClawJson();
+    created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
+      .find((agent) => agent.id === 'content-summary');
+    expect(created?.description).toBe('Creates short summaries for marketplace research');
+
+    await updateAgentProfile('content-summary', {
+      name: 'Content Summary',
+      description: '',
+    });
+    config = await readOpenClawJson();
+    created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
+      .find((agent) => agent.id === 'content-summary');
+    expect(created?.description).toBeUndefined();
+  });
+
   it('updates and clears per-agent model overrides', async () => {
     await writeOpenClawJson({
       agents: {

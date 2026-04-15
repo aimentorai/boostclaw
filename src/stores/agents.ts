@@ -13,8 +13,8 @@ interface AgentsState {
   loading: boolean;
   error: string | null;
   fetchAgents: () => Promise<void>;
-  createAgent: (name: string, options?: { inheritWorkspace?: boolean }) => Promise<void>;
-  updateAgent: (agentId: string, name: string) => Promise<void>;
+  createAgent: (name: string, options?: { inheritWorkspace?: boolean; description?: string }) => Promise<void>;
+  updateAgent: (agentId: string, profile: { name: string; description?: string | null }) => Promise<void>;
   setDefaultAgent: (agentId: string) => Promise<void>;
   updateAgentModel: (agentId: string, modelRef: string | null) => Promise<void>;
   deleteAgent: (agentId: string) => Promise<void>;
@@ -57,12 +57,16 @@ export const useAgentsStore = create<AgentsState>((set) => ({
     }
   },
 
-  createAgent: async (name: string, options?: { inheritWorkspace?: boolean }) => {
+  createAgent: async (name: string, options?: { inheritWorkspace?: boolean; description?: string }) => {
     set({ error: null });
     try {
       const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents', {
         method: 'POST',
-        body: JSON.stringify({ name, inheritWorkspace: options?.inheritWorkspace }),
+        body: JSON.stringify({
+          name,
+          inheritWorkspace: options?.inheritWorkspace,
+          description: options?.description,
+        }),
       });
       set(applySnapshot(snapshot));
     } catch (error) {
@@ -71,14 +75,14 @@ export const useAgentsStore = create<AgentsState>((set) => ({
     }
   },
 
-  updateAgent: async (agentId: string, name: string) => {
+  updateAgent: async (agentId: string, profile: { name: string; description?: string | null }) => {
     set({ error: null });
     try {
       const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
         `/api/agents/${encodeURIComponent(agentId)}`,
         {
           method: 'PUT',
-          body: JSON.stringify({ name }),
+        body: JSON.stringify(profile),
         }
       );
       set(applySnapshot(snapshot));

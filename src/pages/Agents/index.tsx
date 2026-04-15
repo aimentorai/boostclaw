@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Bot, Check, Plus, RefreshCw, Settings2, Trash2, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useAgentsStore } from '@/stores/agents';
+import { useChatStore } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
 import { useProviderStore } from '@/stores/providers';
 import { hostApiFetch } from '@/lib/host-api';
@@ -107,6 +109,7 @@ export function Agents() {
     deleteAgent,
     setDefaultAgent,
   } = useAgentsStore();
+  const switchSession = useChatStore((state) => state.switchSession);
   const [channelGroups, setChannelGroups] = useState<ChannelGroupItem[]>([]);
   const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(() => agents.length > 0);
 
@@ -169,6 +172,11 @@ export function Agents() {
     void Promise.all([fetchAgents(), fetchChannelAccounts()]);
   };
 
+  const handleStartChat = (agent: AgentSummary) => {
+    switchSession(agent.mainSessionKey);
+    window.location.hash = '#/';
+  };
+
   if (loading && !hasCompletedInitialLoad) {
     return (
       <div className="flex flex-col -m-6 dark:bg-background min-h-[calc(100vh-2.5rem)] items-center justify-center">
@@ -178,30 +186,24 @@ export function Agents() {
   }
 
   return (
-    <div data-testid="agents-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
-      <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
-          <div>
-            <h1
-              className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
-              style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}
-            >
-              {t('title')}
-            </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">{t('subtitle')}</p>
-          </div>
-          <div className="flex items-center gap-3 md:mt-2">
+    <div data-testid="agents-page" className="flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden bg-white">
+      <div className="flex h-full w-full flex-col px-6 py-4">
+        <div className="mb-3 flex shrink-0 items-center justify-between">
+          <h1 className="text-[14px] font-semibold text-[#1f2433]">
+            {t('title')}
+          </h1>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               onClick={handleRefresh}
-              className="h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground transition-colors"
+              className="h-8 rounded-sm border-[#e6eaf4] bg-white px-3 text-[12px] font-medium text-[#5d667f] shadow-none hover:bg-[#f7f7f7]"
             >
               <RefreshCw className={cn('h-3.5 w-3.5 mr-2', isUsingStableValue && 'animate-spin')} />
               {t('refresh')}
             </Button>
             <Button
               onClick={() => setShowAddDialog(true)}
-              className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
+              className="h-8 rounded-sm bg-[#3964F2] px-3 text-[12px] font-medium text-white shadow-none hover:bg-[#3158d9]"
             >
               <Plus className="h-3.5 w-3.5 mr-2" />
               {t('addAgent')}
@@ -209,7 +211,7 @@ export function Agents() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-8">
           {gatewayStatus.state !== 'running' && (
             <div className="mb-8 p-4 rounded-xl border border-yellow-500/50 bg-yellow-500/10 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
@@ -228,12 +230,12 @@ export function Agents() {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleAgents.map((agent) => (
               <AgentCard
                 key={agent.id}
                 agent={agent}
-                channelGroups={visibleChannelGroups}
+                onStartChat={() => handleStartChat(agent)}
                 onOpenSettings={() => setActiveAgentId(agent.id)}
                 onDelete={() => setAgentToDelete(agent)}
                 onSetDefault={async () => {
@@ -294,118 +296,107 @@ export function Agents() {
 
 function AgentCard({
   agent,
-  channelGroups,
+  onStartChat,
   onOpenSettings,
   onDelete,
   onSetDefault,
 }: {
   agent: AgentSummary;
-  channelGroups: ChannelGroupItem[];
+  onStartChat: () => void;
   onOpenSettings: () => void;
   onDelete: () => void;
   onSetDefault: () => Promise<void>;
 }) {
   const { t } = useTranslation('agents');
   const [settingDefault, setSettingDefault] = useState(false);
-  const boundChannelAccounts = channelGroups.flatMap((group) =>
-    group.accounts
-      .filter((account) => account.agentId === agent.id)
-      .map((account) => {
-        const channelName = CHANNEL_NAMES[group.channelType as ChannelType] || group.channelType;
-        const accountLabel =
-          account.accountId === 'default'
-            ? t('settingsDialog.mainAccount')
-            : account.name || account.accountId;
-        return `${channelName} · ${accountLabel}`;
-      }),
-  );
-  const channelsText = boundChannelAccounts.length > 0
-    ? boundChannelAccounts.join(', ')
-    : t('none');
-
+  const avatarGradients = [
+    'from-[#0f766e] via-[#14b8a6] to-[#f4d35e]',
+    'from-[#1d4ed8] via-[#60a5fa] to-[#e0f2fe]',
+    'from-[#7c2d12] via-[#ea580c] to-[#fed7aa]',
+    'from-[#334155] via-[#94a3b8] to-[#f8fafc]',
+    'from-[#5b21b6] via-[#a78bfa] to-[#f5d0fe]',
+    'from-[#14532d] via-[#22c55e] to-[#dcfce7]',
+  ];
+  const gradientIndex = Array.from(agent.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % avatarGradients.length;
   return (
     <div
       className={cn(
-        'group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5',
-        agent.isDefault && 'bg-black/[0.04] dark:bg-white/[0.06]'
+        'group relative flex min-h-[176px] flex-col items-center overflow-hidden rounded-md border border-[#eef1f8] bg-[#fbfbfc] px-4 pb-3 pt-4 text-center transition-colors hover:bg-white hover:shadow-sm',
+        agent.isDefault && 'border-[#dfe6ff] bg-[#f8faff]'
       )}
     >
-      <div className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-primary bg-primary/10 rounded-full shadow-sm mb-3">
-        <Bot className="h-[22px] w-[22px]" />
+      <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {!agent.isDefault && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-sm text-[#9aa2b8] hover:bg-[#f0f2fc] hover:text-[#3964F2]"
+            onClick={() => {
+              void (async () => {
+                setSettingDefault(true);
+                try {
+                  await onSetDefault();
+                } catch (error) {
+                  toast.error(t('toast.agentDefaultUpdateFailed', { error: String(error) }));
+                } finally {
+                  setSettingDefault(false);
+                }
+              })();
+            }}
+            disabled={settingDefault}
+            title={t('setDefault')}
+          >
+            {settingDefault ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 rounded-sm text-[#9aa2b8] hover:bg-[#f0f2fc] hover:text-[#3964F2]"
+          onClick={onOpenSettings}
+          title={t('settings')}
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+        </Button>
+        {!agent.isDefault && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-sm text-[#9aa2b8] hover:bg-destructive/10 hover:text-destructive"
+            onClick={onDelete}
+            title={t('deleteAgent')}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
-      <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-[16px] font-semibold text-foreground truncate">{agent.name}</h2>
-            {agent.isDefault && (
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
-              >
-                <Check className="h-3 w-3" />
-                {t('defaultBadge')}
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {!agent.isDefault && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 h-7 rounded-full px-3 text-[12px] text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all"
-                onClick={() => {
-                  void (async () => {
-                    setSettingDefault(true);
-                    try {
-                      await onSetDefault();
-                    } catch (error) {
-                      toast.error(t('toast.agentDefaultUpdateFailed', { error: String(error) }));
-                    } finally {
-                      setSettingDefault(false);
-                    }
-                  })();
-                }}
-                disabled={settingDefault}
-                title={t('setDefault')}
-              >
-                {settingDefault ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : t('setDefault')}
-              </Button>
-            )}
-            {!agent.isDefault && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                onClick={onDelete}
-                title={t('deleteAgent')}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all',
-                !agent.isDefault && 'opacity-0 group-hover:opacity-100',
-              )}
-              onClick={onOpenSettings}
-              title={t('settings')}
-            >
-              <Settings2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <p className="text-[13.5px] text-muted-foreground line-clamp-2 leading-[1.5]">
-          {t('modelLine', {
-            model: agent.modelDisplay,
-            suffix: agent.inheritedModel ? ` (${t('inherited')})` : '',
-          })}
-        </p>
-        <p className="text-[13.5px] text-muted-foreground line-clamp-2 leading-[1.5]">
-          {t('channelsLine', { channels: channelsText })}
-        </p>
+
+      {agent.isDefault && (
+        <Badge
+          variant="secondary"
+          className="absolute left-2 top-2 rounded-sm border-0 bg-[#eef2ff] px-1.5 py-0.5 text-[9px] font-medium text-[#3964F2] shadow-none"
+        >
+          {t('defaultBadge')}
+        </Badge>
+      )}
+
+      <div className={cn('mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-sm', avatarGradients[gradientIndex])}>
+        <Bot className="h-[18px] w-[18px]" />
       </div>
+      <h2 className="max-w-full truncate text-[14px] font-semibold text-[#1f2433]">
+        {agent.name}
+      </h2>
+      <p className="mt-2 line-clamp-2 min-h-[36px] text-[11px] leading-[18px] text-[#6f778a]">
+        {agent.description || t('cardDescription')}
+      </p>
+      <Button
+        variant="outline"
+        className="mt-auto h-[34px] w-full rounded-[3px] border-[#e4e8f2] bg-white text-[12px] font-medium text-[#2e3445] shadow-none hover:bg-[#f7f7f7] hover:text-[#3964F2]"
+        onClick={onStartChat}
+      >
+        <Plus className="mr-1.5 h-3.5 w-3.5" />
+        {t('startChat')}
+      </Button>
     </div>
   );
 }
@@ -442,10 +433,11 @@ function AddAgentDialog({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (name: string, options: { inheritWorkspace: boolean }) => Promise<void>;
+  onCreate: (name: string, options: { inheritWorkspace: boolean; description?: string }) => Promise<void>;
 }) {
   const { t } = useTranslation('agents');
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [inheritWorkspace, setInheritWorkspace] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -453,7 +445,10 @@ function AddAgentDialog({
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onCreate(name.trim(), { inheritWorkspace });
+      await onCreate(name.trim(), {
+        inheritWorkspace,
+        description: description.trim() || undefined,
+      });
     } catch (error) {
       toast.error(t('toast.agentCreateFailed', { error: String(error) }));
       setSaving(false);
@@ -482,6 +477,17 @@ function AddAgentDialog({
               onChange={(event) => setName(event.target.value)}
               placeholder={t('createDialog.namePlaceholder')}
               className={inputClasses}
+            />
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="agent-description" className={labelClasses}>{t('createDialog.descriptionLabel')}</Label>
+            <Textarea
+              id="agent-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder={t('createDialog.descriptionPlaceholder')}
+              className="min-h-[86px] rounded-xl border-black/10 bg-[#eeece3] text-[13px] shadow-sm transition-all placeholder:text-foreground/40 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:border-white/10 dark:bg-muted"
+              maxLength={120}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -536,34 +542,39 @@ function AgentSettingsModal({
   const { t } = useTranslation('agents');
   const { updateAgent, defaultModelRef } = useAgentsStore();
   const [name, setName] = useState(agent.name);
-  const [savingName, setSavingName] = useState(false);
+  const [description, setDescription] = useState(agent.description || '');
+  const [savingProfile, setSavingProfile] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   useEffect(() => {
     setName(agent.name);
-  }, [agent.name]);
+    setDescription(agent.description || '');
+  }, [agent.description, agent.name]);
 
-  const hasNameChanges = name.trim() !== agent.name;
+  const hasProfileChanges = name.trim() !== agent.name || description.trim() !== (agent.description || '');
 
   const handleRequestClose = () => {
-    if (savingName || hasNameChanges) {
+    if (savingProfile || hasProfileChanges) {
       setShowCloseConfirm(true);
       return;
     }
     onClose();
   };
 
-  const handleSaveName = async () => {
-    if (!name.trim() || name.trim() === agent.name) return;
-    setSavingName(true);
+  const handleSaveProfile = async () => {
+    if (!name.trim() || !hasProfileChanges) return;
+    setSavingProfile(true);
     try {
-      await updateAgent(agent.id, name.trim());
+      await updateAgent(agent.id, {
+        name: name.trim(),
+        description: description.trim() || null,
+      });
       toast.success(t('toast.agentUpdated'));
     } catch (error) {
       toast.error(t('toast.agentUpdateFailed', { error: String(error) }));
     } finally {
-      setSavingName(false);
+      setSavingProfile(false);
     }
   };
 
@@ -611,24 +622,32 @@ function AgentSettingsModal({
                   id="agent-settings-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  readOnly={agent.isDefault}
                   className={inputClasses}
                 />
-                {!agent.isDefault && (
-                  <Button
-                    variant="outline"
-                    onClick={() => void handleSaveName()}
-                    disabled={savingName || !name.trim() || name.trim() === agent.name}
-                    className="h-[44px] text-[13px] font-medium rounded-xl px-4 border-black/10 dark:border-white/10 bg-[#eeece3] dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
-                  >
-                    {savingName ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      t('common:actions.save')
-                    )}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  onClick={() => void handleSaveProfile()}
+                  disabled={savingProfile || !name.trim() || !hasProfileChanges}
+                  className="h-[44px] text-[13px] font-medium rounded-xl px-4 border-black/10 dark:border-white/10 bg-[#eeece3] dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
+                >
+                  {savingProfile ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t('settingsDialog.saveProfile')
+                  )}
+                </Button>
               </div>
+            </div>
+            <div className="space-y-2.5">
+              <Label htmlFor="agent-settings-description" className={labelClasses}>{t('settingsDialog.descriptionLabel')}</Label>
+              <Textarea
+                id="agent-settings-description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder={t('settingsDialog.descriptionPlaceholder')}
+                className="min-h-[92px] rounded-xl border-black/10 bg-[#eeece3] text-[13px] shadow-sm transition-all placeholder:text-foreground/40 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:border-white/10 dark:bg-muted"
+                maxLength={120}
+              />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -717,6 +736,7 @@ function AgentSettingsModal({
         onConfirm={() => {
           setShowCloseConfirm(false);
           setName(agent.name);
+          setDescription(agent.description || '');
           onClose();
         }}
         onCancel={() => setShowCloseConfirm(false)}

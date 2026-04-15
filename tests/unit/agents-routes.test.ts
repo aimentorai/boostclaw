@@ -22,7 +22,7 @@ vi.mock('@electron/utils/agent-config', () => ({
   removeAgentWorkspaceDirectory: vi.fn(),
   resolveAccountIdForAgent: vi.fn(),
   setDefaultAgent: vi.fn(),
-  updateAgentName: vi.fn(),
+  updateAgentProfile: vi.fn(),
 }));
 
 vi.mock('@electron/utils/channel-config', () => ({
