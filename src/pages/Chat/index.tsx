@@ -22,6 +22,13 @@ import { cn } from '@/lib/utils';
 import { useStickToBottomInstant } from '@/hooks/use-stick-to-bottom-instant';
 import { useMinLoading } from '@/hooks/use-min-loading';
 
+function isSimpleGreetingMessage(message: RawMessage | undefined): boolean {
+  if (!message || message.role !== 'user') return false;
+  const text = extractText(message).trim().toLowerCase();
+  if (!text || text.length > 24) return false;
+  return /^(你好|您好|哈喽|嗨|在吗|hi|hello|hey|yo|哈喽呀|你好呀)[!.。！?？\s]*$/i.test(text);
+}
+
 export function Chat() {
   const { t } = useTranslation('chat');
   const gatewayStatus = useGatewayStore((s) => s.status);
@@ -281,6 +288,7 @@ export function Chat() {
 
     for (let idx = 0; idx < messages.length; idx += 1) {
       if (messages[idx].role !== 'user' || subagentCompletionInfos[idx]) continue;
+      if (isSimpleGreetingMessage(messages[idx])) continue;
       // Skip the last segment if it's open (handled by activeRunCard)
       if (isOpenRun && idx === lastUserIdx) continue;
 
@@ -337,6 +345,9 @@ export function Chat() {
       }
     }
     if (lastUserIdx === -1 || userMessageSegments[lastUserIdx] !== -1) {
+      return { activeRunCard: null as RunCard | null, activeSuppressedIndexes: new Set<number>() };
+    }
+    if (isSimpleGreetingMessage(messages[lastUserIdx])) {
       return { activeRunCard: null as RunCard | null, activeSuppressedIndexes: new Set<number>() };
     }
 
@@ -409,11 +420,29 @@ export function Chat() {
     return merged;
   }, [historicalSuppressedIndexes, activeSuppressedIndexes]);
 
+  const simpleGreetingSegments = useMemo(() => {
+    const simpleIndexes = new Set<number>();
+    let currentSimpleGreeting = false;
+
+    for (let idx = 0; idx < messages.length; idx += 1) {
+      const message = messages[idx];
+      if (message.role === 'user' && !subagentCompletionInfos[idx]) {
+        currentSimpleGreeting = isSimpleGreetingMessage(message);
+      }
+      if (currentSimpleGreeting) {
+        simpleIndexes.add(idx);
+      }
+    }
+
+    return simpleIndexes;
+  }, [messages, subagentCompletionInfos]);
+
   const messageRows = useMemo(
     () =>
       messages.map((msg, idx) => {
         const suppressToolCards = suppressedToolIndexes.has(idx);
         const cardsForMessage = userRunCards.filter((card) => card.triggerIndex === idx);
+        const shouldShowThinking = showThinking && !simpleGreetingSegments.has(idx);
 
         return (
           <div
@@ -424,7 +453,7 @@ export function Chat() {
           >
             <ChatMessage
               message={msg}
-              showThinking={showThinking}
+              showThinking={shouldShowThinking}
               suppressToolCards={suppressToolCards}
             />
             {cardsForMessage.map((card) => (
@@ -452,8 +481,18 @@ export function Chat() {
           </div>
         );
       }),
-    [messages, showThinking, suppressedToolIndexes, userRunCards]
+    [messages, showThinking, simpleGreetingSegments, suppressedToolIndexes, userRunCards]
   );
+
+  const activeUserMessage = useMemo(() => {
+    for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+      if (messages[idx].role === 'user' && !subagentCompletionInfos[idx]) {
+        return messages[idx];
+      }
+    }
+    return undefined;
+  }, [messages, subagentCompletionInfos]);
+  const suppressActiveThinking = isSimpleGreetingMessage(activeUserMessage);
 
   return (
     <div
@@ -511,7 +550,7 @@ export function Chat() {
                               timestamp: streamingTimestamp,
                             }) as RawMessage
                       }
-                      showThinking={showThinking}
+                      showThinking={showThinking && !suppressActiveThinking}
                       isStreaming
                       streamingTools={streamingTools}
                     />

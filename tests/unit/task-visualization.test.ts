@@ -82,6 +82,19 @@ describe('deriveTaskSteps', () => {
     ]);
   });
 
+  it('does not create a placeholder execution step before real run signals arrive', () => {
+    const steps = deriveTaskSteps({
+      messages: [],
+      streamingMessage: null,
+      streamingTools: [],
+      sending: true,
+      pendingFinal: false,
+      showThinking: true,
+    });
+
+    expect(steps).toEqual([]);
+  });
+
   it('builds a branch for spawned subagents', () => {
     const messages: RawMessage[] = [
       {

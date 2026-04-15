@@ -1047,6 +1047,24 @@ function hasNonToolAssistantContent(message: RawMessage | undefined): boolean {
   return false;
 }
 
+function normalizeMessageTextForDedupe(message: RawMessage | undefined): string {
+  if (!message) return '';
+  return getMessageText(message.content).replace(/\s+/g, ' ').trim();
+}
+
+function isDuplicateAssistantMessage(existing: RawMessage, candidate: RawMessage): boolean {
+  if (existing.id && candidate.id && existing.id === candidate.id) return true;
+  if (existing.role !== 'assistant' || candidate.role !== 'assistant') return false;
+  if (isToolOnlyMessage(existing) || isToolOnlyMessage(candidate)) return false;
+
+  const existingText = normalizeMessageTextForDedupe(existing);
+  const candidateText = normalizeMessageTextForDedupe(candidate);
+  if (!existingText || existingText !== candidateText) return false;
+
+  if (!existing.timestamp || !candidate.timestamp) return true;
+  return Math.abs(toMs(existing.timestamp) - toMs(candidate.timestamp)) < 30_000;
+}
+
 // ── Store ────────────────────────────────────────────────────────
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -1684,7 +1702,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     clearHistoryPoll();
     clearErrorRecoveryTimer();
 
-    const POLL_START_DELAY = 3_000;
+    const POLL_START_DELAY = 600;
     const POLL_INTERVAL = 4_000;
     const pollHistory = () => {
       const state = get();
@@ -1692,11 +1710,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         clearHistoryPoll();
         return;
       }
-      if (state.streamingMessage) {
-        _historyPollTimer = setTimeout(pollHistory, POLL_INTERVAL);
-        return;
-      }
-      if (Date.now() - _lastChatEventAt < HISTORY_POLL_SILENCE_WINDOW_MS) {
+      const hasActiveStream = Boolean(state.streamingMessage || state.streamingText);
+      const streamRecentlyUpdated = Date.now() - _lastChatEventAt < HISTORY_POLL_SILENCE_WINDOW_MS;
+      if (hasActiveStream && streamRecentlyUpdated) {
         _historyPollTimer = setTimeout(pollHistory, POLL_INTERVAL);
         return;
       }
@@ -1709,8 +1725,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const checkStuck = () => {
       const state = get();
       if (!state.sending) return;
-      if (state.streamingMessage || state.streamingText) return;
+      if (state.streamingMessage || state.streamingText) {
+        if (Date.now() - _lastChatEventAt < SAFETY_TIMEOUT_MS) {
+          setTimeout(checkStuck, 10_000);
+          return;
+        }
+        state.loadHistory(true);
+        setTimeout(checkStuck, 10_000);
+        return;
+      }
       if (state.pendingFinal) {
+        state.loadHistory(true);
         setTimeout(checkStuck, 10_000);
         return;
       }
@@ -1760,7 +1785,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const CHAT_SEND_TIMEOUT_MS = 120_000;
 
       if (hasMedia) {
-        result = await hostApiFetch<{
+        const sendPromise = hostApiFetch<{
           success: boolean;
           result?: { runId?: string };
           error?: string;
@@ -1778,8 +1803,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
             })),
           }),
         });
+        void get().loadHistory(true);
+        result = await sendPromise;
       } else {
-        const rpcResult = await useGatewayStore.getState().rpc<{ runId?: string }>(
+        const sendPromise = useGatewayStore.getState().rpc<{ runId?: string }>(
           'chat.send',
           {
             sessionKey: currentSessionKey,
@@ -1789,6 +1816,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           },
           CHAT_SEND_TIMEOUT_MS
         );
+        void get().loadHistory(true);
+        const rpcResult = await sendPromise;
         result = { success: true, result: rpcResult };
       }
 
@@ -2026,8 +2055,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   };
             const clearPendingImages = { pendingToolImages: [] as AttachedFileMeta[] };
 
-            // Check if message already exists (prevent duplicates)
-            const alreadyExists = s.messages.some((m) => m.id === msgId);
+            // Check if message already exists (prevent duplicates from stream final + history poll races)
+            const alreadyExists = s.messages.some((m) => isDuplicateAssistantMessage(m, msgWithImages));
             if (alreadyExists) {
               return toolOnly
                 ? {

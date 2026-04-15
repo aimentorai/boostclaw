@@ -228,15 +228,6 @@ export function deriveTaskSteps({
       detail: 'Waiting for the assistant to finish this run.',
       depth: 1,
     });
-  } else if (sending && steps.length === 0) {
-    pushStep({
-      id: 'system-preparing',
-      label: 'Preparing run',
-      status: 'running',
-      kind: 'system',
-      detail: 'Waiting for the first streaming update.',
-      depth: 1,
-    });
   }
 
   if (steps.length === 0) {

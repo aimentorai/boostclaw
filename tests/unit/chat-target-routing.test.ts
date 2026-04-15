@@ -187,4 +187,63 @@ describe('chat target routing', () => {
     expect(payload.message).toBe('Process the attached file(s).');
     expect(payload.media[0]?.filePath).toBe('/tmp/design.png');
   });
+
+  it('does not append a duplicate assistant final already loaded from history', async () => {
+    const { useChatStore } = await import('@/stores/chat');
+
+    useChatStore.setState({
+      currentSessionKey: 'agent:main:main',
+      currentAgentId: 'main',
+      sessions: [{ key: 'agent:main:main' }],
+      messages: [
+        {
+          role: 'user',
+          content: '你好',
+          timestamp: 100,
+          id: 'user-1',
+        },
+        {
+          role: 'assistant',
+          content: '你好！有什么可以帮你？',
+          timestamp: 101,
+          id: 'history-assistant-1',
+        },
+      ],
+      sessionLabels: {},
+      sessionLastActivity: {},
+      sending: true,
+      activeRunId: 'run-1',
+      streamingText: '',
+      streamingMessage: null,
+      streamingTools: [],
+      pendingFinal: true,
+      lastUserMessageAt: 100_000,
+      pendingToolImages: [],
+      error: null,
+      loading: false,
+      thinkingLevel: null,
+      showThinking: true,
+    });
+
+    useChatStore.getState().handleChatEvent({
+      state: 'final',
+      runId: 'run-1',
+      sessionKey: 'agent:main:main',
+      message: {
+        role: 'assistant',
+        content: '你好！有什么可以帮你？',
+        timestamp: 102,
+        id: 'stream-assistant-1',
+      },
+    });
+
+    const assistantMessages = useChatStore
+      .getState()
+      .messages
+      .filter((message) => message.role === 'assistant');
+
+    expect(assistantMessages).toHaveLength(1);
+    expect(assistantMessages[0].id).toBe('history-assistant-1');
+    expect(useChatStore.getState().sending).toBe(false);
+  });
 });
