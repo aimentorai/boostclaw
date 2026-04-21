@@ -8,7 +8,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle,
   Monitor,
-  Bot,
+  Sparkles,
   Wrench,
   Clock,
   Settings as SettingsIcon,
@@ -58,23 +58,31 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
         cn(
           'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all duration-200',
           'text-white hover:bg-white/14 hover:text-white',
-          isActive
-            ? 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
-            : '',
+          isActive ? 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]' : '',
           collapsed && 'px-0'
         )
       }
     >
       {({ isActive }) => (
         <>
-          <div className={cn("flex shrink-0 items-center justify-center transition-colors", isActive ? "text-[#3964F2]" : "text-white group-hover:text-white")}>
+          <div
+            className={cn(
+              'flex shrink-0 items-center justify-center transition-colors',
+              isActive ? 'text-[#3964F2]' : 'text-white group-hover:text-white'
+            )}
+          >
             {icon}
           </div>
           {!collapsed && !hideLabel && label && (
             <>
-              <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center leading-none">{label}</span>
+              <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center leading-none">
+                {label}
+              </span>
               {badge && (
-                <Badge variant="secondary" className="shrink-0 rounded-full border border-[#dbe3ff] bg-[#eef2ff] text-[9px] text-[#3964F2]">
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 rounded-full border border-[#dbe3ff] bg-[#eef2ff] text-[9px] text-[#3964F2]"
+                >
                   {badge}
                 </Badge>
               )}
@@ -151,7 +159,9 @@ export function Sidebar() {
     sessionLabels[key] ?? label ?? displayName ?? key;
 
   const { t } = useTranslation(['common', 'chat']);
-  const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(
+    null
+  );
   const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
 
   useEffect(() => {
@@ -167,37 +177,67 @@ export function Sidebar() {
 
   const agentNameById = useMemo(
     () => Object.fromEntries((agents ?? []).map((agent) => [agent.id, agent.name])),
-    [agents],
+    [agents]
   );
-  const sessionBuckets: Array<{ key: SessionBucketKey; label: string; sessions: typeof sessions }> = [
-    { key: 'today', label: t('chat:historyBuckets.today'), sessions: [] },
-    { key: 'yesterday', label: t('chat:historyBuckets.yesterday'), sessions: [] },
-    { key: 'withinWeek', label: t('chat:historyBuckets.withinWeek'), sessions: [] },
-    { key: 'withinTwoWeeks', label: t('chat:historyBuckets.withinTwoWeeks'), sessions: [] },
-    { key: 'withinMonth', label: t('chat:historyBuckets.withinMonth'), sessions: [] },
-    { key: 'older', label: t('chat:historyBuckets.older'), sessions: [] },
-  ];
-  const sessionBucketMap = Object.fromEntries(sessionBuckets.map((bucket) => [bucket.key, bucket])) as Record<
-    SessionBucketKey,
-    (typeof sessionBuckets)[number]
-  >;
+  const sessionBuckets: Array<{ key: SessionBucketKey; label: string; sessions: typeof sessions }> =
+    [
+      { key: 'today', label: t('chat:historyBuckets.today'), sessions: [] },
+      { key: 'yesterday', label: t('chat:historyBuckets.yesterday'), sessions: [] },
+      { key: 'withinWeek', label: t('chat:historyBuckets.withinWeek'), sessions: [] },
+      { key: 'withinTwoWeeks', label: t('chat:historyBuckets.withinTwoWeeks'), sessions: [] },
+      { key: 'withinMonth', label: t('chat:historyBuckets.withinMonth'), sessions: [] },
+      { key: 'older', label: t('chat:historyBuckets.older'), sessions: [] },
+    ];
+  const sessionBucketMap = Object.fromEntries(
+    sessionBuckets.map((bucket) => [bucket.key, bucket])
+  ) as Record<SessionBucketKey, (typeof sessionBuckets)[number]>;
 
-  for (const session of [...sessions].sort((a, b) =>
-    (sessionLastActivity[b.key] ?? 0) - (sessionLastActivity[a.key] ?? 0)
+  for (const session of [...sessions].sort(
+    (a, b) => (sessionLastActivity[b.key] ?? 0) - (sessionLastActivity[a.key] ?? 0)
   )) {
     const bucketKey = getSessionBucket(sessionLastActivity[session.key] ?? 0, nowMs);
     sessionBucketMap[bucketKey].sessions.push(session);
   }
 
   const topNavItems = [
-    { to: '/', icon: <MessageCircle className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('common:sidebar.chat'), testId: 'sidebar-nav-chat' },
-    { to: '/agents', icon: <Bot className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.agents'), testId: 'sidebar-nav-agents' },
-    { to: '/skills', icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
-    { to: '/cron', icon: <Clock className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
+    {
+      to: '/',
+      icon: <MessageCircle className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('common:sidebar.chat'),
+      testId: 'sidebar-nav-chat',
+    },
+    {
+      to: '/experts',
+      icon: <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('common:sidebar.experts'),
+      testId: 'sidebar-nav-experts',
+    },
+    {
+      to: '/skills',
+      icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.skills'),
+      testId: 'sidebar-nav-skills',
+    },
+    {
+      to: '/cron',
+      icon: <Clock className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.cronTasks'),
+      testId: 'sidebar-nav-cron',
+    },
   ];
   const bottomNavItems = [
-    { to: '/models', icon: <Box className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.models'), testId: 'sidebar-nav-models' },
-    { to: '/channels', icon: <Monitor className="h-[18px] w-[18px]" strokeWidth={1.8} />, label: t('sidebar.channels'), testId: 'sidebar-nav-channels' },
+    {
+      to: '/models',
+      icon: <Box className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.models'),
+      testId: 'sidebar-nav-models',
+    },
+    {
+      to: '/channels',
+      icon: <Monitor className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.channels'),
+      testId: 'sidebar-nav-channels',
+    },
   ];
 
   return (
@@ -210,7 +250,12 @@ export function Sidebar() {
     >
       <div className="flex min-h-0 flex-1">
         {/* Left icon rail */}
-        <div className={cn("flex min-h-0 shrink-0 flex-col border-r border-white/20 bg-[#3964F2]", sidebarCollapsed ? "w-[72px]" : "w-[76px]")}>
+        <div
+          className={cn(
+            'flex min-h-0 shrink-0 flex-col border-r border-white/20 bg-[#3964F2]',
+            sidebarCollapsed ? 'w-[72px]' : 'w-[76px]'
+          )}
+        >
           <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-white/20">
             <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white shadow-sm">
               <img src={logoSvg} alt="BoostClaw" className="h-4.5 w-auto shrink-0" />
@@ -222,22 +267,13 @@ export function Sidebar() {
 
           <nav className="flex flex-1 flex-col gap-3 px-2 py-2">
             {topNavItems.map((item) => (
-              <NavItem
-                key={item.to}
-                {...item}
-                collapsed={false}
-              />
+              <NavItem key={item.to} {...item} collapsed={false} />
             ))}
           </nav>
 
           <div className="mt-auto flex flex-col gap-4 border-t border-white/20 px-2 py-4">
             {bottomNavItems.map((item) => (
-              <NavItem
-                key={item.to}
-                {...item}
-                collapsed={false}
-                hideLabel
-              />
+              <NavItem key={item.to} {...item} collapsed={false} hideLabel />
             ))}
             <NavLink
               to="/settings"
@@ -246,7 +282,7 @@ export function Sidebar() {
                 cn(
                   'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all',
                   'text-white hover:bg-white/14 hover:text-white',
-                  isActive && 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]',
+                  isActive && 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
                 )
               }
             >
@@ -285,7 +321,7 @@ export function Sidebar() {
 
             {sessions.length > 0 && (
               <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1">
-                {sessionBuckets.map((bucket) => (
+                {sessionBuckets.map((bucket) =>
                   bucket.sessions.length > 0 ? (
                     <div key={bucket.key} className="pt-1">
                       <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-[#8a92b3]">
@@ -298,25 +334,32 @@ export function Sidebar() {
                         return (
                           <div key={s.key} className="group relative flex items-center">
                             <button
-                              onClick={() => { switchSession(s.key); navigate('/'); }}
+                              onClick={() => {
+                                switchSession(s.key);
+                                navigate('/');
+                              }}
                               className={cn(
                                 'w-full min-w-0 rounded-sm px-2 py-1.5 pr-6 text-left text-[12px] transition-all',
                                 'hover:bg-[#f1f4ff]',
                                 isActiveSession
                                   ? 'bg-[#3964F2] text-white hover:bg-[#3964F2]'
-                                  : 'text-[#4d5579]',
+                                  : 'text-[#4d5579]'
                               )}
                             >
                               <div className="flex min-w-0 items-center gap-1">
-                                <span className={cn(
-                                  'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[9px] font-medium',
-                                  isActiveSession
-                                    ? 'border-white/35 bg-white/15 text-white'
-                                    : 'border-[#d8e0fb] bg-white text-[#6370a0]',
-                                )}>
+                                <span
+                                  className={cn(
+                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[9px] font-medium',
+                                    isActiveSession
+                                      ? 'border-white/35 bg-white/15 text-white'
+                                      : 'border-[#d8e0fb] bg-white text-[#6370a0]'
+                                  )}
+                                >
                                   {agentName}
                                 </span>
-                                <span className="min-w-0 flex-1 truncate">{getSessionLabel(s.key, s.displayName, s.label)}</span>
+                                <span className="min-w-0 flex-1 truncate">
+                                  {getSessionLabel(s.key, s.displayName, s.label)}
+                                </span>
                               </div>
                             </button>
                             <button
@@ -331,7 +374,7 @@ export function Sidebar() {
                               className={cn(
                                 'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
                                 'opacity-0 group-hover:opacity-100',
-                                'text-[#8e96b7] hover:text-[#3964F2] hover:bg-[#eaf0ff]',
+                                'text-[#8e96b7] hover:text-[#3964F2] hover:bg-[#eaf0ff]'
                               )}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -341,7 +384,7 @@ export function Sidebar() {
                       })}
                     </div>
                   ) : null
-                ))}
+                )}
               </div>
             )}
             <div className="mt-auto border-t border-[#e8ecf9] px-2 py-2">

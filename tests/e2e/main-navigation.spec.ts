@@ -16,8 +16,8 @@ test.describe('BoostClaw main navigation without setup flow', () => {
       await expect(page.getByTestId('models-page')).toBeVisible();
       await expect(page.getByTestId('models-page-title')).toBeVisible();
 
-      await page.getByTestId('sidebar-nav-agents').click();
-      await expect(page.getByTestId('agents-page')).toBeVisible();
+      await page.getByTestId('sidebar-nav-experts').click();
+      await expect(page.getByTestId('experts-page')).toBeVisible();
 
       await page.getByTestId('sidebar-nav-channels').click();
       await expect(page.getByTestId('channels-page')).toBeVisible();

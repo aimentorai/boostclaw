@@ -83,5 +83,19 @@
     },
     "taskProgress": {
         "processing": "正在处理"
+    },
+    "experts": {
+        "navLabel": "专家",
+        "pageTitle": "AI 专家",
+        "pageSubtitle": "选择一个专家来帮你完成任务",
+        "settingUp": "准备中...",
+        "limitedMode": "受限模式",
+        "unavailable": "不可用",
+        "advancedAgents": "高级：管理 Agent",
+        "skillStatus": "技能",
+        "skillReady": "就绪",
+        "skillPartial": "部分就绪",
+        "suggestedPrompts": "建议",
+        "retrySetup": "重试"
     }
 }

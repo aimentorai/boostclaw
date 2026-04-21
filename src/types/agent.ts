@@ -11,6 +11,8 @@ export interface AgentSummary {
   agentDir: string;
   mainSessionKey: string;
   channelTypes: string[];
+  /** If this agent was auto-created for an expert, this is the expert ID. */
+  expertId?: string;
 }
 
 export interface AgentsSnapshot {

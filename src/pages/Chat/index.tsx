@@ -9,12 +9,14 @@ import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { useChatStore, type RawMessage } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
 import { useAgentsStore } from '@/stores/agents';
+import { useExpertsStore } from '@/stores/experts';
 import { hostApiFetch } from '@/lib/host-api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ExecutionGraphCard } from './ExecutionGraphCard';
 import { ChatToolbar } from './ChatToolbar';
+import { ExpertWelcome } from './ExpertWelcome';
 import { extractImages, extractText, extractThinking, extractToolUse } from './message-utils';
 import { deriveTaskSteps, parseSubagentCompletionInfo } from './task-visualization';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +52,8 @@ export function Chat() {
   const clearError = useChatStore((s) => s.clearError);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const agents = useAgentsStore((s) => s.agents);
+  const getExpertByAgentId = useExpertsStore((s) => s.getExpertByAgentId);
+  const loadExperts = useExpertsStore((s) => s.loadExperts);
 
   const cleanupEmptySession = useChatStore((s) => s.cleanupEmptySession);
   const [childTranscripts, setChildTranscripts] = useState<Record<string, RawMessage[]>>({});
@@ -74,6 +78,12 @@ export function Chat() {
   useEffect(() => {
     void fetchAgents();
   }, [fetchAgents]);
+
+  useEffect(() => {
+    void loadExperts();
+  }, [loadExperts]);
+
+  const activeExpert = getExpertByAgentId(currentAgentId);
 
   const subagentCompletionInfos = useMemo(
     () => messages.map((message) => parseSubagentCompletionInfo(message)),
@@ -504,7 +514,11 @@ export function Chat() {
       {isEmpty ? (
         /* ── 新对话欢迎状态：居中布局，标题 + 输入框上下垂直居中 ── */
         <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-4">
-          <WelcomeScreen />
+          {activeExpert ? (
+            <ExpertWelcome onPromptClick={(prompt) => sendMessage(prompt)} />
+          ) : (
+            <WelcomeScreen />
+          )}
           {/* 将输入框嵌入欢迎区域，与标题保持统一的视觉重心 */}
           <div className="w-full max-w-3xl">
             <ChatInput

@@ -12,6 +12,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Models } from './pages/Models';
 import { Chat } from './pages/Chat';
 import { Agents } from './pages/Agents';
+import { Experts } from './pages/Experts';
 import { Channels } from './pages/Channels';
 import { Skills } from './pages/Skills';
 import { Cron } from './pages/Cron';
@@ -25,7 +26,6 @@ import { applyGatewayTransportPreference } from './lib/api-client';
 import { rendererTimer } from './lib/startup-timer';
 import { useAuthStore } from './stores/auth';
 import { subscribeHostEvent } from './lib/host-events';
-
 
 /**
  * Error Boundary to catch and display React rendering errors
@@ -50,28 +50,35 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          padding: '40px',
-          color: '#f87171',
-          background: '#0f172a',
-          minHeight: '100vh',
-          fontFamily: 'monospace'
-        }}>
+        <div
+          style={{
+            padding: '40px',
+            color: '#f87171',
+            background: '#0f172a',
+            minHeight: '100vh',
+            fontFamily: 'monospace',
+          }}
+        >
           <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>Something went wrong</h1>
-          <pre style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            background: '#1e293b',
-            padding: '16px',
-            borderRadius: '8px',
-            fontSize: '14px'
-          }}>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              background: '#1e293b',
+              padding: '16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+            }}
+          >
             {this.state.error?.message}
             {'\n\n'}
             {this.state.error?.stack}
           </pre>
           <button
-            onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
             style={{
               marginTop: '16px',
               padding: '8px 16px',
@@ -79,7 +86,7 @@ class ErrorBoundary extends Component<
               color: 'white',
               border: 'none',
               borderRadius: '6px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Reload
@@ -255,6 +262,7 @@ function App() {
             <Route path="/" element={<Chat />} />
             <Route path="/models" element={<Models />} />
             <Route path="/agents" element={<Agents />} />
+            <Route path="/experts" element={<Experts />} />
             <Route path="/channels" element={<Channels />} />
             <Route path="/skills" element={<Skills />} />
             <Route path="/cron" element={<Cron />} />
@@ -263,18 +271,15 @@ function App() {
         </Routes>
 
         {/* Global toast notifications */}
-        <Toaster
-          position="bottom-right"
-          richColors
-          closeButton
-          style={{ zIndex: 99999 }}
-        />
+        <Toaster position="bottom-right" richColors closeButton style={{ zIndex: 99999 }} />
 
         {authEnabled && pendingLogin && !authenticated && (
           <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-white/88 backdrop-blur-sm">
             <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl text-center">
               <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-              <p className="text-base font-semibold text-slate-900">{i18n.t('common:auth.loggingIn')}</p>
+              <p className="text-base font-semibold text-slate-900">
+                {i18n.t('common:auth.loggingIn')}
+              </p>
               <p className="mt-2 text-sm text-slate-600">{i18n.t('common:auth.loggingInDesc')}</p>
             </div>
           </div>

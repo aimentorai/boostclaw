@@ -83,5 +83,19 @@
     },
     "taskProgress": {
         "processing": "Processing"
+    },
+    "experts": {
+        "navLabel": "Experts",
+        "pageTitle": "AI Experts",
+        "pageSubtitle": "Choose an expert to help with your task",
+        "settingUp": "Setting up...",
+        "limitedMode": "Limited Mode",
+        "unavailable": "Unavailable",
+        "advancedAgents": "Advanced: manage agents",
+        "skillStatus": "Skills",
+        "skillReady": "Ready",
+        "skillPartial": "Partial",
+        "suggestedPrompts": "Suggested",
+        "retrySetup": "Retry"
     }
 }
