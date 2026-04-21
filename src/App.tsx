@@ -165,6 +165,7 @@ function App() {
       }
     };
 
+    if (!window.electron?.ipcRenderer) return;
     const unsubscribe = window.electron.ipcRenderer.on('navigate', handleNavigate);
 
     return () => {
