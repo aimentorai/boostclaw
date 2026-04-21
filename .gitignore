@@ -68,3 +68,4 @@ docs/pr-session-notes-*.md
 .cursor/
 .pnpm-store/
 package-lock.json
+.gstack/

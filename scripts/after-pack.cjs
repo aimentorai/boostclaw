@@ -414,24 +414,52 @@ function patchPluginIds(pluginDir, expectedId) {
 
 function patchPluginRuntimeInterop(pluginDir, expectedId) {
   const { readFileSync, writeFileSync } = require('fs');
-  if (expectedId !== 'wecom') return;
-
-  const brokenEsmPath = join(
-    pluginDir,
-    'node_modules',
-    '@wecom',
-    'aibot-node-sdk',
-    'dist',
-    'index.esm.js'
-  );
-  if (!existsSync(brokenEsmPath)) return;
 
   const brokenImport = "import { EventEmitter } from 'eventemitter3';";
   const fixedImport = "import EventEmitter from 'eventemitter3';";
-  const source = readFileSync(brokenEsmPath, 'utf8');
-  if (source.includes(brokenImport)) {
-    writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
-    console.log('[after-pack] 🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import');
+
+  // Patch @wecom/aibot-node-sdk (wecom plugin only)
+  if (expectedId === 'wecom') {
+    const brokenEsmPath = join(
+      pluginDir,
+      'node_modules',
+      '@wecom',
+      'aibot-node-sdk',
+      'dist',
+      'index.esm.js'
+    );
+    if (existsSync(brokenEsmPath)) {
+      const source = readFileSync(brokenEsmPath, 'utf8');
+      if (source.includes(brokenImport)) {
+        writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+        console.log('[after-pack] 🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import');
+      }
+    }
+  }
+
+  // Patch p-queue (used by baileys/whatsapp) — scan plugin deps recursively
+  const pQueueCandidates = [];
+  const scanDir = (dir, depth) => {
+    if (depth > 4) return;
+    try {
+      for (const entry of require('fs').readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'p-queue') {
+          const candidate = join(dir, entry.name, 'dist', 'index.js');
+          if (existsSync(candidate)) pQueueCandidates.push(candidate);
+        }
+        if (entry.name === 'node_modules') scanDir(join(dir, entry.name), depth + 1);
+      }
+    } catch {}
+  };
+  scanDir(pluginDir, 0);
+
+  for (const pQueuePath of pQueueCandidates) {
+    const source = readFileSync(pQueuePath, 'utf8');
+    if (source.includes(brokenImport)) {
+      writeFileSync(pQueuePath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+      console.log('[after-pack] 🩹 Patched p-queue ESM EventEmitter import');
+    }
   }
 }
 
@@ -620,7 +648,23 @@ exports.default = async function afterPack(context) {
     }
   }
 
-  // 1.2 Copy built-in extension node_modules that electron-builder skipped.
+  // 1.2 Copy local resource plugins (e.g. SparkBoost) from resources/ directory.
+  //     These are not npm packages, they live in the repo at resources/openclaw-plugins/.
+  const LOCAL_PLUGINS = ['sparkboost'];
+  const localPluginsRoot = join(appDir, 'resources', 'openclaw-plugins');
+
+  for (const pluginId of LOCAL_PLUGINS) {
+    const src = join(localPluginsRoot, pluginId);
+    const dest = join(pluginsDestRoot, pluginId);
+    if (existsSync(src)) {
+      console.log(`[after-pack] Copying local plugin ${pluginId} -> ${dest}`);
+      cpSyncSafe(src, dest);
+    } else {
+      console.warn(`[after-pack] Local plugin ${pluginId} not found at ${src}, skipping`);
+    }
+  }
+
+  // 1.3 Copy built-in extension node_modules that electron-builder skipped.
   //     OpenClaw 3.31+ ships built-in extensions (discord, qqbot, etc.) under
   //     dist/extensions/<ext>/node_modules/. These are skipped by extraResources
   //     because .gitignore contains "node_modules/".

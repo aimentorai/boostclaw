@@ -10,7 +10,18 @@
  */
 import { app } from 'electron';
 import path from 'node:path';
-import { existsSync, cpSync, copyFileSync, statSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync, realpathSync } from 'node:fs';
+import {
+  existsSync,
+  cpSync,
+  copyFileSync,
+  statSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  realpathSync,
+} from 'node:fs';
 import { readdir, stat, copyFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -273,30 +284,46 @@ function patchPluginEntryIds(targetDir: string): void {
 
 /**
  * Patch known ESM/CJS interop issues inside installed plugin dependencies.
- * Current fix: @wecom/aibot-node-sdk ESM entry incorrectly does
- * `import { EventEmitter } from 'eventemitter3'`, but eventemitter3 exports
- * default.
+ * eventemitter3 re-exports via index.mjs, but Electron's module resolver
+ * fails on the named import chain. Replace named imports with default imports.
  */
 function patchPluginRuntimeInterop(targetDir: string): void {
-  const brokenEsmPath = join(
+  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
+  const fixedImport = "import EventEmitter from 'eventemitter3';";
+
+  // Patch @wecom/aibot-node-sdk
+  const aibotPath = join(
     targetDir,
     'node_modules',
     '@wecom',
     'aibot-node-sdk',
     'dist',
-    'index.esm.js',
+    'index.esm.js'
   );
-  if (!existsSync(fsPath(brokenEsmPath))) return;
+  if (existsSync(fsPath(aibotPath))) {
+    try {
+      const source = readFileSync(fsPath(aibotPath), 'utf-8');
+      if (source.includes(brokenImport)) {
+        writeFileSync(fsPath(aibotPath), source.replaceAll(brokenImport, fixedImport), 'utf-8');
+        logger.info('[plugin] Patched @wecom/aibot-node-sdk ESM EventEmitter import');
+      }
+    } catch {
+      // best-effort patch
+    }
+  }
 
-  const brokenImport = "import { EventEmitter } from 'eventemitter3';";
-  const fixedImport = "import EventEmitter from 'eventemitter3';";
-  try {
-    const source = readFileSync(fsPath(brokenEsmPath), 'utf-8');
-    if (!source.includes(brokenImport)) return;
-    writeFileSync(fsPath(brokenEsmPath), source.replaceAll(brokenImport, fixedImport), 'utf-8');
-    logger.info('[plugin] Patched @wecom/aibot-node-sdk ESM EventEmitter import');
-  } catch {
-    // best-effort patch
+  // Patch p-queue (used by baileys/whatsapp)
+  const pQueuePath = join(targetDir, 'node_modules', 'p-queue', 'dist', 'index.js');
+  if (existsSync(fsPath(pQueuePath))) {
+    try {
+      const source = readFileSync(fsPath(pQueuePath), 'utf-8');
+      if (source.includes(brokenImport)) {
+        writeFileSync(fsPath(pQueuePath), source.replaceAll(brokenImport, fixedImport), 'utf-8');
+        logger.info('[plugin] Patched p-queue ESM EventEmitter import');
+      }
+    } catch {
+      // best-effort patch
+    }
   }
 }
 
@@ -348,7 +375,9 @@ function listPackagesInDir(nodeModulesDir: string): Array<{ name: string; fullPa
         for (const sub of readdirSync(fsPath(entryPath))) {
           result.push({ name: `${entry.name}/${sub}`, fullPath: join(entryPath, sub) });
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } else {
       result.push({ name: entry.name, fullPath: entryPath });
     }
@@ -361,7 +390,11 @@ function listPackagesInDir(nodeModulesDir: string): Array<{ name: string; fullPa
  * transitive runtime dependencies (replicates bundle-openclaw-plugins.mjs
  * logic).
  */
-export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string, npmName: string): void {
+export function copyPluginFromNodeModules(
+  npmPkgPath: string,
+  targetDir: string,
+  npmName: string
+): void {
   let realPath: string;
   try {
     realPath = realpathSync(fsPath(npmPkgPath));
@@ -377,7 +410,9 @@ export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string,
   // 2. Collect transitive deps from pnpm virtual store
   const rootVirtualNM = findParentNodeModules(realPath);
   if (!rootVirtualNM) {
-    logger.warn(`[plugin] Cannot find virtual store node_modules for ${npmName}, plugin may lack deps`);
+    logger.warn(
+      `[plugin] Cannot find virtual store node_modules for ${npmName}, plugin may lack deps`
+    );
     return;
   }
 
@@ -388,7 +423,9 @@ export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string,
     for (const peer of Object.keys(pluginPkg.peerDependencies || {})) {
       SKIP_PACKAGES.add(peer);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   const collected = new Map<string, string>(); // realPath → packageName
   const queue: Array<{ nodeModulesDir: string; skipPkg: string }> = [
@@ -403,7 +440,9 @@ export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string,
       let depRealPath: string;
       try {
         depRealPath = realpathSync(fsPath(fullPath));
-      } catch { continue; }
+      } catch {
+        continue;
+      }
       if (collected.has(depRealPath)) continue;
       collected.set(depRealPath, name);
       const depVirtualNM = findParentNodeModules(depRealPath);
@@ -424,7 +463,9 @@ export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string,
     try {
       mkdirSync(fsPath(path.dirname(dest)), { recursive: true });
       cpSyncSafe(depRealPath, dest);
-    } catch { /* skip individual dep failures */ }
+    } catch {
+      /* skip individual dep failures */
+    }
   }
 
   logger.info(`[plugin] Copied ${copiedNames.size} deps for ${npmName}`);
@@ -435,13 +476,15 @@ export function copyPluginFromNodeModules(npmPkgPath: string, targetDir: string,
 export function ensurePluginInstalled(
   pluginDirName: string,
   candidateSources: string[],
-  pluginLabel: string,
+  pluginLabel: string
 ): { installed: boolean; warning?: string } {
   const targetDir = join(homedir(), '.openclaw', 'extensions', pluginDirName);
   const targetManifest = join(targetDir, 'openclaw.plugin.json');
   const targetPkgJson = join(targetDir, 'package.json');
 
-  const sourceDir = candidateSources.find((dir) => existsSync(fsPath(join(dir, 'openclaw.plugin.json'))));
+  const sourceDir = candidateSources.find((dir) =>
+    existsSync(fsPath(join(dir, 'openclaw.plugin.json')))
+  );
 
   // If already installed, check whether an upgrade is available
   if (existsSync(fsPath(targetManifest))) {
@@ -452,9 +495,7 @@ export function ensurePluginInstalled(
       return { installed: true }; // same version or unable to compare
     }
     // Version differs — fall through to overwrite install
-    logger.info(
-      `[plugin] Upgrading ${pluginLabel} plugin: ${installedVersion} → ${sourceVersion}`,
-    );
+    logger.info(`[plugin] Upgrading ${pluginLabel} plugin: ${installedVersion} → ${sourceVersion}`);
   }
 
   // Fresh install or upgrade — try bundled/build sources first
@@ -469,7 +510,10 @@ export function ensurePluginInstalled(
         rmSync(fsPath(targetDir), { recursive: true, force: true });
         cpSyncSafe(sourceDir, targetDir);
         if (!existsSync(fsPath(join(targetDir, 'openclaw.plugin.json')))) {
-          return { installed: false, warning: `Failed to install ${pluginLabel} plugin mirror (manifest missing).` };
+          return {
+            installed: false,
+            warning: `Failed to install ${pluginLabel} plugin mirror (manifest missing).`,
+          };
         }
         fixupPluginManifest(targetDir);
         logger.info(`Installed ${pluginLabel} plugin from bundled mirror: ${sourceDir}`);
@@ -487,17 +531,14 @@ export function ensurePluginInstalled(
       }
     }
 
-    logger.warn(
-      `[plugin] Bundled mirror install failed for ${pluginLabel}`,
-      {
-        pluginDirName,
-        pluginLabel,
-        sourceDir,
-        targetDir,
-        platform: process.platform,
-        attempts,
-      },
-    );
+    logger.warn(`[plugin] Bundled mirror install failed for ${pluginLabel}`, {
+      pluginDirName,
+      pluginLabel,
+      sourceDir,
+      targetDir,
+      platform: process.platform,
+      attempts,
+    });
 
     return { installed: false, warning: `Failed to install bundled ${pluginLabel} plugin mirror` };
   }
@@ -508,12 +549,14 @@ export function ensurePluginInstalled(
     if (npmName) {
       const npmPkgPath = join(process.cwd(), 'node_modules', ...npmName.split('/'));
       if (existsSync(fsPath(join(npmPkgPath, 'openclaw.plugin.json')))) {
-        const installedVersion = existsSync(fsPath(targetPkgJson)) ? readPluginVersion(targetPkgJson) : null;
+        const installedVersion = existsSync(fsPath(targetPkgJson))
+          ? readPluginVersion(targetPkgJson)
+          : null;
         const sourceVersion = readPluginVersion(join(npmPkgPath, 'package.json'));
         if (sourceVersion && (!installedVersion || sourceVersion !== installedVersion)) {
           logger.info(
             `[plugin] ${installedVersion ? 'Upgrading' : 'Installing'} ${pluginLabel} plugin` +
-            `${installedVersion ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (dev/node_modules)`,
+              `${installedVersion ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (dev/node_modules)`
           );
           try {
             mkdirSync(fsPath(join(homedir(), '.openclaw', 'extensions')), { recursive: true });
@@ -523,18 +566,15 @@ export function ensurePluginInstalled(
               return { installed: true };
             }
           } catch (err) {
-            logger.warn(
-              `[plugin] Failed to install ${pluginLabel} plugin from node_modules`,
-              {
-                pluginDirName,
-                pluginLabel,
-                npmName,
-                npmPkgPath,
-                targetDir,
-                platform: process.platform,
-                ...toErrorDiagnostic(err),
-              },
-            );
+            logger.warn(`[plugin] Failed to install ${pluginLabel} plugin from node_modules`, {
+              pluginDirName,
+              pluginLabel,
+              npmName,
+              npmPkgPath,
+              targetDir,
+              platform: process.platform,
+              ...toErrorDiagnostic(err),
+            });
           }
         } else if (existsSync(fsPath(targetManifest))) {
           return { installed: true }; // same version, already installed
@@ -554,15 +594,21 @@ export function ensurePluginInstalled(
 export function buildCandidateSources(pluginDirName: string): string[] {
   return app.isPackaged
     ? [
-      join(process.resourcesPath, 'openclaw-plugins', pluginDirName),
-      join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', pluginDirName),
-      join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', pluginDirName),
-    ]
+        join(process.resourcesPath, 'openclaw-plugins', pluginDirName),
+        join(
+          process.resourcesPath,
+          'app.asar.unpacked',
+          'build',
+          'openclaw-plugins',
+          pluginDirName
+        ),
+        join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', pluginDirName),
+      ]
     : [
-      join(app.getAppPath(), 'build', 'openclaw-plugins', pluginDirName),
-      join(process.cwd(), 'build', 'openclaw-plugins', pluginDirName),
-      join(__dirname, '../../build/openclaw-plugins', pluginDirName),
-    ];
+        join(app.getAppPath(), 'build', 'openclaw-plugins', pluginDirName),
+        join(process.cwd(), 'build', 'openclaw-plugins', pluginDirName),
+        join(__dirname, '../../build/openclaw-plugins', pluginDirName),
+      ];
 }
 
 // ── Per-channel plugin helpers ───────────────────────────────────────────────
@@ -579,14 +625,29 @@ export function ensureFeishuPluginInstalled(): { installed: boolean; warning?: s
   return ensurePluginInstalled(
     'feishu-openclaw-plugin',
     buildCandidateSources('feishu-openclaw-plugin'),
-    'Feishu',
+    'Feishu'
   );
 }
 
-
-
 export function ensureWeChatPluginInstalled(): { installed: boolean; warning?: string } {
-  return ensurePluginInstalled('openclaw-weixin', buildCandidateSources('openclaw-weixin'), 'WeChat');
+  return ensurePluginInstalled(
+    'openclaw-weixin',
+    buildCandidateSources('openclaw-weixin'),
+    'WeChat'
+  );
+}
+
+// ── Local resource plugins (not from npm) ────────────────────────────────────
+
+export function ensureSparkBoostPluginInstalled(): { installed: boolean; warning?: string } {
+  const sources = app.isPackaged
+    ? [join(process.resourcesPath, 'openclaw-plugins', 'sparkboost')]
+    : [
+        join(app.getAppPath(), 'resources', 'openclaw-plugins', 'sparkboost'),
+        join(process.cwd(), 'resources', 'openclaw-plugins', 'sparkboost'),
+        join(__dirname, '../../resources/openclaw-plugins', 'sparkboost'),
+      ];
+  return ensurePluginInstalled('sparkboost', sources, 'SparkBoost');
 }
 
 // ── Bulk startup installer ───────────────────────────────────────────────────
@@ -600,6 +661,7 @@ const ALL_BUNDLED_PLUGINS = [
 
   { fn: ensureFeishuPluginInstalled, label: 'Feishu' },
   { fn: ensureWeChatPluginInstalled, label: 'WeChat' },
+  { fn: ensureSparkBoostPluginInstalled, label: 'SparkBoost' },
 ] as const;
 
 /**

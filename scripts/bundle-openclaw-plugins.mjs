@@ -272,30 +272,49 @@ function patchDepExports(pluginDir) {
 }
 
 /**
- * Patch known ESM/CJS interop issue in @wecom/aibot-node-sdk.
- * The ESM build imports EventEmitter as named export, but package exports default.
+ * Patch known ESM/CJS interop issues in plugin dependencies.
+ * eventemitter3 re-exports via index.mjs, but Electron's module resolver
+ * fails on the named import chain. Replace named imports with default imports.
  */
 function patchPluginRuntimeInterop(pluginDir, pluginId) {
-  if (pluginId !== 'wecom') return;
-  const brokenEsmPath = path.join(
-    pluginDir,
-    'node_modules',
-    '@wecom',
-    'aibot-node-sdk',
-    'dist',
-    'index.esm.js',
-  );
-  if (!fs.existsSync(brokenEsmPath)) return;
-
   const brokenImport = "import { EventEmitter } from 'eventemitter3';";
   const fixedImport = "import EventEmitter from 'eventemitter3';";
-  try {
-    const source = fs.readFileSync(brokenEsmPath, 'utf8');
-    if (!source.includes(brokenImport)) return;
-    fs.writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
-    echo`   🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import`;
-  } catch {
-    // best effort patch
+
+  // Patch @wecom/aibot-node-sdk (wecom plugin only)
+  if (pluginId === 'wecom') {
+    const brokenEsmPath = path.join(
+      pluginDir,
+      'node_modules',
+      '@wecom',
+      'aibot-node-sdk',
+      'dist',
+      'index.esm.js',
+    );
+    if (fs.existsSync(brokenEsmPath)) {
+      try {
+        const source = fs.readFileSync(brokenEsmPath, 'utf8');
+        if (source.includes(brokenImport)) {
+          fs.writeFileSync(brokenEsmPath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+          echo`   🩹 Patched @wecom/aibot-node-sdk ESM EventEmitter import`;
+        }
+      } catch {
+        // best effort patch
+      }
+    }
+  }
+
+  // Patch p-queue (used by baileys/whatsapp)
+  const pQueuePath = path.join(pluginDir, 'node_modules', 'p-queue', 'dist', 'index.js');
+  if (fs.existsSync(pQueuePath)) {
+    try {
+      const source = fs.readFileSync(pQueuePath, 'utf8');
+      if (source.includes(brokenImport)) {
+        fs.writeFileSync(pQueuePath, source.replaceAll(brokenImport, fixedImport), 'utf8');
+        echo`   🩹 Patched p-queue ESM EventEmitter import`;
+      }
+    } catch {
+      // best effort patch
+    }
   }
 }
 

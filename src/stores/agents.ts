@@ -21,17 +21,21 @@ interface AgentsState {
   assignChannel: (agentId: string, channelType: ChannelType) => Promise<void>;
   removeChannel: (agentId: string, channelType: ChannelType) => Promise<void>;
   clearError: () => void;
+  /** Agents that are NOT managed by the expert system */
+  readonly nonExpertAgents: AgentSummary[];
 }
 
 function applySnapshot(snapshot: AgentsSnapshot | undefined) {
-  return snapshot ? {
-    agents: snapshot.agents ?? [],
-    defaultAgentId: snapshot.defaultAgentId ?? 'main',
-    defaultModelRef: snapshot.defaultModelRef ?? null,
-    configuredChannelTypes: snapshot.configuredChannelTypes ?? [],
-    channelOwners: snapshot.channelOwners ?? {},
-    channelAccountOwners: snapshot.channelAccountOwners ?? {},
-  } : {};
+  return snapshot
+    ? {
+        agents: snapshot.agents ?? [],
+        defaultAgentId: snapshot.defaultAgentId ?? 'main',
+        defaultModelRef: snapshot.defaultModelRef ?? null,
+        configuredChannelTypes: snapshot.configuredChannelTypes ?? [],
+        channelOwners: snapshot.channelOwners ?? {},
+        channelAccountOwners: snapshot.channelAccountOwners ?? {},
+      }
+    : {};
 }
 
 export const useAgentsStore = create<AgentsState>((set) => ({
@@ -166,4 +170,14 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+  nonExpertAgents: [] as AgentSummary[],
 }));
+
+// Keep nonExpertAgents in sync whenever agents change
+useAgentsStore.subscribe((state) => {
+  const filtered = state.agents.filter((a) => !a.expertId);
+  const current = state.nonExpertAgents;
+  if (filtered.length !== current.length || filtered.some((a, i) => a.id !== current[i]?.id)) {
+    useAgentsStore.setState({ nonExpertAgents: filtered });
+  }
+});

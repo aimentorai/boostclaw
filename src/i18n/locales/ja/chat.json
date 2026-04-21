@@ -81,5 +81,19 @@
     },
     "taskProgress": {
         "processing": "処理中"
+    },
+    "experts": {
+        "navLabel": "エキスパート",
+        "pageTitle": "AI エキスパート",
+        "pageSubtitle": "タスクに合ったエキスパートを選んでください",
+        "settingUp": "準備中...",
+        "limitedMode": "制限モード",
+        "unavailable": "利用不可",
+        "advancedAgents": "詳細: Agent 管理",
+        "skillStatus": "スキル",
+        "skillReady": "準備完了",
+        "skillPartial": "一部準備完了",
+        "suggestedPrompts": "おすすめ",
+        "retrySetup": "再試行"
     }
 }

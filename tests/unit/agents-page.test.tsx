@@ -34,14 +34,18 @@ vi.mock('@/stores/gateway', () => ({
 }));
 
 vi.mock('@/stores/agents', () => ({
-  useAgentsStore: (selector?: (state: typeof agentsState & {
-    fetchAgents: typeof fetchAgentsMock;
-    updateAgent: typeof updateAgentMock;
-    setDefaultAgent: typeof setDefaultAgentMock;
-    updateAgentModel: typeof updateAgentModelMock;
-    createAgent: ReturnType<typeof vi.fn>;
-    deleteAgent: ReturnType<typeof vi.fn>;
-  }) => unknown) => {
+  useAgentsStore: (
+    selector?: (
+      state: typeof agentsState & {
+        fetchAgents: typeof fetchAgentsMock;
+        updateAgent: typeof updateAgentMock;
+        setDefaultAgent: typeof setDefaultAgentMock;
+        updateAgentModel: typeof updateAgentModelMock;
+        createAgent: ReturnType<typeof vi.fn>;
+        deleteAgent: ReturnType<typeof vi.fn>;
+      }
+    ) => unknown
+  ) => {
     const state = {
       ...agentsState,
       fetchAgents: fetchAgentsMock,
@@ -56,9 +60,13 @@ vi.mock('@/stores/agents', () => ({
 }));
 
 vi.mock('@/stores/providers', () => ({
-  useProviderStore: (selector: (state: typeof providersState & {
-    refreshProviderSnapshot: typeof refreshProviderSnapshotMock;
-  }) => unknown) => {
+  useProviderStore: (
+    selector: (
+      state: typeof providersState & {
+        refreshProviderSnapshot: typeof refreshProviderSnapshotMock;
+      }
+    ) => unknown
+  ) => {
     const state = {
       ...providersState,
       refreshProviderSnapshot: refreshProviderSnapshotMock,
@@ -73,6 +81,10 @@ vi.mock('@/lib/host-api', () => ({
 
 vi.mock('@/lib/host-events', () => ({
   subscribeHostEvent: (...args: unknown[]) => subscribeHostEventMock(...args),
+}));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -125,14 +137,19 @@ describe('Agents page status refresh', () => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
       expect(hostApiFetchMock).toHaveBeenCalledWith('/api/channels/accounts');
     });
-    expect(subscribeHostEventMock).toHaveBeenCalledWith('gateway:channel-status', expect.any(Function));
+    expect(subscribeHostEventMock).toHaveBeenCalledWith(
+      'gateway:channel-status',
+      expect.any(Function)
+    );
 
     await act(async () => {
       channelStatusHandler?.();
     });
 
     await waitFor(() => {
-      const channelFetchCalls = hostApiFetchMock.mock.calls.filter(([path]) => path === '/api/channels/accounts');
+      const channelFetchCalls = hostApiFetchMock.mock.calls.filter(
+        ([path]) => path === '/api/channels/accounts'
+      );
       expect(channelFetchCalls).toHaveLength(2);
     });
   });
@@ -153,7 +170,9 @@ describe('Agents page status refresh', () => {
     });
 
     await waitFor(() => {
-      const channelFetchCalls = hostApiFetchMock.mock.calls.filter(([path]) => path === '/api/channels/accounts');
+      const channelFetchCalls = hostApiFetchMock.mock.calls.filter(
+        ([path]) => path === '/api/channels/accounts'
+      );
       expect(channelFetchCalls).toHaveLength(2);
     });
   });
@@ -200,9 +219,13 @@ describe('Agents page status refresh', () => {
     });
 
     fireEvent.click(screen.getByTitle('settings'));
-    fireEvent.click(screen.getByText('settingsDialog.modelLabel').closest('button') as HTMLButtonElement);
+    fireEvent.click(
+      screen.getByText('settingsDialog.modelLabel').closest('button') as HTMLButtonElement
+    );
 
-    const useDefaultButton = await screen.findByRole('button', { name: 'settingsDialog.useDefaultModel' });
+    const useDefaultButton = await screen.findByRole('button', {
+      name: 'settingsDialog.useDefaultModel',
+    });
     const modelIdInput = screen.getByLabelText('settingsDialog.modelIdLabel');
     const saveButton = screen.getByRole('button', { name: 'common:actions.save' });
 

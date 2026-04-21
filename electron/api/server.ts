@@ -16,13 +16,14 @@ import { handleFileRoutes } from './routes/files';
 import { handleSessionRoutes } from './routes/sessions';
 import { handleCronRoutes } from './routes/cron';
 import { handleAuthRoutes } from './routes/auth';
+import { handleExpertRoutes } from './routes/experts';
 import { sendJson, setCorsHeaders, requireJsonContentType } from './route-utils';
 
 type RouteHandler = (
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  ctx: HostApiContext,
+  ctx: HostApiContext
 ) => Promise<boolean>;
 
 const routeHandlers: RouteHandler[] = [
@@ -37,6 +38,7 @@ const routeHandlers: RouteHandler[] = [
   handleSessionRoutes,
   handleCronRoutes,
   handleAuthRoutes,
+  handleExpertRoutes,
   handleLogRoutes,
   handleUsageRoutes,
 ];
@@ -55,7 +57,10 @@ export function getHostApiToken(): string {
   return hostApiToken;
 }
 
-export function startHostApiServer(ctx: HostApiContext, port = getPort('BoostClaw_HOST_API')): Server {
+export function startHostApiServer(
+  ctx: HostApiContext,
+  port = getPort('BoostClaw_HOST_API')
+): Server {
   // Generate a cryptographically random token for this session.
   hostApiToken = randomBytes(32).toString('hex');
 
@@ -82,7 +87,7 @@ export function startHostApiServer(ctx: HostApiContext, port = getPort('BoostCla
       const authHeader = req.headers.authorization || '';
       const bearerToken = authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
-        : (requestUrl.searchParams.get('token') || '');
+        : requestUrl.searchParams.get('token') || '';
       if (bearerToken !== hostApiToken) {
         sendJson(res, 401, { success: false, error: 'Unauthorized' });
         return;
@@ -101,7 +106,10 @@ export function startHostApiServer(ctx: HostApiContext, port = getPort('BoostCla
           return;
         }
       }
-      sendJson(res, 404, { success: false, error: `No route for ${req.method} ${requestUrl.pathname}` });
+      sendJson(res, 404, {
+        success: false,
+        error: `No route for ${req.method} ${requestUrl.pathname}`,
+      });
     } catch (error) {
       logger.error('Host API request failed:', error);
       sendJson(res, 500, { success: false, error: String(error) });
@@ -112,8 +120,8 @@ export function startHostApiServer(ctx: HostApiContext, port = getPort('BoostCla
     if (error.code === 'EACCES' || error.code === 'EADDRINUSE') {
       logger.error(
         `Host API server failed to bind port ${port}: ${error.message}. ` +
-        'On Windows this is often caused by Hyper-V reserving the port range. ' +
-        `Set BoostClaw_PORT_BoostClaw_HOST_API env var to override the default port.`,
+          'On Windows this is often caused by Hyper-V reserving the port range. ' +
+          `Set BoostClaw_PORT_BoostClaw_HOST_API env var to override the default port.`
       );
     } else {
       logger.error('Host API server error:', error);
