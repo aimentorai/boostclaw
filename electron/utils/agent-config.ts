@@ -607,7 +607,7 @@ async function readExpertIdMarker(agentId: string): Promise<string | null> {
 
 export async function createAgent(
   name: string,
-  options?: { inheritWorkspace?: boolean; description?: string },
+  options?: { inheritWorkspace?: boolean; description?: string }
 ): Promise<AgentsSnapshot> {
   return withConfigLock(async () => {
     const config = (await readOpenClawConfig()) as AgentConfigDocument;
@@ -687,10 +687,10 @@ export async function updateAgentName(agentId: string, name: string): Promise<Ag
 
 export async function updateAgentProfile(
   agentId: string,
-  profile: { name: string; description?: string | null },
+  profile: { name: string; description?: string | null }
 ): Promise<AgentsSnapshot> {
   return withConfigLock(async () => {
-    const config = await readOpenClawConfig() as AgentConfigDocument;
+    const config = (await readOpenClawConfig()) as AgentConfigDocument;
     const { agentsConfig, entries } = normalizeAgentsConfig(config);
     const normalizedName = normalizeAgentName(profile.name);
     const index = entries.findIndex((entry) => entry.id === agentId);
