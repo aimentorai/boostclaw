@@ -166,22 +166,15 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       const snapshot = await createAgent(expert.id);
       const newAgent = snapshot.agents.find((a) => a.name === expert.id);
 
-      let agentId: string;
-      let workspace: string;
-
       if (!newAgent) {
-        // Fallback: find the most recently added agent
-        const allAgents = snapshot.agents;
-        const lastAgent = allAgents[allAgents.length - 1];
-        if (!lastAgent) {
-          throw new Error(`Agent creation returned no agents for expert "${expert.id}"`);
-        }
-        agentId = lastAgent.id;
-        workspace = lastAgent.workspace;
-      } else {
-        agentId = newAgent.id;
-        workspace = newAgent.workspace;
+        throw new Error(
+          `Agent creation for expert "${expert.id}" did not produce an agent with matching name. ` +
+            `Snapshot contains: [${snapshot.agents.map((a) => a.name).join(', ')}]`
+        );
       }
+
+      const agentId = newAgent.id;
+      const workspace = newAgent.workspace;
 
       // Write custom bootstrap files
       await writeExpertBootstrapFiles(agentId, workspace, expert);
