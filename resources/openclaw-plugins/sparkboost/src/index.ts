@@ -36,15 +36,16 @@ export default definePluginEntry({
   kind: "tool",
   configSchema: Type.Object({
     secretKey: Type.String({ description: "SparkBoost API secret key" }),
+    apiKey: Type.String({ description: "SparkBoost X-Api-Key" }),
     baseUrl: Type.Optional(Type.String({
       description: "API gateway URL",
       default: "http://gateway.microdata-inc.com",
     })),
   }),
   register(api) {
-    const cfg = (api as any).pluginConfig as { secretKey: string; baseUrl?: string };
+    const cfg = (api as any).pluginConfig as { secretKey: string; apiKey: string; baseUrl?: string };
     const baseUrl = cfg.baseUrl || "http://gateway.microdata-inc.com";
-    const client = new SparkBoostClient({ secretKey: cfg.secretKey, baseUrl });
+    const client = new SparkBoostClient({ secretKey: cfg.secretKey, apiKey: cfg.apiKey, baseUrl });
     const logger = (api as any).logger;
 
     logger?.info?.("sparkboost: plugin registered");

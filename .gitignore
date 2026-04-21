@@ -69,3 +69,4 @@ docs/pr-session-notes-*.md
 .pnpm-store/
 package-lock.json
 .gstack/
+.omc/

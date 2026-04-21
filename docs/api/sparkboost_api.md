@@ -101,6 +101,7 @@ No description
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Authentication**
 
@@ -216,6 +217,7 @@ No data
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Query**
 
@@ -254,6 +256,7 @@ No description
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Body**
 
@@ -506,6 +509,7 @@ No data
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Query**
 
@@ -544,6 +548,7 @@ No description
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Body**
 
@@ -598,6 +603,7 @@ No data
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Query**
 
@@ -636,6 +642,7 @@ No description
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Body**
 
@@ -687,6 +694,7 @@ No data
 | Key | Example Value | Type | Required | Description |
 | --- | ------------- | ---- | -------- | ----------- |
 | secret-key | <平台发放密钥> | string | Yes | 认证码 |
+| X-Api-Key | 茂祥提供 | string | Yes | - |
 
 **Query**
 

@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"setopt +o nomatch 2>/dev/null || true\\n[ -f Gemfile ] && echo \\\"RUNTIME:ruby\\\"\\n[ -f package.json ] && echo \\\"RUNTIME:node\\\"\\n[ -f requirements.txt ] || [ -f pyproject.toml ] && echo \\\"RUN...",
-  "error": "Exit code 1\nRUNTIME:node\nplaywright.config.ts\nvitest.config.ts\ntests/",
-  "timestamp": "2026-04-21T06:54:26.832Z",
-  "retry_count": 1
-}
