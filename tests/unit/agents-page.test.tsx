@@ -75,6 +75,10 @@ vi.mock('@/lib/host-events', () => ({
   subscribeHostEvent: (...args: unknown[]) => subscribeHostEventMock(...args),
 }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,

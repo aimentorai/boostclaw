@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Bot, Check, Plus, RefreshCw, Settings2, Trash2, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,6 +96,7 @@ function hasConfiguredProviderCredentials(
 }
 
 export function Agents() {
+  const navigate = useNavigate();
   const { t } = useTranslation('agents');
   const visibleChannelTypeSet = useMemo(() => new Set(getPrimaryChannels()), []);
   const gatewayStatus = useGatewayStore((state) => state.status);
@@ -174,7 +176,7 @@ export function Agents() {
 
   const handleStartChat = (agent: AgentSummary) => {
     switchSession(agent.mainSessionKey);
-    window.location.hash = '#/';
+    navigate('/');
   };
 
   if (loading && !hasCompletedInitialLoad) {
