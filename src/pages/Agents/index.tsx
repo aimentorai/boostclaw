@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Bot, Check, Plus, RefreshCw, Settings2, Trash2, X, MessageCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  Bot,
+  Check,
+  Plus,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  X,
+  MessageCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,7 +84,9 @@ function resolveRuntimeProviderKey(account: ProviderAccount): string {
   return account.vendorId;
 }
 
-function splitModelRef(modelRef: string | null | undefined): { providerKey: string; modelId: string } | null {
+function splitModelRef(
+  modelRef: string | null | undefined
+): { providerKey: string; modelId: string } | null {
   const value = (modelRef || '').trim();
   if (!value) return null;
   const separatorIndex = value.indexOf('/');
@@ -87,9 +99,13 @@ function splitModelRef(modelRef: string | null | undefined): { providerKey: stri
 
 function hasConfiguredProviderCredentials(
   account: ProviderAccount,
-  statusById: Map<string, ProviderWithKeyInfo>,
+  statusById: Map<string, ProviderWithKeyInfo>
 ): boolean {
-  if (account.authMode === 'oauth_device' || account.authMode === 'oauth_browser' || account.authMode === 'local') {
+  if (
+    account.authMode === 'oauth_device' ||
+    account.authMode === 'oauth_browser' ||
+    account.authMode === 'local'
+  ) {
     return true;
   }
   return statusById.get(account.id)?.hasKey ?? false;
@@ -102,15 +118,8 @@ export function Agents() {
   const gatewayStatus = useGatewayStore((state) => state.status);
   const refreshProviderSnapshot = useProviderStore((state) => state.refreshProviderSnapshot);
   const lastGatewayStateRef = useRef(gatewayStatus.state);
-  const {
-    agents,
-    loading,
-    error,
-    fetchAgents,
-    createAgent,
-    deleteAgent,
-    setDefaultAgent,
-  } = useAgentsStore();
+  const { agents, loading, error, fetchAgents, createAgent, deleteAgent, setDefaultAgent } =
+    useAgentsStore();
   const switchSession = useChatStore((state) => state.switchSession);
   const [channelGroups, setChannelGroups] = useState<ChannelGroupItem[]>([]);
   const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(() => agents.length > 0);
@@ -121,8 +130,14 @@ export function Agents() {
 
   const fetchChannelAccounts = useCallback(async () => {
     try {
-      const response = await hostApiFetch<{ success: boolean; channels?: ChannelGroupItem[] }>('/api/channels/accounts');
-      setChannelGroups((response.channels || []).filter((group) => visibleChannelTypeSet.has(group.channelType as ChannelType)));
+      const response = await hostApiFetch<{ success: boolean; channels?: ChannelGroupItem[] }>(
+        '/api/channels/accounts'
+      );
+      setChannelGroups(
+        (response.channels || []).filter((group) =>
+          visibleChannelTypeSet.has(group.channelType as ChannelType)
+        )
+      );
     } catch {
       // Keep the last rendered snapshot when channel account refresh fails.
     }
@@ -131,11 +146,13 @@ export function Agents() {
   useEffect(() => {
     let mounted = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void Promise.all([fetchAgents(), fetchChannelAccounts(), refreshProviderSnapshot()]).finally(() => {
-      if (mounted) {
-        setHasCompletedInitialLoad(true);
+    void Promise.all([fetchAgents(), fetchChannelAccounts(), refreshProviderSnapshot()]).finally(
+      () => {
+        if (mounted) {
+          setHasCompletedInitialLoad(true);
+        }
       }
-    });
+    );
     return () => {
       mounted = false;
     };
@@ -164,7 +181,7 @@ export function Agents() {
 
   const activeAgent = useMemo(
     () => agents.find((agent) => agent.id === activeAgentId) ?? null,
-    [activeAgentId, agents],
+    [activeAgentId, agents]
   );
 
   const visibleAgents = agents;
@@ -188,12 +205,13 @@ export function Agents() {
   }
 
   return (
-    <div data-testid="agents-page" className="flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden bg-white">
+    <div
+      data-testid="agents-page"
+      className="flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden bg-white"
+    >
       <div className="flex h-full w-full flex-col px-6 py-4">
         <div className="mb-3 flex shrink-0 items-center justify-between">
-          <h1 className="text-[14px] font-semibold text-[#1f2433]">
-            {t('title')}
-          </h1>
+          <h1 className="text-[14px] font-semibold text-[#1f2433]">{t('title')}</h1>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -226,9 +244,7 @@ export function Agents() {
           {error && (
             <div className="mb-8 p-4 rounded-xl border border-destructive/50 bg-destructive/10 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              <span className="text-destructive text-sm font-medium">
-                {error}
-              </span>
+              <span className="text-destructive text-sm font-medium">{error}</span>
             </div>
           )}
 
@@ -319,7 +335,9 @@ function AgentCard({
     'from-[#5b21b6] via-[#a78bfa] to-[#f5d0fe]',
     'from-[#14532d] via-[#22c55e] to-[#dcfce7]',
   ];
-  const gradientIndex = Array.from(agent.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % avatarGradients.length;
+  const gradientIndex =
+    Array.from(agent.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+    avatarGradients.length;
   return (
     <div
       className={cn(
@@ -348,7 +366,11 @@ function AgentCard({
             disabled={settingDefault}
             title={t('setDefault')}
           >
-            {settingDefault ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            {settingDefault ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
           </Button>
         )}
         <Button
@@ -382,12 +404,15 @@ function AgentCard({
         </Badge>
       )}
 
-      <div className={cn('mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-sm', avatarGradients[gradientIndex])}>
+      <div
+        className={cn(
+          'mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-sm',
+          avatarGradients[gradientIndex]
+        )}
+      >
         <Bot className="h-[18px] w-[18px]" />
       </div>
-      <h2 className="max-w-full truncate text-[14px] font-semibold text-[#1f2433]">
-        {agent.name}
-      </h2>
+      <h2 className="max-w-full truncate text-[14px] font-semibold text-[#1f2433]">{agent.name}</h2>
       <p className="mt-2 line-clamp-2 min-h-[36px] text-[11px] leading-[18px] text-[#6f778a]">
         {agent.description || t('cardDescription')}
       </p>
@@ -403,8 +428,10 @@ function AgentCard({
   );
 }
 
-const inputClasses = 'h-[44px] rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
-const selectClasses = 'h-[44px] w-full rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground px-3';
+const inputClasses =
+  'h-[44px] rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
+const selectClasses =
+  'h-[44px] w-full rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground px-3';
 const labelClasses = 'text-[14px] text-foreground/80 font-bold';
 
 function ChannelLogo({ type }: { type: ChannelType }) {
@@ -435,7 +462,10 @@ function AddAgentDialog({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (name: string, options: { inheritWorkspace: boolean; description?: string }) => Promise<void>;
+  onCreate: (
+    name: string,
+    options: { inheritWorkspace: boolean; description?: string }
+  ) => Promise<void>;
 }) {
   const { t } = useTranslation('agents');
   const [name, setName] = useState('');
@@ -472,7 +502,9 @@ function AddAgentDialog({
         </CardHeader>
         <CardContent className="space-y-6 pt-4 p-6">
           <div className="space-y-2.5">
-            <Label htmlFor="agent-name" className={labelClasses}>{t('createDialog.nameLabel')}</Label>
+            <Label htmlFor="agent-name" className={labelClasses}>
+              {t('createDialog.nameLabel')}
+            </Label>
             <Input
               id="agent-name"
               value={name}
@@ -482,7 +514,9 @@ function AddAgentDialog({
             />
           </div>
           <div className="space-y-2.5">
-            <Label htmlFor="agent-description" className={labelClasses}>{t('createDialog.descriptionLabel')}</Label>
+            <Label htmlFor="agent-description" className={labelClasses}>
+              {t('createDialog.descriptionLabel')}
+            </Label>
             <Textarea
               id="agent-description"
               value={description}
@@ -494,8 +528,12 @@ function AddAgentDialog({
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="inherit-workspace" className={labelClasses}>{t('createDialog.inheritWorkspaceLabel')}</Label>
-              <p className="text-[13px] text-foreground/60">{t('createDialog.inheritWorkspaceDescription')}</p>
+              <Label htmlFor="inherit-workspace" className={labelClasses}>
+                {t('createDialog.inheritWorkspaceLabel')}
+              </Label>
+              <p className="text-[13px] text-foreground/60">
+                {t('createDialog.inheritWorkspaceDescription')}
+              </p>
             </div>
             <Switch
               id="inherit-workspace"
@@ -554,7 +592,8 @@ function AgentSettingsModal({
     setDescription(agent.description || '');
   }, [agent.description, agent.name]);
 
-  const hasProfileChanges = name.trim() !== agent.name || description.trim() !== (agent.description || '');
+  const hasProfileChanges =
+    name.trim() !== agent.name || description.trim() !== (agent.description || '');
 
   const handleRequestClose = () => {
     if (savingProfile || hasProfileChanges) {
@@ -591,7 +630,7 @@ function AgentSettingsModal({
             ? t('settingsDialog.mainAccount')
             : account.name || account.accountId,
         error: account.lastError,
-      })),
+      }))
   );
 
   return (
@@ -618,7 +657,9 @@ function AgentSettingsModal({
         <CardContent className="space-y-6 pt-4 overflow-y-auto flex-1 p-6">
           <div className="space-y-4">
             <div className="space-y-2.5">
-              <Label htmlFor="agent-settings-name" className={labelClasses}>{t('settingsDialog.nameLabel')}</Label>
+              <Label htmlFor="agent-settings-name" className={labelClasses}>
+                {t('settingsDialog.nameLabel')}
+              </Label>
               <div className="flex gap-2">
                 <Input
                   id="agent-settings-name"
@@ -641,7 +682,9 @@ function AgentSettingsModal({
               </div>
             </div>
             <div className="space-y-2.5">
-              <Label htmlFor="agent-settings-description" className={labelClasses}>{t('settingsDialog.descriptionLabel')}</Label>
+              <Label htmlFor="agent-settings-description" className={labelClasses}>
+                {t('settingsDialog.descriptionLabel')}
+              </Label>
               <Textarea
                 id="agent-settings-description"
                 value={description}
@@ -684,7 +727,9 @@ function AgentSettingsModal({
                 <h3 className="text-xl font-serif text-foreground font-normal tracking-tight">
                   {t('settingsDialog.channelsTitle')}
                 </h3>
-                <p className="text-[14px] text-foreground/70 mt-1">{t('settingsDialog.channelsDescription')}</p>
+                <p className="text-[14px] text-foreground/70 mt-1">
+                  {t('settingsDialog.channelsDescription')}
+                </p>
               </div>
             </div>
 
@@ -695,7 +740,10 @@ function AgentSettingsModal({
             ) : (
               <div className="space-y-3">
                 {assignedChannels.map((channel) => (
-                  <div key={`${channel.channelType}-${channel.accountId}`} className="flex items-center justify-between rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4">
+                  <div
+                    key={`${channel.channelType}-${channel.accountId}`}
+                    className="flex items-center justify-between rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="h-[40px] w-[40px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm">
                         <ChannelLogo type={channel.channelType} />
@@ -703,7 +751,10 @@ function AgentSettingsModal({
                       <div className="min-w-0">
                         <p className="text-[15px] font-semibold text-foreground">{channel.name}</p>
                         <p className="text-[13.5px] text-muted-foreground">
-                          {CHANNEL_NAMES[channel.channelType]} · {channel.accountId === 'default' ? t('settingsDialog.mainAccount') : channel.accountId}
+                          {CHANNEL_NAMES[channel.channelType]} ·{' '}
+                          {channel.accountId === 'default'
+                            ? t('settingsDialog.mainAccount')
+                            : channel.accountId}
                         </p>
                         {channel.error && (
                           <p className="text-xs text-destructive mt-1">{channel.error}</p>
@@ -723,12 +774,7 @@ function AgentSettingsModal({
           </div>
         </CardContent>
       </Card>
-      {showModelModal && (
-        <AgentModelModal
-          agent={agent}
-          onClose={() => setShowModelModal(false)}
-        />
-      )}
+      {showModelModal && <AgentModelModal agent={agent} onClose={() => setShowModelModal(false)} />}
       <ConfirmDialog
         open={showCloseConfirm}
         title={t('settingsDialog.unsavedChangesTitle')}
@@ -747,13 +793,7 @@ function AgentSettingsModal({
   );
 }
 
-function AgentModelModal({
-  agent,
-  onClose,
-}: {
-  agent: AgentSummary;
-  onClose: () => void;
-}) {
+function AgentModelModal({ agent, onClose }: { agent: AgentSummary; onClose: () => void }) {
   const { t } = useTranslation('agents');
   const providerAccounts = useProviderStore((state) => state.accounts);
   const providerStatuses = useProviderStore((state) => state.statuses);
@@ -766,8 +806,12 @@ function AgentModelModal({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   const runtimeProviderOptions = useMemo<RuntimeProviderOption[]>(() => {
-    const vendorMap = new Map<string, ProviderVendorInfo>(providerVendors.map((vendor) => [vendor.id, vendor]));
-    const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
+    const vendorMap = new Map<string, ProviderVendorInfo>(
+      providerVendors.map((vendor) => [vendor.id, vendor])
+    );
+    const statusById = new Map<string, ProviderWithKeyInfo>(
+      providerStatuses.map((status) => [status.id, status])
+    );
     const entries = providerAccounts
       .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
       .sort((left, right) => {
@@ -783,9 +827,9 @@ function AgentModelModal({
       const vendor = vendorMap.get(account.vendorId);
       const label = `${account.label} (${vendor?.name || account.vendorId})`;
       const configuredModelId = account.model
-        ? (account.model.startsWith(`${runtimeProviderKey}/`)
+        ? account.model.startsWith(`${runtimeProviderKey}/`)
           ? account.model.slice(runtimeProviderKey.length + 1)
-          : account.model)
+          : account.model
         : undefined;
 
       deduped.set(runtimeProviderKey, {
@@ -819,17 +863,21 @@ function AgentModelModal({
     setModelIdInput('');
   }, [agent.modelRef, agent.overrideModelRef, defaultModelRef, runtimeProviderOptions]);
 
-  const selectedProvider = runtimeProviderOptions.find((option) => option.runtimeProviderKey === selectedRuntimeProviderKey) || null;
+  const selectedProvider =
+    runtimeProviderOptions.find(
+      (option) => option.runtimeProviderKey === selectedRuntimeProviderKey
+    ) || null;
   const trimmedModelId = modelIdInput.trim();
-  const nextModelRef = selectedRuntimeProviderKey && trimmedModelId
-    ? `${selectedRuntimeProviderKey}/${trimmedModelId}`
-    : '';
+  const nextModelRef =
+    selectedRuntimeProviderKey && trimmedModelId
+      ? `${selectedRuntimeProviderKey}/${trimmedModelId}`
+      : '';
   const normalizedDefaultModelRef = (defaultModelRef || '').trim();
-  const isUsingDefaultModelInForm = Boolean(normalizedDefaultModelRef) && nextModelRef === normalizedDefaultModelRef;
+  const isUsingDefaultModelInForm =
+    Boolean(normalizedDefaultModelRef) && nextModelRef === normalizedDefaultModelRef;
   const currentOverrideModelRef = (agent.overrideModelRef || '').trim();
-  const desiredOverrideModelRef = nextModelRef && nextModelRef !== normalizedDefaultModelRef
-    ? nextModelRef
-    : null;
+  const desiredOverrideModelRef =
+    nextModelRef && nextModelRef !== normalizedDefaultModelRef ? nextModelRef : null;
   const modelChanged = (desiredOverrideModelRef || '') !== currentOverrideModelRef;
 
   const handleRequestClose = () => {
@@ -858,7 +906,9 @@ function AgentModelModal({
     setSavingModel(true);
     try {
       await updateAgentModel(agent.id, desiredOverrideModelRef);
-      toast.success(desiredOverrideModelRef ? t('toast.agentModelUpdated') : t('toast.agentModelReset'));
+      toast.success(
+        desiredOverrideModelRef ? t('toast.agentModelUpdated') : t('toast.agentModelReset')
+      );
       onClose();
     } catch (error) {
       toast.error(t('toast.agentModelUpdateFailed', { error: String(error) }));
@@ -887,7 +937,9 @@ function AgentModelModal({
               {t('settingsDialog.modelLabel')}
             </CardTitle>
             <CardDescription className="text-[15px] mt-1 text-foreground/70">
-              {t('settingsDialog.modelOverrideDescription', { defaultModel: defaultModelRef || '-' })}
+              {t('settingsDialog.modelOverrideDescription', {
+                defaultModel: defaultModelRef || '-',
+              })}
             </CardDescription>
           </div>
           <Button
@@ -901,7 +953,9 @@ function AgentModelModal({
         </CardHeader>
         <CardContent className="space-y-4 p-6 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="agent-model-provider" className="text-[12px] text-foreground/70">{t('settingsDialog.modelProviderLabel')}</Label>
+            <Label htmlFor="agent-model-provider" className="text-[12px] text-foreground/70">
+              {t('settingsDialog.modelProviderLabel')}
+            </Label>
             <select
               id="agent-model-provider"
               value={selectedRuntimeProviderKey}
@@ -909,7 +963,9 @@ function AgentModelModal({
                 const nextProvider = event.target.value;
                 setSelectedRuntimeProviderKey(nextProvider);
                 if (!modelIdInput.trim()) {
-                  const option = runtimeProviderOptions.find((candidate) => candidate.runtimeProviderKey === nextProvider);
+                  const option = runtimeProviderOptions.find(
+                    (candidate) => candidate.runtimeProviderKey === nextProvider
+                  );
                   setModelIdInput(option?.configuredModelId || '');
                 }
               }}
@@ -924,12 +980,18 @@ function AgentModelModal({
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="agent-model-id" className="text-[12px] text-foreground/70">{t('settingsDialog.modelIdLabel')}</Label>
+            <Label htmlFor="agent-model-id" className="text-[12px] text-foreground/70">
+              {t('settingsDialog.modelIdLabel')}
+            </Label>
             <Input
               id="agent-model-id"
               value={modelIdInput}
               onChange={(event) => setModelIdInput(event.target.value)}
-              placeholder={selectedProvider?.modelIdPlaceholder || selectedProvider?.configuredModelId || t('settingsDialog.modelIdPlaceholder')}
+              placeholder={
+                selectedProvider?.modelIdPlaceholder ||
+                selectedProvider?.configuredModelId ||
+                t('settingsDialog.modelIdPlaceholder')
+              }
               className={inputClasses}
             />
           </div>
@@ -961,7 +1023,9 @@ function AgentModelModal({
             </Button>
             <Button
               onClick={() => void handleSaveModel()}
-              disabled={savingModel || !selectedRuntimeProviderKey || !trimmedModelId || !modelChanged}
+              disabled={
+                savingModel || !selectedRuntimeProviderKey || !trimmedModelId || !modelChanged
+              }
               className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
             >
               {savingModel ? (
