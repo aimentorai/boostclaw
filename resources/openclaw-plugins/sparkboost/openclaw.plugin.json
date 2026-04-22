@@ -3,18 +3,6 @@
   "kind": "tool",
   "skills": ["./skills"],
   "uiHints": {
-    "secretKey": {
-      "label": "Secret Key",
-      "sensitive": true,
-      "placeholder": "平台发放密钥",
-      "help": "SparkBoost API 认证密钥"
-    },
-    "apiKey": {
-      "label": "API Key",
-      "sensitive": true,
-      "placeholder": "X-Api-Key",
-      "help": "SparkBoost API 网关密钥 (X-Api-Key header)"
-    },
     "baseUrl": {
       "label": "Base URL",
       "placeholder": "http://gateway.microdata-inc.com",
@@ -40,6 +28,6 @@
         "default": "http://gateway.microdata-inc.com"
       }
     },
-    "required": ["secretKey", "apiKey"]
+    "required": []
   }
 }

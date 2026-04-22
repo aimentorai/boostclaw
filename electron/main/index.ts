@@ -49,6 +49,10 @@ import {
 } from '../utils/skill-config';
 import { ensureAllBundledPluginsInstalled } from '../utils/plugin-install';
 import { initializeExperts } from '../utils/expert-init';
+import {
+  initializeSparkBoostKeys,
+  injectSparkBoostKeys,
+} from '../services/secrets/sparkboost-keys';
 import { startHostApiServer } from '../api/server';
 import { HostEventBus } from '../api/event-bus';
 import { deviceOAuthManager } from '../utils/device-oauth';
@@ -577,6 +581,15 @@ async function initialize(): Promise<void> {
       startupTimer.mark('provider_sync_start');
       await syncAllProviderAuthToRuntime();
       startupTimer.mark('provider_sync_done');
+
+      // Initialize and inject SparkBoost API keys (encrypted at rest)
+      await initializeSparkBoostKeys().catch((err) =>
+        logger.warn('SparkBoost key init failed:', err)
+      );
+      await injectSparkBoostKeys().catch((err) =>
+        logger.warn('SparkBoost key injection failed:', err)
+      );
+
       logger.debug('Auto-starting Gateway...');
       await gatewayManager.start();
       logger.info('Gateway auto-start succeeded');

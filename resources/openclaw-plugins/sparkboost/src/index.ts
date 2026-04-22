@@ -15,6 +15,7 @@ const TIKTOK_VIDEO_PUBLISH = "/api/v1/openapi/tiktok/video/publish";
 const TIKTOK_VIDEO_STATUS = "/api/v1/openapi/tiktok/video/status";
 const GROK_SUBMIT = "/grokImagine/submit";
 const GROK_RESULT = "/grokImagine/result";
+const TIKTOK_VIDEO_PRECHECK = "/api/v1/openapi/tiktok/video/precheck";
 
 interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
@@ -43,9 +44,18 @@ export default definePluginEntry({
     })),
   }),
   register(api) {
-    const cfg = (api as any).pluginConfig as { secretKey: string; apiKey: string; baseUrl?: string };
+    const cfg = (api as any).pluginConfig as { secretKey?: string; apiKey?: string; baseUrl?: string };
+    const secretKey = cfg.secretKey || process.env.SPARKBOOST_SECRET_KEY || "";
+    const apiKey = cfg.apiKey || process.env.SPARKBOOST_API_KEY || "";
     const baseUrl = cfg.baseUrl || "http://gateway.microdata-inc.com";
-    const client = new SparkBoostClient({ secretKey: cfg.secretKey, apiKey: cfg.apiKey, baseUrl });
+
+    if (!secretKey || !apiKey) {
+      const logger = (api as any).logger;
+      logger?.warn?.("sparkboost: missing secretKey and apiKey — plugin will not function. Set SPARKBOOST_SECRET_KEY and SPARKBOOST_API_KEY env vars or configure in plugin settings.");
+      return;
+    }
+
+    const client = new SparkBoostClient({ secretKey, apiKey, baseUrl });
     const logger = (api as any).logger;
 
     logger?.info?.("sparkboost: plugin registered");
@@ -240,5 +250,37 @@ export default definePluginEntry({
         }
       },
     }, { name: "sparkboost_snapshot" });
+
+    // --- Tool 8: Video compliance check ---
+    api.registerTool({
+      name: "sparkboost_video_compliance",
+      label: "Video Compliance Check",
+      description:
+        "Check if a generated video meets TikTok platform content standards. " +
+        "Returns pass/fail with reason. Use before publishing auto-generated videos.",
+      parameters: Type.Object({
+        videoUrl: Type.String({ description: "Video URL to check for platform compliance" }),
+      }),
+      async execute(_id, params): Promise<ToolResult> {
+        try {
+          const raw = await client.post(TIKTOK_VIDEO_PRECHECK, {
+            videoUrl: params.videoUrl,
+          });
+          const json = JSON.parse(raw);
+          const data = json.data || {};
+          const passed = data.pass === true || data.status === "PASS";
+          const reason = data.reason || data.message || "";
+          return textResult(
+            wrapResponse(
+              `Compliance check: ${passed ? "PASS" : "FAIL"}${reason ? ` — ${reason}` : ""}`,
+              "video/compliance"
+            ),
+            { pass: passed, reason },
+          );
+        } catch (err: any) {
+          return errorResult(wrapError(err.message, "video/compliance"));
+        }
+      },
+    }, { name: "sparkboost_video_compliance" });
   },
 });

@@ -102,6 +102,22 @@ export function Experts() {
 
   const enabledExperts = useMemo(() => experts.filter((e) => e.enabled), [experts]);
 
+  // Smart routing: auto-redirect when only one expert is enabled and ready
+  useEffect(() => {
+    if (loading) return;
+    if (enabledExperts.length !== 1) return;
+    if (sessionStorage.getItem('boostclaw-expert-redirected')) return;
+
+    const expert = enabledExperts[0];
+    const runtime = runtimes[expert.id];
+    if (!runtime || runtime.status !== 'ready' || !runtime.agentId) return;
+
+    sessionStorage.setItem('boostclaw-expert-redirected', '1');
+    const sessionKey = `agent:${runtime.agentId}:main`;
+    switchSession(sessionKey);
+    navigate('/');
+  }, [loading, enabledExperts, runtimes, switchSession, navigate]);
+
   const handleStartExpert = (runtime: ExpertRuntime) => {
     if (runtime.status === 'unavailable') return;
     const agentId = runtime.agentId;
