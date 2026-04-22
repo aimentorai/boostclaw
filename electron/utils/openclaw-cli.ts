@@ -127,7 +127,9 @@ function getCliTargetPath(): string {
 }
 
 export async function installOpenClawCli(): Promise<{
-  success: boolean; path?: string; error?: string;
+  success: boolean;
+  path?: string;
+  error?: string;
 }> {
   const platform = process.platform;
 
@@ -150,9 +152,15 @@ export async function installOpenClawCli(): Promise<{
   try {
     mkdirSync(targetDir, { recursive: true });
 
-    // Remove existing file/symlink to avoid EEXIST
-    if (existsSync(target)) {
+    // Remove existing file/symlink to avoid EEXIST.
+    // Use unconditional unlink (wrapped in try/catch) instead of
+    // existsSync + conditional unlink — existsSync follows symlinks
+    // and returns false for broken symlinks, but symlinkSync still
+    // fails with EEXIST because the symlink entry exists on disk.
+    try {
       unlinkSync(target);
+    } catch {
+      /* not present, ok */
     }
 
     symlinkSync(wrapperSrc, target);
@@ -214,7 +222,7 @@ function ensureWindowsCliOnPath(): Promise<'updated' | 'already-present'> {
         env: process.env,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
-      },
+      }
     );
 
     let stdout = '';
@@ -282,9 +290,7 @@ function ensureLocalBinInPath(): void {
   }
 }
 
-export async function autoInstallCliIfNeeded(
-  notify?: (path: string) => void,
-): Promise<void> {
+export async function autoInstallCliIfNeeded(notify?: (path: string) => void): Promise<void> {
   if (!app.isPackaged) return;
   if (process.platform === 'win32') {
     try {
@@ -302,13 +308,13 @@ export async function autoInstallCliIfNeeded(
   const wrapperSrc = getPackagedCliWrapperPath();
 
   if (isCliInstalled()) {
-    if (target && wrapperSrc && existsSync(target)) {
+    if (target && wrapperSrc) {
       try {
         unlinkSync(target);
         symlinkSync(wrapperSrc, target);
         logger.debug(`Refreshed CLI symlink: ${target} -> ${wrapperSrc}`);
       } catch {
-        // non-critical
+        // non-critical — file may not exist yet or race with another process
       }
     }
     return;
@@ -336,7 +342,7 @@ function getNodeExecForCli(): string {
       '../Frameworks',
       `${helperName}.app`,
       'Contents/MacOS',
-      helperName,
+      helperName
     );
     if (existsSync(helperPath)) return helperPath;
   }
@@ -385,21 +391,17 @@ export function installCompletionToProfile(): void {
 
   const execPath = getNodeExecForCli();
 
-  const child = spawn(
-    execPath,
-    [entryPath, 'completion', '--install', '-y'],
-    {
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1',
-        OPENCLAW_NO_RESPAWN: '1',
-        OPENCLAW_EMBEDDED_IN: 'BoostClaw',
-      },
-      stdio: 'ignore',
-      detached: false,
-      windowsHide: true,
-    }
-  );
+  const child = spawn(execPath, [entryPath, 'completion', '--install', '-y'], {
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      OPENCLAW_NO_RESPAWN: '1',
+      OPENCLAW_EMBEDDED_IN: 'BoostClaw',
+    },
+    stdio: 'ignore',
+    detached: false,
+    windowsHide: true,
+  });
 
   child.on('close', (code) => {
     if (code === 0) {

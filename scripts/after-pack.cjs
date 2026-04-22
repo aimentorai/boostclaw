@@ -651,14 +651,14 @@ exports.default = async function afterPack(context) {
   // 1.2 Copy local resource plugins (e.g. SparkBoost) from resources/ directory.
   //     These are not npm packages, they live in the repo at resources/openclaw-plugins/.
   const LOCAL_PLUGINS = ['sparkboost'];
-  const localPluginsRoot = join(appDir, 'resources', 'openclaw-plugins');
+  const localPluginsRoot = join(__dirname, '..', 'resources', 'openclaw-plugins');
 
   for (const pluginId of LOCAL_PLUGINS) {
     const src = join(localPluginsRoot, pluginId);
     const dest = join(pluginsDestRoot, pluginId);
     if (existsSync(src)) {
       console.log(`[after-pack] Copying local plugin ${pluginId} -> ${dest}`);
-      cpSyncSafe(src, dest);
+      cpSync(src, dest, { recursive: true });
     } else {
       console.warn(`[after-pack] Local plugin ${pluginId} not found at ${src}, skipping`);
     }
