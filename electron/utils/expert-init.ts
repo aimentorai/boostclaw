@@ -7,8 +7,13 @@
  */
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { createAgent, listAgentsSnapshot } from './agent-config';
-import { expandPath, getOpenClawConfigDir } from './paths';
+import {
+  createAgent,
+  deleteAgentConfig,
+  listAgentsSnapshot,
+  removeAgentWorkspaceDirectory,
+} from './agent-config';
+import { expandPath, getOpenClawConfigDir, getResourcesDir } from './paths';
 import * as logger from './logger';
 
 export interface ExpertManifestEntry {
@@ -42,19 +47,20 @@ export interface ExpertInitResult {
 const EXPERT_MARKER_FILENAME = 'EXPERT_ID';
 
 /**
+ * Stale agent IDs created before the fix that used Chinese names,
+ * which slugifyAgentId() stripped to the fallback "agent" / "agent-N".
+ */
+const STALE_AGENT_ID_RE = /^agent(-\d+)?$/;
+
+function isStaleAgentId(agentId: string): boolean {
+  return STALE_AGENT_ID_RE.test(agentId);
+}
+
+/**
  * Read the pre-installed expert manifest from the bundled resources.
  */
 export async function readExpertManifest(): Promise<ExpertManifest> {
-  // In production, the manifest is bundled alongside the app.
-  // In development, it's at the project root resources/ directory.
-  const isDev = !process.env.ELECTRON_BUILD || process.env.NODE_ENV === 'development';
-  const manifestPath = isDev
-    ? join(process.cwd(), 'resources', 'experts', 'preinstalled-manifest.json')
-    : join(
-        process.resourcesPath || join(process.cwd(), 'resources'),
-        'experts',
-        'preinstalled-manifest.json'
-      );
+  const manifestPath = join(getResourcesDir(), 'experts', 'preinstalled-manifest.json');
 
   try {
     const raw = await readFile(manifestPath, 'utf-8');
@@ -148,16 +154,33 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       const existingAgentId = await findExistingExpertAgent(expert.id);
 
       if (existingAgentId) {
-        logger.info('Expert agent already exists', {
-          expertId: expert.id,
-          agentId: existingAgentId,
-        });
-        results.push({
-          expertId: expert.id,
-          agentId: existingAgentId,
-          status: 'existing',
-        });
-        continue;
+        if (isStaleAgentId(existingAgentId)) {
+          logger.info('Cleaning up stale expert agent', {
+            expertId: expert.id,
+            staleAgentId: existingAgentId,
+          });
+          try {
+            const { removedEntry } = await deleteAgentConfig(existingAgentId);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to clean up stale expert agent', {
+              expertId: expert.id,
+              staleAgentId: existingAgentId,
+              error: String(err),
+            });
+          }
+        } else {
+          logger.info('Expert agent already exists', {
+            expertId: expert.id,
+            agentId: existingAgentId,
+          });
+          results.push({
+            expertId: expert.id,
+            agentId: existingAgentId,
+            status: 'existing',
+          });
+          continue;
+        }
       }
 
       // Create new agent — use expert.id (ASCII slug) as the agent name
