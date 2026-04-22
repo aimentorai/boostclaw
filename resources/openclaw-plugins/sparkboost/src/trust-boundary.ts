@@ -15,8 +15,8 @@ const ESCAPED_END = "--- END SPARKBOOST API RESP\u200BONSE ---";
 
 export function wrapResponse(body: string, endpoint: string): string {
   const safeBody = body
-    .replace(BEGIN_MARKER, ESCAPED_BEGIN)
-    .replace(END_MARKER, ESCAPED_END);
+    .replaceAll(BEGIN_MARKER, ESCAPED_BEGIN)
+    .replaceAll(END_MARKER, ESCAPED_END);
   return `${BEGIN_MARKER} (${endpoint})\n${safeBody}\n${END_MARKER}`;
 }
 

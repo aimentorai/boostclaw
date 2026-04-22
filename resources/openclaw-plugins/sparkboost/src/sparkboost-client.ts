@@ -8,26 +8,33 @@
 
 export interface SparkBoostConfig {
   secretKey: string;
+  apiKey: string;
   baseUrl: string;
 }
 
 export class SparkBoostClient {
   private readonly secretKey: string;
+  private readonly apiKey: string;
   private readonly baseUrl: string;
 
   constructor(config: SparkBoostConfig) {
     this.secretKey = config.secretKey;
+    this.apiKey = config.apiKey;
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
   }
 
   async post(path: string, body?: Record<string, unknown>): Promise<string> {
     const url = `${this.baseUrl}${path}`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "secret-key": this.secretKey,
+    };
+    if (path.startsWith("/api/")) {
+      headers["X-Api-Key"] = this.apiKey;
+    }
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "secret-key": this.secretKey,
-      },
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -46,11 +53,15 @@ export class SparkBoostClient {
 
   async get(path: string): Promise<string> {
     const url = `${this.baseUrl}${path}`;
+    const headers: Record<string, string> = {
+      "secret-key": this.secretKey,
+    };
+    if (path.startsWith("/api/")) {
+      headers["X-Api-Key"] = this.apiKey;
+    }
     const res = await fetch(url, {
       method: "GET",
-      headers: {
-        "secret-key": this.secretKey,
-      },
+      headers,
     });
 
     const text = await res.text();

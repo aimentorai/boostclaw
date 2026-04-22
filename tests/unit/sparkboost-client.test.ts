@@ -24,6 +24,7 @@ describe('SparkBoostClient', () => {
 
   const client = new SparkBoostClient({
     secretKey: 'test-key-123',
+    apiKey: 'test-api-key',
     baseUrl: 'http://gateway.test.com',
   });
 
@@ -40,6 +41,7 @@ describe('SparkBoostClient', () => {
           headers: {
             'Content-Type': 'application/json',
             'secret-key': 'test-key-123',
+            'X-Api-Key': 'test-api-key',
           },
           body: '{"foo":"bar"}',
         })
@@ -72,6 +74,7 @@ describe('SparkBoostClient', () => {
     it('strips trailing slashes from baseUrl', async () => {
       const trailingClient = new SparkBoostClient({
         secretKey: 'key',
+        apiKey: 'ak',
         baseUrl: 'http://test.com///',
       });
       mockResponse(200, '{"success":true,"code":"SUCCESS","data":[]}');
@@ -83,7 +86,7 @@ describe('SparkBoostClient', () => {
   });
 
   describe('get', () => {
-    it('sends GET with secret-key header', async () => {
+    it('sends GET with secret-key header (no X-Api-Key for Grok)', async () => {
       mockResponse(200, '{"code":200,"data":{"status":2}}');
 
       await client.get('/grokImagine/result?id=123');
