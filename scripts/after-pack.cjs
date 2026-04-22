@@ -779,16 +779,77 @@ exports.default = async function afterPack(context) {
     console.log(`[after-pack] ✅ Removed ${nativeRemoved} non-target native platform packages.`);
   }
 
-  // 4.1 [macOS] Validate native .node binaries aren't truncated
+  // 4.1 [macOS] Validate native .node binaries aren't truncated/corrupted
   //
   // Some npm packages (e.g. @matrix-org/matrix-sdk-crypto-nodejs) download
   // native binaries from GitHub releases during postinstall. In networks with
   // restricted GitHub access (e.g. China), these downloads can silently fail
-  // or truncate, producing Mach-O files whose section headers reference offsets
-  // past EOF. This causes codesign to fail with "main executable failed strict
-  // validation". We detect and report such corrupted binaries early.
+  // or produce partially corrupted files. The Mach-O header looks valid but
+  // segment load commands reference offsets past EOF, causing codesign to fail
+  // with "main executable failed strict validation".
+  //
+  // We validate by checking that all LC_SEGMENT_64 file ranges fit within the
+  // actual file size. When corruption is detected, we auto-re-download from
+  // the source package's download script and re-copy.
   if (platform === 'darwin') {
-    const corruptedFiles = [];
+    const { openSync, readSync, closeSync } = require('fs');
+    const { execSync } = require('child_process');
+
+    // Known packages that download native binaries and have re-download scripts.
+    const RE_DOWNLOAD_PKGS = [
+      { id: 'matrix-sdk-crypto', pkg: '@matrix-org/matrix-sdk-crypto-nodejs', script: 'download-lib.js' },
+    ];
+
+    function validateMachO(filePath) {
+      let stat;
+      try { stat = statSync(filePath); } catch { return { valid: false, reason: 'cannot stat' }; }
+      const readSize = Math.min(stat.size, 4096);
+      const buf = Buffer.alloc(readSize);
+      try {
+        const fd = openSync(filePath, 'r');
+        readSync(fd, buf, 0, readSize, 0);
+        closeSync(fd);
+      } catch { return { valid: false, reason: 'cannot read' }; }
+
+      const magic = buf.readUInt32BE(0);
+      if (magic !== 0xfeedfacf && magic !== 0xfeedface) return { valid: true }; // not Mach-O, skip
+
+      const is64 = magic === 0xfeedfacf;
+      const ncmds = buf.readUInt32LE(16);
+      const sizeofcmds = buf.readUInt32LE(20);
+      const headerSize = is64 ? 32 : 28;
+
+      if (headerSize + sizeofcmds > stat.size) {
+        return { valid: false, reason: `load commands (${sizeofcmds} bytes) exceed file size (${stat.size})` };
+      }
+
+      let off = headerSize;
+      for (let i = 0; i < ncmds && off + 8 <= buf.length; i++) {
+        const cmd = buf.readUInt32LE(off);
+        const cmdsize = buf.readUInt32LE(off + 4);
+        if (cmdsize < 8) break;
+        // LC_SEGMENT_64 = 0x19, cmdsize >= 72
+        if (cmd === 0x19 && cmdsize >= 72 && off + 72 <= buf.length) {
+          const fileoff = Number(buf.readBigUInt64LE(off + 48));
+          const filesize = Number(buf.readBigUInt64LE(off + 56));
+          if (fileoff + filesize > stat.size) {
+            return { valid: false, reason: `segment at ${fileoff}+${filesize} exceeds file size ${stat.size}` };
+          }
+        }
+        // LC_SEGMENT = 0x1, cmdsize >= 56
+        else if (cmd === 0x1 && cmdsize >= 56 && off + 56 <= buf.length) {
+          const fileoff = buf.readUInt32LE(off + 24);
+          const filesize = buf.readUInt32LE(off + 28);
+          if (fileoff + filesize > stat.size) {
+            return { valid: false, reason: `segment at ${fileoff}+${filesize} exceeds file size ${stat.size}` };
+          }
+        }
+        off += cmdsize;
+      }
+      return { valid: true };
+    }
+
+    const nodeFiles = [];
     const nmStack = [dest, join(resourcesDir, 'openclaw-plugins')];
     while (nmStack.length > 0) {
       const dir = nmStack.pop();
@@ -800,34 +861,77 @@ exports.default = async function afterPack(context) {
         if (entry.isDirectory()) {
           nmStack.push(fullPath);
         } else if (entry.name.endsWith('.node')) {
-          const stat = statSync(fullPath);
-          const headerBuf = Buffer.alloc(32);
-          try {
-            const fd = require('fs').openSync(fullPath, 'r');
-            require('fs').readSync(fd, headerBuf, 0, 32, 0);
-            require('fs').closeSync(fd);
-          } catch { continue; }
-          // Mach-O magic: 0xfeedfacf (64-bit) or 0xfeedface (32-bit)
-          const magic = headerBuf.readUInt32BE(0);
-          if (magic === 0xfeedfacf || magic === 0xfeedface) {
-            const sizeofcmds = headerBuf.readUInt32BE(20);
-            // Rough sanity: header + load commands should fit in the file
-            const minExpectedSize = 32 + sizeofcmds;
-            if (stat.size < minExpectedSize * 0.5) {
-              corruptedFiles.push({ path: fullPath, size: stat.size, expectedAtLeast: minExpectedSize });
-            }
-          }
+          nodeFiles.push(fullPath);
         }
       }
     }
-    if (corruptedFiles.length > 0) {
-      console.error('[after-pack] ❌ CORRUPTED .node binaries detected (likely truncated downloads):');
-      for (const f of corruptedFiles) {
-        console.error(`  ${relative(resourcesDir, f.path)}: ${f.size} bytes (expected ≥${f.expectedAtLeast} bytes)`);
+
+    const corruptedFiles = [];
+    for (const fullPath of nodeFiles) {
+      const result = validateMachO(fullPath);
+      if (!result.valid) {
+        corruptedFiles.push({ path: fullPath, reason: result.reason });
       }
-      console.error('[after-pack] Fix: delete node_modules and run `pnpm install` with stable GitHub access, or set https_proxy.');
-      console.error('[after-pack] Alternatively run: node node_modules/@matrix-org/matrix-sdk-crypto-nodejs/download-lib.js');
-      throw new Error(`Aborting: ${corruptedFiles.length} corrupted native .node binary(ies). See above.`);
+    }
+
+    if (corruptedFiles.length > 0) {
+      console.warn(`[after-pack] ⚠️  ${corruptedFiles.length} corrupted .node binary(ies) detected. Attempting auto-re-download...`);
+      for (const f of corruptedFiles) {
+        console.warn(`  ${relative(resourcesDir, f.path)}: ${f.reason}`);
+      }
+
+      // Try to re-download from source packages
+      let fixedCount = 0;
+      for (const pkgInfo of RE_DOWNLOAD_PKGS) {
+        const sourcePkgDir = join(__dirname, '..', 'node_modules', ...pkgInfo.pkg.split('/'));
+        const downloadScript = join(sourcePkgDir, pkgInfo.script);
+        if (!existsSync(downloadScript)) continue;
+
+        try {
+          console.log(`[after-pack] Re-downloading ${pkgInfo.pkg}...`);
+          execSync(`node "${downloadScript}"`, { cwd: sourcePkgDir, stdio: 'pipe', timeout: 60000 });
+
+          // Find the freshly downloaded .node files in the source package and copy to release
+          const freshStack = [sourcePkgDir];
+          while (freshStack.length > 0) {
+            const dir = freshStack.pop();
+            let entries;
+            try { entries = readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+            for (const entry of entries) {
+              const fullPath = join(dir, entry.name);
+              if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+                freshStack.push(fullPath);
+              } else if (entry.name.endsWith('.node')) {
+                // Find matching corrupted file(s) by filename
+                for (const cf of corruptedFiles) {
+                  if (basename(cf.path) === entry.name) {
+                    cpSync(fullPath, cf.path);
+                    const recheck = validateMachO(cf.path);
+                    if (recheck.valid) {
+                      console.log(`[after-pack] ✅ Fixed ${basename(cf.path)} via re-download`);
+                      cf._fixed = true;
+                      fixedCount++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`[after-pack] Re-download failed for ${pkgInfo.pkg}: ${err.message}`);
+        }
+      }
+
+      const stillCorrupted = corruptedFiles.filter(f => !f._fixed);
+      if (stillCorrupted.length > 0) {
+        console.error('[after-pack] ❌ Could not fix all corrupted binaries:');
+        for (const f of stillCorrupted) {
+          console.error(`  ${relative(resourcesDir, f.path)}: ${f.reason}`);
+        }
+        console.error('[after-pack] Fix: run `node node_modules/@matrix-org/matrix-sdk-crypto-nodejs/download-lib.js` then rebuild.');
+        throw new Error(`Aborting: ${stillCorrupted.length} corrupted native .node binary(ies) remain. See above.`);
+      }
+      console.log(`[after-pack] ✅ All corrupted binaries fixed via re-download.`);
     }
   }
 
