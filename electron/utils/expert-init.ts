@@ -323,26 +323,51 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
     }
   }
 
-  // Clean up orphaned expert agents — agents whose expertId is no longer in the manifest
+  // Clean up orphaned and duplicate expert agents
   const manifestIds = new Set(manifest.experts.filter((e) => e.enabled).map((e) => e.id));
   try {
     const snapshot = await listAgentsSnapshot();
+    // Group agents by expertId to detect duplicates
+    const byExpertId = new Map<string, string[]>();
     for (const agent of snapshot.agents) {
       const marker = await readExpertMarker(agent.id);
-      if (marker && !manifestIds.has(marker.expertId)) {
-        logger.info('Removing orphaned expert agent', {
-          agentId: agent.id,
-          expertId: marker.expertId,
-        });
-        try {
-          const { removedEntry } = await deleteAgentConfig(agent.id);
-          await removeAgentWorkspaceDirectory(removedEntry);
-        } catch (err) {
-          logger.error('Failed to remove orphaned expert agent', {
-            agentId: agent.id,
-            expertId: marker.expertId,
-            error: String(err),
-          });
+      if (!marker) continue;
+      const list = byExpertId.get(marker.expertId) ?? [];
+      list.push(agent.id);
+      byExpertId.set(marker.expertId, list);
+    }
+
+    for (const [expertId, agentIds] of byExpertId) {
+      if (!manifestIds.has(expertId)) {
+        // Orphaned — expert no longer in manifest, remove all its agents
+        for (const agentId of agentIds) {
+          logger.info('Removing orphaned expert agent', { agentId, expertId });
+          try {
+            const { removedEntry } = await deleteAgentConfig(agentId);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to remove orphaned expert agent', {
+              agentId,
+              expertId,
+              error: String(err),
+            });
+          }
+        }
+      } else if (agentIds.length > 1) {
+        // Duplicate — keep first (oldest), remove the rest
+        const toRemove = agentIds.slice(1);
+        for (const agentId of toRemove) {
+          logger.info('Removing duplicate expert agent', { agentId, expertId });
+          try {
+            const { removedEntry } = await deleteAgentConfig(agentId);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to remove duplicate expert agent', {
+              agentId,
+              expertId,
+              error: String(err),
+            });
+          }
         }
       }
     }
