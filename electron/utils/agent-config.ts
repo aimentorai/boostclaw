@@ -599,7 +599,10 @@ async function readExpertIdMarker(agentId: string): Promise<string | null> {
     const agentDir = join(getOpenClawConfigDir(), 'agents', agentId, 'agent');
     const markerPath = join(agentDir, EXPERT_MARKER_FILENAME);
     const content = await readFile(markerPath, 'utf-8');
-    return content.trim() || null;
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+    // Marker format: first line = expertId, optional second line = version
+    return trimmed.split('\n')[0];
   } catch {
     return null;
   }
