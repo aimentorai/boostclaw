@@ -2,18 +2,21 @@
  * SparkBoost OpenClaw Plugin
  *
  * Registers native Tools for TikTok video publishing and Grok video generation.
+ * Video generation is managed asynchronously via a background task service:
+ * grok_submit returns immediately, the service polls in the background,
+ * and grok_task_status / grok_task_list query the in-memory task registry.
  * All API responses are wrapped with trust boundary markers.
  */
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { Type } from "@sinclair/typebox";
 import { SparkBoostClient } from "./sparkboost-client";
+import { SparkBoostTaskManager } from "./task-manager";
 import { wrapResponse, wrapError } from "./trust-boundary";
 
 const TIKTOK_AUTH_LIST = "/api/v1/openapi/tiktok/auth/list";
 const TIKTOK_PRODUCT_LIST = "/api/v1/openapi/tiktok/product/list";
 const TIKTOK_VIDEO_PUBLISH = "/api/v1/openapi/tiktok/video/publish";
 const TIKTOK_VIDEO_STATUS = "/api/v1/openapi/tiktok/video/status";
-const GROK_SUBMIT = "/grokImagine/submit";
 const GROK_RESULT = "/grokImagine/result";
 const TIKTOK_VIDEO_PRECHECK = "/api/v1/openapi/tiktok/video/precheck";
 
@@ -57,8 +60,26 @@ export default definePluginEntry({
 
     const client = new SparkBoostClient({ secretKey, apiKey, baseUrl });
     const logger = (api as any).logger;
+    let taskManager: SparkBoostTaskManager | null = null;
 
     logger?.info?.("sparkboost: plugin registered");
+
+    // Register background task management service
+    api.registerService({
+      id: "sparkboost-task-manager",
+      async start(ctx) {
+        taskManager = new SparkBoostTaskManager(client, ctx.stateDir);
+        await taskManager.start();
+        ctx.logger.info?.("sparkboost: task manager service started");
+      },
+      async stop(ctx) {
+        if (taskManager) {
+          await taskManager.stop();
+          taskManager = null;
+        }
+        ctx.logger.info?.("sparkboost: task manager service stopped");
+      },
+    });
 
     // --- Tool 1: List TikTok accounts ---
     api.registerTool({
@@ -155,13 +176,14 @@ export default definePluginEntry({
       },
     }, { name: "sparkboost_check_status" });
 
-    // --- Tool 5: Submit Grok video task ---
+    // --- Tool 5: Submit Grok video task (async, returns immediately) ---
     api.registerTool({
       name: "sparkboost_grok_submit",
       label: "Submit Grok Video Task",
       description:
-        "Submit an AI video generation task via Grok. Returns a task ID. " +
-        "Use sparkboost_grok_result to poll for completion.",
+        "Submit an AI video generation task via Grok. Returns IMMEDIATELY with a task ID. " +
+        "Video generation typically takes 5-8 minutes. " +
+        "Use sparkboost_grok_task_status to check progress, or sparkboost_grok_wait to block until done.",
       parameters: Type.Object({
         prompt: Type.String({ description: "Video generation prompt" }),
         duration: Type.Number({ description: "Video duration in seconds (6 or 10)", enum: [6, 10] }),
@@ -174,45 +196,207 @@ export default definePluginEntry({
         })),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        const body: Record<string, unknown> = {
-          prompt: params.prompt,
-          duration: params.duration,
-          aspect_ratio: params.aspect_ratio,
-        };
-        const urls = params.image_urls as string[] | undefined;
-        if (urls && urls.length > 0) {
-          body.image_urls = params.image_urls;
+        if (!taskManager) {
+          return errorResult("Task manager service not running — cannot submit async task");
         }
         try {
-          const raw = await client.post(GROK_SUBMIT, body);
-          return textResult(wrapResponse(raw, "grokImagine/submit"));
+          const task = await taskManager.submit({
+            prompt: params.prompt as string,
+            duration: params.duration as number,
+            aspectRatio: params.aspect_ratio as string,
+            imageUrls: params.image_urls as string[] | undefined,
+          });
+          const summary = [
+            `Video generation task submitted.`,
+            `Task ID: ${task.taskId}`,
+            `Status: ${task.status}`,
+            `Prompt: "${task.prompt.slice(0, 80)}${task.prompt.length > 80 ? "..." : ""}"`,
+            `Duration: ${task.duration}s | Aspect: ${task.aspectRatio}`,
+            ``,
+            `Video generation typically takes 5-8 minutes.`,
+            `Use sparkboost_grok_task_status to check progress.`,
+          ].join("\n");
+          return textResult(
+            wrapResponse(summary, "grokImagine/submit"),
+            { taskId: task.taskId, status: task.status },
+          );
         } catch (err: any) {
           return errorResult(wrapError(err.message, "grokImagine/submit"));
         }
       },
     }, { name: "sparkboost_grok_submit" });
 
-    // --- Tool 6: Query Grok video result ---
+    // --- Tool 6: Query Grok task status (from task manager) ---
     api.registerTool({
-      name: "sparkboost_grok_result",
-      label: "Query Grok Video Result",
+      name: "sparkboost_grok_task_status",
+      label: "Query Grok Task Status",
       description:
-        "Check the result of a Grok video generation task. " +
-        "Status: 0=init, 1=processing, 2=success (video_url available), 3=failed.",
+        "Check the status of an async video generation task submitted via sparkboost_grok_submit. " +
+        "Returns submitted/processing/succeeded/failed. If succeeded, includes videoUrl. " +
+        "This checks the local task registry — no API call needed.",
       parameters: Type.Object({
-        taskId: Type.String({ description: "Task ID from sparkboost_grok_submit response" }),
+        taskId: Type.String({ description: "Task ID from sparkboost_grok_submit" }),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        try {
-          const raw = await client.get(`${GROK_RESULT}?id=${encodeURIComponent(String(params.taskId))}`);
-          return textResult(wrapResponse(raw, "grokImagine/result"));
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "grokImagine/result"));
+        if (!taskManager) {
+          return errorResult("Task manager service not running");
         }
+        const task = taskManager.getStatus(params.taskId as string);
+        if (!task) {
+          return errorResult(`Task not found: ${params.taskId}. Check the task ID from sparkboost_grok_submit.`);
+        }
+        const lines = [
+          `Task ID: ${task.taskId}`,
+          `Status: ${task.status}`,
+          `Prompt: "${task.prompt.slice(0, 80)}${task.prompt.length > 80 ? "..." : ""}"`,
+          `Poll count: ${task.pollCount}`,
+          `Elapsed: ${Math.round((Date.now() - task.submittedAt) / 1000)}s`,
+        ];
+        if (task.status === "succeeded" && task.videoUrl) {
+          lines.push(`Video URL: ${task.videoUrl}`);
+        }
+        if (task.status === "failed" && task.error) {
+          lines.push(`Error: ${task.error}`);
+        }
+        return textResult(lines.join("\n"), {
+          taskId: task.taskId,
+          status: task.status,
+          videoUrl: task.videoUrl,
+        });
       },
-    }, { name: "sparkboost_grok_result" });
+    }, { name: "sparkboost_grok_task_status" });
 
-    // --- Tool 7: Composite snapshot ---
+    // --- Tool 7: List all Grok tasks ---
+    api.registerTool({
+      name: "sparkboost_grok_task_list",
+      label: "List Grok Tasks",
+      description:
+        "List all video generation tasks and their statuses. " +
+        "Useful for checking batch progress or finding completed videos.",
+      parameters: Type.Object({
+        status: Type.Optional(Type.String({
+          description: "Filter by status: submitted, processing, succeeded, failed",
+          enum: ["submitted", "processing", "succeeded", "failed"],
+        })),
+      }),
+      async execute(_id, params): Promise<ToolResult> {
+        if (!taskManager) {
+          return errorResult("Task manager service not running");
+        }
+        const tasks = taskManager.listTasks(params.status as VideoTask["status"] | undefined);
+        if (tasks.length === 0) {
+          return textResult("No video generation tasks found.");
+        }
+        const lines = tasks.map((t, i) => {
+          const elapsed = Math.round((Date.now() - t.submittedAt) / 1000);
+          const suffix = t.status === "succeeded" ? ` → ${t.videoUrl?.slice(0, 60)}...` : "";
+          return `${i + 1}. [${t.status.toUpperCase()}] ${t.taskId} (${elapsed}s) "${t.prompt.slice(0, 40)}..."${suffix}`;
+        });
+        return textResult(
+          `Video tasks (${tasks.length}):\n${lines.join("\n")}`,
+          { count: tasks.length },
+        );
+      },
+    }, { name: "sparkboost_grok_task_list" });
+
+    // --- Tool 8: Wait for Grok task completion (blocking) ---
+    api.registerTool({
+      name: "sparkboost_grok_wait",
+      label: "Wait for Grok Task",
+      description:
+        "Block until a video generation task completes (succeeded or failed). " +
+        "Polls every 15 seconds. Use ONLY when you need to wait for a specific task. " +
+        "For batch workflows, prefer sparkboost_grok_task_status to check progress without blocking.",
+      parameters: Type.Object({
+        taskId: Type.String({ description: "Task ID from sparkboost_grok_submit" }),
+        timeoutSeconds: Type.Optional(Type.Number({
+          description: "Max wait time in seconds (default 600 = 10 min, max 1800 = 30 min)",
+          minimum: 30,
+          maximum: 1800,
+          default: 600,
+        })),
+      }),
+      async execute(_id, params): Promise<ToolResult> {
+        if (!taskManager) {
+          return errorResult("Task manager service not running");
+        }
+        const taskId = params.taskId as string;
+        const timeoutMs = Math.min((params.timeoutSeconds as number || 600) * 1000, 1_800_000);
+        const deadline = Date.now() + timeoutMs;
+
+        while (Date.now() < deadline) {
+          // First try the local task manager
+          const task = taskManager.getStatus(taskId);
+          if (!task) {
+            return errorResult(`Task not found: ${taskId}`);
+          }
+          if (task.status === "succeeded") {
+            return textResult(
+              wrapResponse(
+                `Video generation succeeded.\nTask ID: ${task.taskId}\nVideo URL: ${task.videoUrl}\nDuration: ${task.duration}s | Aspect: ${task.aspectRatio}`,
+                "grokImagine/wait"
+              ),
+              { taskId: task.taskId, status: "succeeded", videoUrl: task.videoUrl },
+            );
+          }
+          if (task.status === "failed") {
+            return errorResult(wrapError(task.error || "Video generation failed", "grokImagine/wait"));
+          }
+
+          // Also poll the API directly for faster updates
+          try {
+            const raw = await client.get(`${GROK_RESULT}?id=${encodeURIComponent(taskId)}`);
+            const json = JSON.parse(raw);
+            const data = json.data || json;
+            const apiStatus = data.status;
+
+            if (apiStatus === 2 || apiStatus === "success") {
+              const videoUrl = data.video_url || data.videoUrl || data.url;
+              return textResult(
+                wrapResponse(
+                  `Video generation succeeded.\nTask ID: ${taskId}\nVideo URL: ${videoUrl}`,
+                  "grokImagine/wait"
+                ),
+                { taskId, status: "succeeded", videoUrl },
+              );
+            }
+            if (apiStatus === 3 || apiStatus === "failed") {
+              return errorResult(wrapError(data.reason || data.message || "Video generation failed", "grokImagine/wait"));
+            }
+          } catch {
+            // Poll error — fall through to sleep
+          }
+
+          await new Promise((r) => setTimeout(r, 15_000));
+        }
+
+        return errorResult(`Timed out waiting for task ${taskId} (${Math.round(timeoutMs / 1000)}s)`);
+      },
+    }, { name: "sparkboost_grok_wait" });
+
+    // --- Tool 9: Cancel a Grok task ---
+    api.registerTool({
+      name: "sparkboost_grok_cancel",
+      label: "Cancel Grok Task",
+      description:
+        "Cancel a pending or processing video generation task. " +
+        "Completed tasks cannot be cancelled.",
+      parameters: Type.Object({
+        taskId: Type.String({ description: "Task ID to cancel" }),
+      }),
+      async execute(_id, params): Promise<ToolResult> {
+        if (!taskManager) {
+          return errorResult("Task manager service not running");
+        }
+        const ok = taskManager.cancel(params.taskId as string);
+        if (ok) {
+          return textResult(`Task ${params.taskId} cancelled.`);
+        }
+        return errorResult(`Could not cancel task ${params.taskId} — not found or already completed.`);
+      },
+    }, { name: "sparkboost_grok_cancel" });
+
+    // --- Tool 10: Composite snapshot ---
     api.registerTool({
       name: "sparkboost_snapshot",
       label: "SparkBoost Status Snapshot",
@@ -251,7 +435,7 @@ export default definePluginEntry({
       },
     }, { name: "sparkboost_snapshot" });
 
-    // --- Tool 8: Video compliance check ---
+    // --- Tool 11: Video compliance check ---
     api.registerTool({
       name: "sparkboost_video_compliance",
       label: "Video Compliance Check",
@@ -284,3 +468,5 @@ export default definePluginEntry({
     }, { name: "sparkboost_video_compliance" });
   },
 });
+
+type VideoTask = import("./task-manager").VideoTask;

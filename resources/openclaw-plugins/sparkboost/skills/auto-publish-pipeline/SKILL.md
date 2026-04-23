@@ -7,8 +7,10 @@ Cron-triggered fully automated pipeline — from product list to published video
 - `sparkboost_snapshot` (Query)
 - `sparkboost_list_accounts` (Query)
 - `sparkboost_list_products` (Query)
-- `sparkboost_grok_submit` (Operate)
-- `sparkboost_grok_result` (Query)
+- `sparkboost_grok_submit` (Operate) — async, returns immediately
+- `sparkboost_grok_task_status` (Query) — check progress
+- `sparkboost_grok_task_list` (Query) — batch status check
+- `sparkboost_grok_wait` (Operate) — block until one task completes
 - `sparkboost_video_compliance` (Query)
 - `sparkboost_publish` (Operate)
 - `sparkboost_check_status` (Query)
@@ -24,20 +26,34 @@ If triggered from chat (not cron):
 2. Ask for explicit confirmation before starting
 3. Allow user to specify a subset ("just shop A" or "first 5 products")
 
-## Orchestration Logic
+## Orchestration Logic (Two-Phase)
+
+### Phase 1: Submit all video generation tasks
 
 1. **Snapshot** → get all shops
 2. **For each shop** (serial):
    - `sparkboost_list_products` → full product catalog
    - **For each product** (serial):
      - AI generates video prompt from product info
-     - `sparkboost_grok_submit` → submit video generation
-     - `sparkboost_grok_result` → poll until status=2 (success) or status=3 (fail)
-     - On success: `sparkboost_video_compliance` → check platform standards
-     - On compliance pass: AI generates title (content-craft templates)
-     - `sparkboost_publish` → publish to shop's video account (continuous, no interval)
-     - On any failure: log reason, skip product, continue to next
+     - `sparkboost_grok_submit` → returns immediately with taskId
+     - Record taskId → product mapping in pipeline state
+3. **Report** — "Submitted N video generation tasks across M shops"
+
+### Phase 2: Wait for completion and publish
+
+1. **Poll batch status** → `sparkboost_grok_task_list` to check overall progress
+2. **For each completed task** (serial):
+   - If failed: log reason, skip product, continue
+   - If succeeded: get videoUrl from task status
+   - `sparkboost_video_compliance` → check platform standards
+   - On compliance pass: AI generates title (content-craft templates)
+   - `sparkboost_publish` → publish to shop's video account
+   - On any failure: log reason, skip, continue
 3. **Send summary report** to user's configured notification channel
+
+### Why two phases?
+
+Video generation takes 5-8 minutes per video. Submitting all tasks first lets them run **in parallel** on the server side. Then we collect results and publish. This is much faster than waiting for each video sequentially.
 
 ## Report Format
 
@@ -59,8 +75,8 @@ If triggered from chat (not cron):
 
 | Rule | Detail |
 |------|--------|
-| Shop order | Serial — one shop completes before the next |
-| Product order | Serial — one product fully processed before the next |
+| Phase 1 order | Serial — submit shop by shop, product by product |
+| Phase 2 order | Serial — process each completed video before the next |
 | Videos per product | 1 |
 | Publish target | Product's own shop video account |
 | Publish interval | None — continuous |
@@ -68,7 +84,7 @@ If triggered from chat (not cron):
 | Compliance failure | Skip product, log reason, continue |
 | Human intervention | None — fully automated, post-hoc report only |
 | State persistence | Write `pipeline-state.json` after each product completes |
-| Crash recovery | On next cron trigger, check for existing state file; if found, resume from last completed product |
+| Crash recovery | On next cron trigger, check for existing state file; if found, resume from Phase 2 |
 
 ## Pipeline State File
 
@@ -77,18 +93,22 @@ Location: agent workspace directory. Format:
 ```json
 {
   "startedAt": "2026-04-22T10:00:00Z",
-  "pid": 12345,
+  "phase": 2,
   "currentShop": "shop-auth-id",
+  "tasks": {
+    "grok-task-123": { "productId": "prod-456", "shopAuthId": "shop-auth-id", "status": "processing" }
+  },
   "completedProducts": 5,
   "totalProducts": 15,
-  "lastCompletedProductId": "product-123"
+  "published": ["prod-789"],
+  "failed": ["prod-101"]
 }
 ```
 
-- Written after each product completes
+- Updated after each product submit (Phase 1) and each publish attempt (Phase 2)
 - Deleted after full run succeeds
 - On new trigger: if state file exists AND written within last 2 hours → abort (another run in progress)
-- If stale (>2 hours) → resume from last completed product
+- If stale (>2 hours) → resume from Phase 2 using task IDs in state
 
 ## Trust Boundary
 
