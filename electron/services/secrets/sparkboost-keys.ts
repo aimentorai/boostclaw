@@ -102,6 +102,33 @@ export async function injectSparkBoostKeys(): Promise<boolean> {
 }
 
 /**
+ * Read key=value pairs from a .env file in the app root directory.
+ * Only reads SPARKBOOST_* entries to avoid polluting the environment.
+ */
+async function readDotEnv(): Promise<void> {
+  try {
+    const { app } = await import('electron');
+    const envPath = app.isPackaged
+      ? join(process.resourcesPath, '..', '.env')
+      : join(app.getAppPath(), '.env');
+    if (!existsSync(envPath)) return;
+    const content = await readFile(envPath, 'utf-8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIndex = trimmed.indexOf('=');
+      if (eqIndex === -1) continue;
+      const key = trimmed.slice(0, eqIndex).trim();
+      if (key !== ENV_SECRET_KEY && key !== ENV_API_KEY) continue;
+      const value = trimmed.slice(eqIndex + 1).trim();
+      if (!process.env[key]) process.env[key] = value;
+    }
+  } catch {
+    // .env is optional
+  }
+}
+
+/**
  * Initialize SparkBoost keys on first launch.
  * If encrypted keys don't exist, reads from environment (set by build pipeline)
  * and stores them encrypted.
@@ -110,6 +137,11 @@ export async function initializeSparkBoostKeys(): Promise<void> {
   const existing = await readEncryptedKeys();
   if (existing) {
     return;
+  }
+
+  // Try loading from .env file if env vars aren't set
+  if (!process.env.SPARKBOOST_SECRET_KEY || !process.env.SPARKBOOST_API_KEY) {
+    await readDotEnv();
   }
 
   // Read from env vars (injected by build pipeline or .env)
