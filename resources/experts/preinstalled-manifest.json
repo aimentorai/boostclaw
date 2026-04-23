@@ -1,4 +1,5 @@
 {
+  "removedExperts": ["content-writing-expert", "cross-border-video-expert"],
   "experts": [
     {
       "id": "marketing-staff",

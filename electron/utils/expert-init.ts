@@ -34,6 +34,7 @@ export interface ExpertManifestEntry {
 }
 
 export interface ExpertManifest {
+  removedExperts?: string[];
   experts: ExpertManifestEntry[];
 }
 
@@ -288,7 +289,8 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       // so that slugifyAgentId produces a stable, unique ID instead of
       // the Chinese fallback "agent".
       const snapshot = await createAgent(expert.id, { skipRuntimeFiles: true });
-      const newAgent = snapshot.agents.find((a) => a.name === expert.id);
+      // createAgent appends the new entry at the end of the agents list.
+      const newAgent = snapshot.agents[snapshot.agents.length - 1];
 
       if (!newAgent) {
         throw new Error(
@@ -325,16 +327,39 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
 
   // Clean up orphaned and duplicate expert agents
   const manifestIds = new Set(manifest.experts.filter((e) => e.enabled).map((e) => e.id));
+  const removedIds = new Set(manifest.removedExperts ?? []);
+  const allKnownExpertIds = new Set([...manifestIds, ...removedIds]);
   try {
     const snapshot = await listAgentsSnapshot();
-    // Group agents by expertId to detect duplicates
+
+    // Pass 1: marker-based grouping (reliable)
     const byExpertId = new Map<string, string[]>();
+    const markedAgentIds = new Set<string>();
     for (const agent of snapshot.agents) {
       const marker = await readExpertMarker(agent.id);
-      if (!marker) continue;
-      const list = byExpertId.get(marker.expertId) ?? [];
-      list.push(agent.id);
-      byExpertId.set(marker.expertId, list);
+      if (marker) {
+        markedAgentIds.add(agent.id);
+        const list = byExpertId.get(marker.expertId) ?? [];
+        list.push(agent.id);
+        byExpertId.set(marker.expertId, list);
+      }
+    }
+
+    // Pass 2: match unmarked agents by name/ID against known expert IDs
+    for (const agent of snapshot.agents) {
+      if (markedAgentIds.has(agent.id)) continue;
+      for (const expertId of allKnownExpertIds) {
+        if (
+          agent.name === expertId ||
+          agent.id === expertId ||
+          agent.id.startsWith(expertId + '-')
+        ) {
+          const list = byExpertId.get(expertId) ?? [];
+          list.push(agent.id);
+          byExpertId.set(expertId, list);
+          break;
+        }
+      }
     }
 
     for (const [expertId, agentIds] of byExpertId) {
@@ -354,8 +379,10 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
           }
         }
       } else if (agentIds.length > 1) {
-        // Duplicate — keep first (oldest), remove the rest
-        const toRemove = agentIds.slice(1);
+        // Duplicate — keep the first marked agent, or the first one if none are marked
+        const markedForThisExpert = agentIds.filter((id) => markedAgentIds.has(id));
+        const keeper = markedForThisExpert[0] ?? agentIds[0];
+        const toRemove = agentIds.filter((id) => id !== keeper);
         for (const agentId of toRemove) {
           logger.info('Removing duplicate expert agent', { agentId, expertId });
           try {
