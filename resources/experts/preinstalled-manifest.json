@@ -16,7 +16,13 @@
         "把这个视频发布到所有店铺",
         "查看最新的发布状态"
       ],
-      "requiredSkills": [],
+      "requiredSkills": [
+        "product-scout",
+        "content-craft",
+        "tiktok-publish",
+        "video-maker",
+        "auto-publish-pipeline"
+      ],
       "defaultModel": null,
       "usageTips": [
         "提供视频链接可以直接发布",
