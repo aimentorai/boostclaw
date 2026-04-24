@@ -423,7 +423,7 @@ async function copyRuntimeFiles(sourceAgentDir: string, targetAgentDir: string):
 async function provisionAgentFilesystem(
   config: AgentConfigDocument,
   agent: AgentListEntry,
-  options?: { inheritWorkspace?: boolean }
+  options?: { inheritWorkspace?: boolean; skipRuntimeFiles?: boolean }
 ): Promise<void> {
   const { entries } = normalizeAgentsConfig(config);
   const mainEntry =
@@ -445,7 +445,7 @@ async function provisionAgentFilesystem(
   if (options?.inheritWorkspace && targetWorkspace !== sourceWorkspace) {
     await copyBootstrapFiles(sourceWorkspace, targetWorkspace);
   }
-  if (targetAgentDir !== sourceAgentDir) {
+  if (!options?.skipRuntimeFiles && targetAgentDir !== sourceAgentDir) {
     await copyRuntimeFiles(sourceAgentDir, targetAgentDir);
   }
 }
@@ -599,7 +599,10 @@ async function readExpertIdMarker(agentId: string): Promise<string | null> {
     const agentDir = join(getOpenClawConfigDir(), 'agents', agentId, 'agent');
     const markerPath = join(agentDir, EXPERT_MARKER_FILENAME);
     const content = await readFile(markerPath, 'utf-8');
-    return content.trim() || null;
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+    // Marker format: first line = expertId, optional second line = version
+    return trimmed.split('\n')[0];
   } catch {
     return null;
   }
@@ -607,7 +610,7 @@ async function readExpertIdMarker(agentId: string): Promise<string | null> {
 
 export async function createAgent(
   name: string,
-  options?: { inheritWorkspace?: boolean; description?: string }
+  options?: { inheritWorkspace?: boolean; description?: string; skipRuntimeFiles?: boolean }
 ): Promise<AgentsSnapshot> {
   return withConfigLock(async () => {
     const config = (await readOpenClawConfig()) as AgentConfigDocument;
@@ -649,6 +652,7 @@ export async function createAgent(
 
     await provisionAgentFilesystem(config, newAgent, {
       inheritWorkspace: options?.inheritWorkspace,
+      skipRuntimeFiles: options?.skipRuntimeFiles,
     });
     await writeOpenClawConfig(config);
     logger.info('Created agent config entry', {
