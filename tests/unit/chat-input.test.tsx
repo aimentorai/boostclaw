@@ -21,6 +21,7 @@ const { agentsState, chatState, gatewayState, skillsState, providersState } = vi
   providersState: {
     accounts: [] as Array<Record<string, unknown>>,
     statuses: [] as Array<Record<string, unknown>>,
+    vendors: [] as Array<Record<string, unknown>>,
     defaultAccountId: null as string | null,
     refreshProviderSnapshot: vi.fn(async () => undefined),
   },
@@ -110,6 +111,7 @@ describe('ChatInput agent targeting', () => {
     skillsState.fetchSkills.mockClear();
     providersState.accounts = [];
     providersState.statuses = [];
+    providersState.vendors = [];
     providersState.defaultAccountId = null;
     providersState.refreshProviderSnapshot.mockClear();
   });
@@ -294,5 +296,50 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByText('claude-sonnet-4'));
 
     expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'anthropic/claude-sonnet-4');
+  });
+
+  it('offers vendor default models when the provider account has no explicit model id', () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'qwen-plus',
+        modelRef: 'custom/qwen-plus',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace',
+        agentDir: '~/.openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'acc-openai',
+        vendorId: 'openai',
+        label: 'OpenAI Primary',
+        authMode: 'api_key',
+        enabled: true,
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ];
+    providersState.statuses = [
+      { id: 'acc-openai', hasKey: true },
+    ];
+    providersState.vendors = [
+      {
+        id: 'openai',
+        name: 'OpenAI',
+        defaultModelId: 'gpt-5.4',
+      },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Select model'));
+    fireEvent.click(screen.getByText('gpt-5.4'));
+
+    expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'openai/gpt-5.4');
   });
 });

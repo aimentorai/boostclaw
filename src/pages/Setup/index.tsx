@@ -880,7 +880,7 @@ function ProviderContent({
     let cancelled = false;
     (async () => {
       try {
-        const snapshot = await fetchProviderSnapshot();
+        const snapshot = await fetchProviderSnapshot({ includeSystemDefaultProvider: false });
         const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
         const setupProviderTypes = new Set<string>(providers.map((p) => p.id));
         const setupCandidates = snapshot.accounts.filter((account) => setupProviderTypes.has(account.vendorId));
@@ -919,7 +919,7 @@ function ProviderContent({
       if (!selectedProvider) return;
       setApiProtocol('openai-completions');
       try {
-        const snapshot = await fetchProviderSnapshot();
+        const snapshot = await fetchProviderSnapshot({ includeSystemDefaultProvider: false });
         const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
         const preferredAccount = pickPreferredAccount(
           snapshot.accounts,

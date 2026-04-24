@@ -68,8 +68,11 @@
         "startLogin": "ログイン開始",
         "redirecting": "リダイレクト中...",
         "lastLoginAccount": "前回ログインしたアカウント：{{email}}",
+        "loginSucceeded": "ログインに成功しました",
         "loginFailed": "ログインに失敗しました",
         "loggingIn": "ログイン中",
-        "loggingInDesc": "ログインを完了しています。しばらくお待ちください..."
+        "loggingInDesc": "ログインを完了しています。しばらくお待ちください...",
+        "loginSucceededTitle": "ログイン成功",
+        "loginSucceededDesc": "アプリに移動しています。しばらくお待ちください..."
     }
 }

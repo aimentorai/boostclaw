@@ -154,6 +154,8 @@ export type ProviderSecret =
     scopes?: string[];
     email?: string;
     subject?: string;
+    portalUserId?: string;
+    modelUserId?: string;
   }
   | {
     type: 'local';

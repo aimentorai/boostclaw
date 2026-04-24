@@ -19,6 +19,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useAgentsStore } from '@/stores/agents';
 import { useChatStore } from '@/stores/chat';
@@ -64,6 +71,7 @@ interface RuntimeProviderOption {
   label: string;
   modelIdPlaceholder?: string;
   configuredModelId?: string;
+  availableModels?: string[];
 }
 
 function resolveRuntimeProviderKey(account: ProviderAccount): string {
@@ -838,6 +846,7 @@ function AgentModelModal({ agent, onClose }: { agent: AgentSummary; onClose: () 
         label,
         modelIdPlaceholder: vendor?.modelIdPlaceholder,
         configuredModelId,
+        availableModels: vendor?.availableModels,
       });
     }
 
@@ -983,17 +992,38 @@ function AgentModelModal({ agent, onClose }: { agent: AgentSummary; onClose: () 
             <Label htmlFor="agent-model-id" className="text-[12px] text-foreground/70">
               {t('settingsDialog.modelIdLabel')}
             </Label>
-            <Input
-              id="agent-model-id"
-              value={modelIdInput}
-              onChange={(event) => setModelIdInput(event.target.value)}
-              placeholder={
-                selectedProvider?.modelIdPlaceholder ||
-                selectedProvider?.configuredModelId ||
-                t('settingsDialog.modelIdPlaceholder')
-              }
-              className={inputClasses}
-            />
+            {selectedProvider?.availableModels && selectedProvider.availableModels.length > 0 ? (
+              <Select value={modelIdInput} onValueChange={setModelIdInput}>
+                <SelectTrigger className={cn(inputClasses, 'h-[44px]')}>
+                  <SelectValue
+                    placeholder={
+                      selectedProvider?.modelIdPlaceholder ||
+                      selectedProvider?.configuredModelId ||
+                      t('settingsDialog.modelIdPlaceholder')
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedProvider.availableModels.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="agent-model-id"
+                value={modelIdInput}
+                onChange={(event) => setModelIdInput(event.target.value)}
+                placeholder={
+                  selectedProvider?.modelIdPlaceholder ||
+                  selectedProvider?.configuredModelId ||
+                  t('settingsDialog.modelIdPlaceholder')
+                }
+                className={inputClasses}
+              />
+            )}
           </div>
           {!!nextModelRef && (
             <p className="text-[12px] font-mono text-foreground/70 break-all">

@@ -13,4 +13,41 @@ test.describe('BoostClaw app auth', () => {
       await closeElectronApp(app);
     }
   });
+
+  test('does not show a loading mask window over the redirect page', async ({ launchElectronApp }) => {
+    const app = await launchElectronApp({ enableAppAuth: true });
+    try {
+      const window = await app.firstWindow();
+      await window.waitForLoadState('domcontentloaded');
+      await expect(window.getByTestId('login-page')).toBeVisible();
+
+      await app.evaluate(async () => {
+        const { join } = process.mainModule!.require('node:path') as typeof import('node:path');
+        const appAuthModulePath = join(process.cwd(), 'dist-electron', 'main', 'utils', 'app-auth.js');
+        const { appAuthManager } = process.mainModule!.require(appAuthModulePath) as {
+          appAuthManager: {
+            pendingFlow: Record<string, unknown> | null;
+            syncAuthMaskByUrl: (url: string) => Promise<void>;
+            closeAuthMaskWindow: () => void;
+          };
+        };
+
+        appAuthManager.pendingFlow = {
+          state: 'test-state',
+          codeVerifier: 'test-code-verifier',
+          webRetryCount: 0,
+          cookiePollMisses: 0,
+          redirectPageAutoClickCount: 0,
+        };
+
+        await appAuthManager.syncAuthMaskByUrl('https://open.microdata-inc.com/');
+        appAuthManager.pendingFlow = null;
+        appAuthManager.closeAuthMaskWindow();
+      });
+
+      await expect.poll(() => app.windows().filter((candidate) => !candidate.isClosed()).length).toBe(1);
+    } finally {
+      await closeElectronApp(app);
+    }
+  });
 });

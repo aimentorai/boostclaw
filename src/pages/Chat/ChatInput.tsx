@@ -20,7 +20,7 @@ import { useSkillsStore } from '@/stores/skills';
 import type { AgentSummary } from '@/types/agent';
 import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
-import type { ProviderAccount, ProviderWithKeyInfo } from '@/lib/providers';
+import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -176,6 +176,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const fetchSkills = useSkillsStore((s) => s.fetchSkills);
   const providerAccounts = useProviderStore((s) => s.accounts);
   const providerStatuses = useProviderStore((s) => s.statuses);
+  const providerVendors = useProviderStore((s) => s.vendors);
   const providerDefaultAccountId = useProviderStore((s) => s.defaultAccountId);
   const refreshProviderSnapshot = useProviderStore((s) => s.refreshProviderSnapshot);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
@@ -221,6 +222,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     });
   }, [skillSearchQuery, skills]);
   const modelOptions = useMemo(() => {
+    const vendorById = new Map<string, ProviderVendorInfo>(providerVendors.map((vendor) => [vendor.id, vendor]));
     const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
     const entries = providerAccounts
       .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
@@ -233,7 +235,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     const options = new Map<string, { modelRef: string; label: string; description: string }>();
     for (const account of entries) {
       const runtimeProviderKey = resolveRuntimeProviderKey(account);
-      const modelId = (account.model || '').trim();
+      const vendor = vendorById.get(account.vendorId);
+      const modelId = (account.model || vendor?.defaultModelId || '').trim();
       if (!runtimeProviderKey || !modelId) continue;
       const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
         ? modelId.slice(runtimeProviderKey.length + 1)
@@ -250,7 +253,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     }
 
     return [...options.values()];
-  }, [providerStatuses, providerAccounts, providerDefaultAccountId]);
+  }, [providerStatuses, providerAccounts, providerDefaultAccountId, providerVendors]);
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -677,6 +680,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
               {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
                 <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
                   <Button
+                    data-testid="chat-model-picker-button"
                     type="button"
                     variant="ghost"
                     className={cn(
@@ -707,6 +711,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                           return (
                             <button
                               key={option.modelRef}
+                              data-testid={`chat-model-option-${option.modelRef.replaceAll('/', '-')}`}
                               type="button"
                               className={cn(
                                 'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',

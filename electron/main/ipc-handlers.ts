@@ -73,6 +73,7 @@ import {
 import { validateApiKeyWithProvider } from '../services/providers/provider-validation';
 import { appUpdater } from './updater';
 import { registerHostApiProxyHandlers } from './ipc/host-api-proxy';
+import { appAuthManager } from '../utils/app-auth';
 import {
   isLaunchAtStartupKey,
   isProxyKey,
@@ -732,6 +733,10 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
       };
     }
   });
+
+  // Runtime auth-mask toggle (debugging auth flow visual behavior).
+  ipcMain.handle('auth:mask:get', async () => appAuthManager.getAuthMaskState());
+  ipcMain.handle('auth:mask:set', async (_, enabled: boolean) => appAuthManager.setAuthMaskEnabled(Boolean(enabled)));
 }
 
 /**

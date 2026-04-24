@@ -45,6 +45,9 @@ const electronAPI = {
         'app:quit',
         'app:relaunch',
         'app:request',
+        // Auth mask (debug toggle)
+        'auth:mask:get',
+        'auth:mask:set',
         // Window controls
         'window:minimize',
         'window:maximize',
