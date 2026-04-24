@@ -19,6 +19,7 @@ import {
   rmSync,
   readFileSync,
   writeFileSync,
+  renameSync,
   readdirSync,
   realpathSync,
 } from 'node:fs';
@@ -648,6 +649,63 @@ export function ensureSparkBoostPluginInstalled(): { installed: boolean; warning
         join(__dirname, '../../resources/openclaw-plugins', 'sparkboost'),
       ];
   return ensurePluginInstalled('sparkboost', sources, 'SparkBoost');
+}
+
+/**
+ * Ensure the SparkBoost plugin is registered in openclaw.json plugins.entries.
+ *
+ * The file-copy step (`ensureSparkBoostPluginInstalled`) installs the plugin
+ * to ~/.openclaw/extensions/sparkboost/, but the Gateway only loads plugins
+ * that appear in `plugins.entries` with `enabled: true`.  Channel plugins
+ * (dingtalk, weixin, etc.) are registered by channel-config.ts during setup,
+ * but SparkBoost is a tool plugin with no equivalent registration path.
+ */
+export async function ensureSparkBoostPluginEnabled(): Promise<void> {
+  const configPath = join(homedir(), '.openclaw', 'openclaw.json');
+  let config: Record<string, any>;
+  try {
+    const raw = readFileSync(configPath, 'utf-8');
+    config = JSON.parse(raw);
+  } catch {
+    logger.warn('[plugin] Cannot read openclaw.json — skipping SparkBoost plugin registration');
+    return;
+  }
+
+  const plugins = (config.plugins ??= {});
+  const entries = (plugins.entries ??= {});
+  let configModified = false;
+
+  if ((entries.sparkboost as Record<string, any>)?.enabled !== true) {
+    entries.sparkboost = { enabled: true };
+    if (Array.isArray(plugins.allow) && !plugins.allow.includes('sparkboost')) {
+      plugins.allow = [...plugins.allow, 'sparkboost'];
+    }
+    configModified = true;
+  }
+
+  if (configModified) {
+    try {
+      const tmpPath = configPath + '.tmp';
+      writeFileSync(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+      renameSync(tmpPath, configPath);
+      logger.info('[plugin] Registered sparkboost in plugins.entries');
+    } catch (err) {
+      logger.error('[plugin] Failed to register sparkboost in plugins.entries:', err);
+    }
+  }
+
+  // Ensure npm dependencies are installed
+  const extDir = join(homedir(), '.openclaw', 'extensions', 'sparkboost');
+  const nodeModules = join(extDir, 'node_modules');
+  if (existsSync(join(extDir, 'package.json')) && !existsSync(nodeModules)) {
+    try {
+      const { execSync } = await import('node:child_process');
+      execSync('npm install --omit=dev', { cwd: extDir, timeout: 120_000, stdio: 'pipe' });
+      logger.info('[plugin] Installed SparkBoost plugin dependencies');
+    } catch (err) {
+      logger.error('[plugin] Failed to install SparkBoost plugin dependencies:', err);
+    }
+  }
 }
 
 // ── Bulk startup installer ───────────────────────────────────────────────────

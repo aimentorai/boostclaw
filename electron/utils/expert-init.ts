@@ -5,7 +5,7 @@
  * writes custom bootstrap files, and triggers skill installation.
  * Runs during app startup or first launch after update.
  */
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import {
   createAgent,
@@ -30,9 +30,11 @@ export interface ExpertManifestEntry {
   defaultModel?: string;
   usageTips: string[];
   enabled: boolean;
+  version?: number;
 }
 
 export interface ExpertManifest {
+  removedExperts?: string[];
   experts: ExpertManifestEntry[];
 }
 
@@ -71,15 +73,27 @@ export async function readExpertManifest(): Promise<ExpertManifest> {
   }
 }
 
+interface ExpertMarker {
+  expertId: string;
+  version: number;
+}
+
 /**
- * Check if an agent with the given ID has an EXPERT_ID marker.
+ * Read the EXPERT_ID marker from an agent's directory.
+ * Marker format: first line = expertId, second line = version (default 0).
  */
-async function readExpertMarker(agentId: string): Promise<string | null> {
+async function readExpertMarker(agentId: string): Promise<ExpertMarker | null> {
   try {
     const agentDir = join(getOpenClawConfigDir(), 'agents', agentId, 'agent');
     const markerPath = join(agentDir, EXPERT_MARKER_FILENAME);
     const content = await readFile(markerPath, 'utf-8');
-    return content.trim() || null;
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+    const lines = trimmed.split('\n');
+    return {
+      expertId: lines[0],
+      version: lines.length > 1 ? parseInt(lines[1], 10) || 0 : 0,
+    };
   } catch {
     return null;
   }
@@ -87,19 +101,47 @@ async function readExpertMarker(agentId: string): Promise<string | null> {
 
 /**
  * Write the EXPERT_ID marker file to an agent's directory.
+ * Marker format: expertId\nversion
  */
-async function writeExpertMarker(agentId: string, expertId: string): Promise<void> {
+async function writeExpertMarker(agentId: string, expert: ExpertManifestEntry): Promise<void> {
   const agentDir = join(getOpenClawConfigDir(), 'agents', agentId, 'agent');
   await mkdir(agentDir, { recursive: true });
   const markerPath = join(agentDir, EXPERT_MARKER_FILENAME);
-  await writeFile(markerPath, expertId, 'utf-8');
+  const version = expert.version ?? 1;
+  await writeFile(markerPath, `${expert.id}\n${version}`, 'utf-8');
+}
+
+export const SPARKBOOST_SKILLS = new Set([
+  'product-scout',
+  'content-craft',
+  'tiktok-publish',
+  'video-maker',
+  'auto-publish-pipeline',
+]);
+
+export function expertUsesSparkBoost(expert: ExpertManifestEntry): boolean {
+  return expert.requiredSkills.some((s) => SPARKBOOST_SKILLS.has(s));
+}
+
+export async function readPluginToolsMd(pluginId: string): Promise<string | null> {
+  const toolsPath = join(getResourcesDir(), 'openclaw-plugins', pluginId, 'docs', 'TOOLS.md');
+  try {
+    return await readFile(toolsPath, 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
+export function generateUserMd(): string {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'zh-CN';
+  return `- 时区: ${tz}\n- 语言: ${locale}\n- 业务场景: TikTok 跨境电商营销\n`;
 }
 
 /**
- * Write custom bootstrap files (SOUL.md, IDENTITY.md) to an agent's workspace.
+ * Write custom bootstrap files (SOUL.md, IDENTITY.md, TOOLS.md, USER.md) to an agent's workspace.
  */
 async function writeExpertBootstrapFiles(
-  agentId: string,
   workspacePath: string,
   expert: ExpertManifestEntry
 ): Promise<void> {
@@ -110,6 +152,15 @@ async function writeExpertBootstrapFiles(
   if (expert.identityPrompt) {
     await writeFile(join(workspace, 'IDENTITY.md'), expert.identityPrompt, 'utf-8');
   }
+  // TOOLS.md — for any expert using SparkBoost skills
+  if (expertUsesSparkBoost(expert)) {
+    const toolsMd = await readPluginToolsMd('sparkboost');
+    if (toolsMd) {
+      await writeFile(join(workspace, 'TOOLS.md'), toolsMd, 'utf-8');
+    }
+  }
+  // USER.md — all experts
+  await writeFile(join(workspace, 'USER.md'), generateUserMd(), 'utf-8');
 }
 
 /**
@@ -121,7 +172,7 @@ async function findExistingExpertAgent(expertId: string): Promise<string | null>
     const snapshot = await listAgentsSnapshot();
     for (const agent of snapshot.agents) {
       const marker = await readExpertMarker(agent.id);
-      if (marker === expertId) {
+      if (marker && marker.expertId === expertId) {
         return agent.id;
       }
     }
@@ -170,6 +221,35 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
             });
           }
         } else {
+          // Clean up runtime files copied by older versions
+          const agentDir = join(getOpenClawConfigDir(), 'agents', existingAgentId, 'agent');
+          for (const fileName of ['models.json', 'auth-profiles.json']) {
+            const filePath = join(agentDir, fileName);
+            try {
+              await unlink(filePath);
+            } catch {
+              /* ENOENT is fine */
+            }
+          }
+
+          // Check if bootstrap files need updating (version bump)
+          const existingSnapshot = await listAgentsSnapshot();
+          const existingEntry = existingSnapshot.agents.find((a) => a.id === existingAgentId);
+          const marker = await readExpertMarker(existingAgentId);
+          const storedVersion = marker?.version ?? 0;
+          const manifestVersion = expert.version ?? 1;
+          if (storedVersion < manifestVersion) {
+            if (existingEntry?.workspace) {
+              await writeExpertBootstrapFiles(existingEntry.workspace, expert);
+            }
+            await writeExpertMarker(existingAgentId, expert);
+            logger.info('Updated expert bootstrap files', {
+              expertId: expert.id,
+              fromVersion: storedVersion,
+              toVersion: manifestVersion,
+            });
+          }
+
           logger.info('Expert agent already exists', {
             expertId: expert.id,
             agentId: existingAgentId,
@@ -186,8 +266,9 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       // Create new agent — use expert.id (ASCII slug) as the agent name
       // so that slugifyAgentId produces a stable, unique ID instead of
       // the Chinese fallback "agent".
-      const snapshot = await createAgent(expert.id);
-      const newAgent = snapshot.agents.find((a) => a.name === expert.id);
+      const snapshot = await createAgent(expert.id, { skipRuntimeFiles: true });
+      // createAgent appends the new entry at the end of the agents list.
+      const newAgent = snapshot.agents[snapshot.agents.length - 1];
 
       if (!newAgent) {
         throw new Error(
@@ -200,10 +281,10 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       const workspace = newAgent.workspace;
 
       // Write custom bootstrap files
-      await writeExpertBootstrapFiles(agentId, workspace, expert);
+      await writeExpertBootstrapFiles(workspace, expert);
 
       // Write EXPERT_ID marker
-      await writeExpertMarker(agentId, expert.id);
+      await writeExpertMarker(agentId, expert);
 
       logger.info('Created expert agent', { expertId: expert.id, agentId });
       results.push({
@@ -220,6 +301,83 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
         error: String(err),
       });
     }
+  }
+
+  // Clean up orphaned and duplicate expert agents
+  const manifestIds = new Set(manifest.experts.filter((e) => e.enabled).map((e) => e.id));
+  const removedIds = new Set(manifest.removedExperts ?? []);
+  const allKnownExpertIds = new Set([...manifestIds, ...removedIds]);
+  try {
+    const snapshot = await listAgentsSnapshot();
+
+    // Pass 1: marker-based grouping (reliable)
+    const byExpertId = new Map<string, string[]>();
+    const markedAgentIds = new Set<string>();
+    for (const agent of snapshot.agents) {
+      const marker = await readExpertMarker(agent.id);
+      if (marker) {
+        markedAgentIds.add(agent.id);
+        const list = byExpertId.get(marker.expertId) ?? [];
+        list.push(agent.id);
+        byExpertId.set(marker.expertId, list);
+      }
+    }
+
+    // Pass 2: match unmarked agents by name/ID against known expert IDs
+    for (const agent of snapshot.agents) {
+      if (markedAgentIds.has(agent.id)) continue;
+      for (const expertId of allKnownExpertIds) {
+        if (
+          agent.name === expertId ||
+          agent.id === expertId ||
+          agent.id.startsWith(expertId + '-')
+        ) {
+          const list = byExpertId.get(expertId) ?? [];
+          list.push(agent.id);
+          byExpertId.set(expertId, list);
+          break;
+        }
+      }
+    }
+
+    for (const [expertId, agentIds] of byExpertId) {
+      if (!manifestIds.has(expertId)) {
+        // Orphaned — expert no longer in manifest, remove all its agents
+        for (const agentId of agentIds) {
+          logger.info('Removing orphaned expert agent', { agentId, expertId });
+          try {
+            const { removedEntry } = await deleteAgentConfig(agentId);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to remove orphaned expert agent', {
+              agentId,
+              expertId,
+              error: String(err),
+            });
+          }
+        }
+      } else if (agentIds.length > 1) {
+        // Duplicate — keep the first marked agent, or the first one if none are marked
+        const markedForThisExpert = agentIds.filter((id) => markedAgentIds.has(id));
+        const keeper = markedForThisExpert[0] ?? agentIds[0];
+        const toRemove = agentIds.filter((id) => id !== keeper);
+        for (const agentId of toRemove) {
+          logger.info('Removing duplicate expert agent', { agentId, expertId });
+          try {
+            const { removedEntry } = await deleteAgentConfig(agentId);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to remove duplicate expert agent', {
+              agentId,
+              expertId,
+              error: String(err),
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to check for orphaned expert agents:', err);
   }
 
   return results;
