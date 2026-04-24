@@ -232,19 +232,9 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
             }
           }
 
-          // Remove generic AGENTS.md from workspace — experts have their own SOUL.md
+          // Check if bootstrap files need updating (version bump)
           const existingSnapshot = await listAgentsSnapshot();
           const existingEntry = existingSnapshot.agents.find((a) => a.id === existingAgentId);
-          if (existingEntry?.workspace) {
-            const agentsMdPath = join(expandPath(existingEntry.workspace), 'AGENTS.md');
-            try {
-              await unlink(agentsMdPath);
-            } catch {
-              /* ENOENT is fine */
-            }
-          }
-
-          // Check if bootstrap files need updating (version bump)
           const marker = await readExpertMarker(existingAgentId);
           const storedVersion = marker?.version ?? 0;
           const manifestVersion = expert.version ?? 1;
