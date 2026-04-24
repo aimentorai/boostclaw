@@ -1,3 +1,19 @@
+---
+name: tiktok-publish
+preamble-tier: 2
+version: 1.0.0
+description: Video publishing to TikTok shops with batch support, user confirmation, and status tracking.
+allowed-tools:
+  sparkboost_snapshot
+  sparkboost_publish
+  sparkboost_check_status
+triggers:
+  发布视频
+  发布到TikTok
+  publish
+  发布
+---
+
 # TikTok Publish (发布分发)
 
 Video publishing to TikTok shops with batch support, user confirmation, and status tracking.

@@ -46,6 +46,21 @@ declare module "openclaw/plugin-sdk/plugin-entry" {
     registerTool(tool: ToolDefinition, options?: { name: string }): void;
     registerHook(event: string, handler: (...args: any[]) => any): void;
     registerService(service: PluginService): void;
+    runtime?: {
+      subagent: {
+        run: (params: {
+          sessionKey: string;
+          message: string;
+          deliver?: boolean;
+          extraSystemPrompt?: string;
+          idempotencyKey?: string;
+        }) => Promise<{ runId: string }>;
+      };
+      system: {
+        enqueueSystemEvent: (text: string, options: { sessionKey: string; contextKey?: string | null }) => boolean;
+        requestHeartbeatNow: (opts?: { reason?: string; coalesceMs?: number; agentId?: string; sessionKey?: string }) => void;
+      };
+    };
   }
 
   interface PluginEntry {

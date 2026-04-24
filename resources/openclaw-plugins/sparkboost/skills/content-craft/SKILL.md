@@ -1,3 +1,17 @@
+---
+name: content-craft
+preamble-tier: 2
+version: 1.0.0
+description: Title generation, script writing, copy optimization, and content safety review for TikTok videos.
+triggers:
+  写标题
+  优化文案
+  内容创作
+  title
+  script
+  copy
+---
+
 # Content Craft (内容创作)
 
 Title generation, script writing, copy optimization, and content safety review. Pure prompt capability — no tool bindings.

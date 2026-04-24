@@ -1,28 +1,35 @@
 /**
  * SparkBoost OpenClaw Plugin
  *
- * Registers native Tools for TikTok video publishing and Grok video generation.
- * Video generation is managed asynchronously via a background task service:
- * grok_submit returns immediately, the service polls in the background,
- * and grok_task_status / grok_task_list query the in-memory task registry.
- * All API responses are wrapped with trust boundary markers.
+ * Two-layer architecture:
+ * - Tools: Fine-grained API layer (hidden behind skills)
+ * - Skills: UX/routing layer (what users see)
+ *
+ * All tools use factory function pattern for sessionKey access.
+ * Async video generation uses declarative task adapters (task-adapters.ts).
+ * Completion notifications via OpenClaw system events + heartbeat.
  */
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { Type } from "@sinclair/typebox";
+import { join } from "path";
 import { SparkBoostClient } from "./sparkboost-client";
 import { SparkBoostTaskManager } from "./task-manager";
+import { type AsyncTask } from "./task-adapters";
 import { wrapResponse, wrapError } from "./trust-boundary";
 
 const TIKTOK_AUTH_LIST = "/api/v1/openapi/tiktok/auth/list";
 const TIKTOK_PRODUCT_LIST = "/api/v1/openapi/tiktok/product/list";
 const TIKTOK_VIDEO_PUBLISH = "/api/v1/openapi/tiktok/video/publish";
 const TIKTOK_VIDEO_STATUS = "/api/v1/openapi/tiktok/video/status";
-const GROK_RESULT = "/grokImagine/result";
 const TIKTOK_VIDEO_PRECHECK = "/api/v1/openapi/tiktok/video/precheck";
 
 interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
   details?: Record<string, unknown>;
+}
+
+interface ToolContext {
+  sessionKey?: string;
 }
 
 function textResult(text: string, details?: Record<string, unknown>): ToolResult {
@@ -31,6 +38,37 @@ function textResult(text: string, details?: Record<string, unknown>): ToolResult
 
 function errorResult(message: string): ToolResult {
   return { content: [{ type: "text", text: message }] };
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+interface PluginApi {
+  pluginConfig: Record<string, unknown>;
+  logger: { info?: (...args: unknown[]) => void; warn?: (...args: unknown[]) => void; error?: (...args: unknown[]) => void };
+  registerTool(tool: unknown, meta: unknown): void;
+  runtime?: {
+    subagent: {
+      run: (params: {
+        sessionKey: string;
+        message: string;
+        deliver?: boolean;
+        extraSystemPrompt?: string;
+        idempotencyKey?: string;
+      }) => Promise<{ runId: string }>;
+    };
+    system: {
+      enqueueSystemEvent: (text: string, options: { sessionKey: string; contextKey?: string | null }) => boolean;
+      requestHeartbeatNow: (opts?: { reason?: string; coalesceMs?: number; agentId?: string; sessionKey?: string }) => void;
+    };
+  };
+}
+
+interface SparkBoostConfig {
+  secretKey?: string;
+  apiKey?: string;
+  baseUrl?: string;
 }
 
 export default definePluginEntry({
@@ -47,42 +85,42 @@ export default definePluginEntry({
     })),
   }),
   register(api) {
-    const cfg = (api as any).pluginConfig as { secretKey?: string; apiKey?: string; baseUrl?: string };
+    const typedApi = api as unknown as PluginApi;
+    const cfg = typedApi.pluginConfig as SparkBoostConfig;
     const secretKey = cfg.secretKey || process.env.SPARKBOOST_SECRET_KEY || "";
     const apiKey = cfg.apiKey || process.env.SPARKBOOST_API_KEY || "";
     const baseUrl = cfg.baseUrl || "http://gateway.microdata-inc.com";
 
     if (!secretKey || !apiKey) {
-      const logger = (api as any).logger;
-      logger?.warn?.("sparkboost: missing secretKey and apiKey — plugin will not function. Set SPARKBOOST_SECRET_KEY and SPARKBOOST_API_KEY env vars or configure in plugin settings.");
+      typedApi.logger?.warn?.("sparkboost: missing secretKey and apiKey — plugin will not function.");
       return;
     }
 
     const client = new SparkBoostClient({ secretKey, apiKey, baseUrl });
-    const logger = (api as any).logger;
-    let taskManager: SparkBoostTaskManager | null = null;
 
-    logger?.info?.("sparkboost: plugin registered");
+    const stateDir = join(
+      process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || "/tmp", ".openclaw"),
+      "sparkboost",
+    );
+    const taskManager = new SparkBoostTaskManager(client, stateDir);
 
-    // Register background task management service
-    api.registerService({
-      id: "sparkboost-task-manager",
-      async start(ctx) {
-        taskManager = new SparkBoostTaskManager(client, ctx.stateDir);
-        await taskManager.start();
-        ctx.logger.info?.("sparkboost: task manager service started");
-      },
-      async stop(ctx) {
-        if (taskManager) {
-          await taskManager.stop();
-          taskManager = null;
-        }
-        ctx.logger.info?.("sparkboost: task manager service stopped");
-      },
+    // Inject runtime API (subagent + system) for proactive notifications
+    const runtime = typedApi.runtime;
+    if (runtime) {
+      taskManager.setRuntimeApi(runtime);
+      console.error("[sparkboost] RuntimeApi injected (subagent+system), notifications enabled");
+    } else {
+      console.error("[sparkboost] WARN: api.runtime not available — completion notifications DISABLED");
+    }
+
+    taskManager.start().catch((err: unknown) => {
+      typedApi.logger?.warn?.("sparkboost: task manager start failed:", err);
     });
+    typedApi.logger?.info?.("sparkboost: plugin registered, task manager initialized");
+    console.error("[sparkboost] plugin registered, version 0.4.0+diag");
 
     // --- Tool 1: List TikTok accounts ---
-    api.registerTool({
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_list_accounts",
       label: "List TikTok Accounts",
       description:
@@ -93,14 +131,14 @@ export default definePluginEntry({
         try {
           const raw = await client.post(TIKTOK_AUTH_LIST);
           return textResult(wrapResponse(raw, "tiktok/auth/list"));
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "tiktok/auth/list"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "tiktok/auth/list"));
         }
       },
-    }, { name: "sparkboost_list_accounts" });
+    }), { name: "sparkboost_list_accounts" });
 
     // --- Tool 2: List showcase products ---
-    api.registerTool({
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_list_products",
       label: "List Showcase Products",
       description:
@@ -118,14 +156,14 @@ export default definePluginEntry({
         try {
           const raw = await client.post(TIKTOK_PRODUCT_LIST, body);
           return textResult(wrapResponse(raw, "tiktok/product/list"));
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "tiktok/product/list"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "tiktok/product/list"));
         }
       },
-    }, { name: "sparkboost_list_products" });
+    }), { name: "sparkboost_list_products" });
 
     // --- Tool 3: Publish video ---
-    api.registerTool({
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_publish",
       label: "Publish TikTok Video",
       description:
@@ -148,14 +186,14 @@ export default definePluginEntry({
             productAnchorTitle: params.productAnchorTitle,
           });
           return textResult(wrapResponse(raw, "tiktok/video/publish"));
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "tiktok/video/publish"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "tiktok/video/publish"));
         }
       },
-    }, { name: "sparkboost_publish" });
+    }), { name: "sparkboost_publish" });
 
     // --- Tool 4: Check publish status ---
-    api.registerTool({
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_check_status",
       label: "Check Publish Status",
       description:
@@ -170,20 +208,20 @@ export default definePluginEntry({
             publishTaskId: params.publishTaskId,
           });
           return textResult(wrapResponse(raw, "tiktok/video/status"));
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "tiktok/video/status"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "tiktok/video/status"));
         }
       },
-    }, { name: "sparkboost_check_status" });
+    }), { name: "sparkboost_check_status" });
 
-    // --- Tool 5: Submit Grok video task (async, returns immediately) ---
-    api.registerTool({
+    // --- Tool 5: Submit Grok video task (async) ---
+    typedApi.registerTool((ctx: ToolContext) => ({
       name: "sparkboost_grok_submit",
       label: "Submit Grok Video Task",
       description:
         "Submit an AI video generation task via Grok. Returns IMMEDIATELY with a task ID. " +
         "Video generation typically takes 5-8 minutes. " +
-        "Use sparkboost_grok_task_status to check progress, or sparkboost_grok_wait to block until done.",
+        "Use sparkboost_grok_task_status to check progress.",
       parameters: Type.Object({
         prompt: Type.String({ description: "Video generation prompt" }),
         duration: Type.Number({ description: "Video duration in seconds (6 or 10)", enum: [6, 10] }),
@@ -196,22 +234,25 @@ export default definePluginEntry({
         })),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        if (!taskManager) {
-          return errorResult("Task manager service not running — cannot submit async task");
-        }
         try {
-          const task = await taskManager.submit({
-            prompt: params.prompt as string,
-            duration: params.duration as number,
-            aspectRatio: params.aspect_ratio as string,
-            imageUrls: params.image_urls as string[] | undefined,
-          });
+          console.error("[sparkboost] grok_submit: sessionKey =", ctx.sessionKey ?? "(none)");
+          const task = await taskManager.submit(
+            "grok-video",
+            {
+              prompt: params.prompt as string,
+              duration: params.duration as number,
+              aspectRatio: params.aspect_ratio as string,
+              imageUrls: params.image_urls as string[] | undefined,
+            },
+            ctx.sessionKey,
+          );
+          const promptText = String(task.params?.prompt ?? "");
           const summary = [
             `Video generation task submitted.`,
             `Task ID: ${task.taskId}`,
             `Status: ${task.status}`,
-            `Prompt: "${task.prompt.slice(0, 80)}${task.prompt.length > 80 ? "..." : ""}"`,
-            `Duration: ${task.duration}s | Aspect: ${task.aspectRatio}`,
+            `Prompt: "${promptText.slice(0, 80)}${promptText.length > 80 ? "..." : ""}"`,
+            `Duration: ${task.params?.duration}s | Aspect: ${task.params?.aspect_ratio}`,
             ``,
             `Video generation typically takes 5-8 minutes.`,
             `Use sparkboost_grok_task_status to check progress.`,
@@ -220,14 +261,14 @@ export default definePluginEntry({
             wrapResponse(summary, "grokImagine/submit"),
             { taskId: task.taskId, status: task.status },
           );
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "grokImagine/submit"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "grokImagine/submit"));
         }
       },
-    }, { name: "sparkboost_grok_submit" });
+    }), { name: "sparkboost_grok_submit" });
 
-    // --- Tool 6: Query Grok task status (from task manager) ---
-    api.registerTool({
+    // --- Tool 6: Query Grok task status ---
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_grok_task_status",
       label: "Query Grok Task Status",
       description:
@@ -238,22 +279,20 @@ export default definePluginEntry({
         taskId: Type.String({ description: "Task ID from sparkboost_grok_submit" }),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        if (!taskManager) {
-          return errorResult("Task manager service not running");
-        }
         const task = taskManager.getStatus(params.taskId as string);
         if (!task) {
           return errorResult(`Task not found: ${params.taskId}. Check the task ID from sparkboost_grok_submit.`);
         }
+        const promptText = String(task.params?.prompt ?? "");
         const lines = [
           `Task ID: ${task.taskId}`,
           `Status: ${task.status}`,
-          `Prompt: "${task.prompt.slice(0, 80)}${task.prompt.length > 80 ? "..." : ""}"`,
+          `Prompt: "${promptText.slice(0, 80)}${promptText.length > 80 ? "..." : ""}"`,
           `Poll count: ${task.pollCount}`,
           `Elapsed: ${Math.round((Date.now() - task.submittedAt) / 1000)}s`,
         ];
-        if (task.status === "succeeded" && task.videoUrl) {
-          lines.push(`Video URL: ${task.videoUrl}`);
+        if (task.status === "succeeded" && task.resultUrl) {
+          lines.push(`Video URL: ${task.resultUrl}`);
         }
         if (task.status === "failed" && task.error) {
           lines.push(`Error: ${task.error}`);
@@ -261,13 +300,13 @@ export default definePluginEntry({
         return textResult(lines.join("\n"), {
           taskId: task.taskId,
           status: task.status,
-          videoUrl: task.videoUrl,
+          videoUrl: task.resultUrl,
         });
       },
-    }, { name: "sparkboost_grok_task_status" });
+    }), { name: "sparkboost_grok_task_status" });
 
     // --- Tool 7: List all Grok tasks ---
-    api.registerTool({
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_grok_task_list",
       label: "List Grok Tasks",
       description:
@@ -280,102 +319,25 @@ export default definePluginEntry({
         })),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        if (!taskManager) {
-          return errorResult("Task manager service not running");
-        }
-        const tasks = taskManager.listTasks(params.status as VideoTask["status"] | undefined);
+        const tasks = taskManager.listTasks(params.status as AsyncTask["status"] | undefined);
         if (tasks.length === 0) {
           return textResult("No video generation tasks found.");
         }
         const lines = tasks.map((t, i) => {
           const elapsed = Math.round((Date.now() - t.submittedAt) / 1000);
-          const suffix = t.status === "succeeded" ? ` → ${t.videoUrl?.slice(0, 60)}...` : "";
-          return `${i + 1}. [${t.status.toUpperCase()}] ${t.taskId} (${elapsed}s) "${t.prompt.slice(0, 40)}..."${suffix}`;
+          const promptText = String(t.params?.prompt ?? "");
+          const suffix = t.status === "succeeded" && t.resultUrl ? ` → ${t.resultUrl.slice(0, 60)}...` : "";
+          return `${i + 1}. [${t.status.toUpperCase()}] ${t.taskId} (${elapsed}s) "${promptText.slice(0, 40)}..."${suffix}`;
         });
         return textResult(
           `Video tasks (${tasks.length}):\n${lines.join("\n")}`,
           { count: tasks.length },
         );
       },
-    }, { name: "sparkboost_grok_task_list" });
+    }), { name: "sparkboost_grok_task_list" });
 
-    // --- Tool 8: Wait for Grok task completion (blocking) ---
-    api.registerTool({
-      name: "sparkboost_grok_wait",
-      label: "Wait for Grok Task",
-      description:
-        "Block until a video generation task completes (succeeded or failed). " +
-        "Polls every 15 seconds. Use ONLY when you need to wait for a specific task. " +
-        "For batch workflows, prefer sparkboost_grok_task_status to check progress without blocking.",
-      parameters: Type.Object({
-        taskId: Type.String({ description: "Task ID from sparkboost_grok_submit" }),
-        timeoutSeconds: Type.Optional(Type.Number({
-          description: "Max wait time in seconds (default 600 = 10 min, max 1800 = 30 min)",
-          minimum: 30,
-          maximum: 1800,
-          default: 600,
-        })),
-      }),
-      async execute(_id, params): Promise<ToolResult> {
-        if (!taskManager) {
-          return errorResult("Task manager service not running");
-        }
-        const taskId = params.taskId as string;
-        const timeoutMs = Math.min((params.timeoutSeconds as number || 600) * 1000, 1_800_000);
-        const deadline = Date.now() + timeoutMs;
-
-        while (Date.now() < deadline) {
-          // First try the local task manager
-          const task = taskManager.getStatus(taskId);
-          if (!task) {
-            return errorResult(`Task not found: ${taskId}`);
-          }
-          if (task.status === "succeeded") {
-            return textResult(
-              wrapResponse(
-                `Video generation succeeded.\nTask ID: ${task.taskId}\nVideo URL: ${task.videoUrl}\nDuration: ${task.duration}s | Aspect: ${task.aspectRatio}`,
-                "grokImagine/wait"
-              ),
-              { taskId: task.taskId, status: "succeeded", videoUrl: task.videoUrl },
-            );
-          }
-          if (task.status === "failed") {
-            return errorResult(wrapError(task.error || "Video generation failed", "grokImagine/wait"));
-          }
-
-          // Also poll the API directly for faster updates
-          try {
-            const raw = await client.get(`${GROK_RESULT}?id=${encodeURIComponent(taskId)}`);
-            const json = JSON.parse(raw);
-            const data = json.data || json;
-            const apiStatus = data.status;
-
-            if (apiStatus === 2 || apiStatus === "success") {
-              const videoUrl = data.video_url || data.videoUrl || data.url;
-              return textResult(
-                wrapResponse(
-                  `Video generation succeeded.\nTask ID: ${taskId}\nVideo URL: ${videoUrl}`,
-                  "grokImagine/wait"
-                ),
-                { taskId, status: "succeeded", videoUrl },
-              );
-            }
-            if (apiStatus === 3 || apiStatus === "failed") {
-              return errorResult(wrapError(data.reason || data.message || "Video generation failed", "grokImagine/wait"));
-            }
-          } catch {
-            // Poll error — fall through to sleep
-          }
-
-          await new Promise((r) => setTimeout(r, 15_000));
-        }
-
-        return errorResult(`Timed out waiting for task ${taskId} (${Math.round(timeoutMs / 1000)}s)`);
-      },
-    }, { name: "sparkboost_grok_wait" });
-
-    // --- Tool 9: Cancel a Grok task ---
-    api.registerTool({
+    // --- Tool 8: Cancel a Grok task ---
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_grok_cancel",
       label: "Cancel Grok Task",
       description:
@@ -385,19 +347,16 @@ export default definePluginEntry({
         taskId: Type.String({ description: "Task ID to cancel" }),
       }),
       async execute(_id, params): Promise<ToolResult> {
-        if (!taskManager) {
-          return errorResult("Task manager service not running");
-        }
         const ok = taskManager.cancel(params.taskId as string);
         if (ok) {
           return textResult(`Task ${params.taskId} cancelled.`);
         }
         return errorResult(`Could not cancel task ${params.taskId} — not found or already completed.`);
       },
-    }, { name: "sparkboost_grok_cancel" });
+    }), { name: "sparkboost_grok_cancel" });
 
-    // --- Tool 10: Composite snapshot ---
-    api.registerTool({
+    // --- Tool 9: Composite snapshot ---
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_snapshot",
       label: "SparkBoost Status Snapshot",
       description:
@@ -429,14 +388,14 @@ export default definePluginEntry({
             wrapResponse(summaryText, "snapshot"),
             { accountCount: summary.length },
           );
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "snapshot"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "snapshot"));
         }
       },
-    }, { name: "sparkboost_snapshot" });
+    }), { name: "sparkboost_snapshot" });
 
-    // --- Tool 11: Video compliance check ---
-    api.registerTool({
+    // --- Tool 10: Video compliance check ---
+    typedApi.registerTool((_ctx: ToolContext) => ({
       name: "sparkboost_video_compliance",
       label: "Video Compliance Check",
       description:
@@ -461,12 +420,10 @@ export default definePluginEntry({
             ),
             { pass: passed, reason },
           );
-        } catch (err: any) {
-          return errorResult(wrapError(err.message, "video/compliance"));
+        } catch (err: unknown) {
+          return errorResult(wrapError(getErrorMessage(err), "video/compliance"));
         }
       },
-    }, { name: "sparkboost_video_compliance" });
+    }), { name: "sparkboost_video_compliance" });
   },
 });
-
-type VideoTask = import("./task-manager").VideoTask;

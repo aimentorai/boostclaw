@@ -1,3 +1,26 @@
+---
+name: auto-publish-pipeline
+preamble-tier: 2
+version: 1.0.0
+description: Cron-triggered fully automated pipeline from product list to published videos across all shops.
+allowed-tools:
+  sparkboost_snapshot
+  sparkboost_list_accounts
+  sparkboost_list_products
+  sparkboost_grok_submit
+  sparkboost_grok_task_status
+  sparkboost_grok_task_list
+  sparkboost_video_compliance
+  sparkboost_publish
+  sparkboost_check_status
+triggers:
+  自动推品
+  每日发布
+  批量发布
+  auto publish
+  pipeline
+---
+
 # Auto-Publish Pipeline (自动推品流水线)
 
 Cron-triggered fully automated pipeline — from product list to published videos across all shops.
@@ -10,7 +33,6 @@ Cron-triggered fully automated pipeline — from product list to published video
 - `sparkboost_grok_submit` (Operate) — async, returns immediately
 - `sparkboost_grok_task_status` (Query) — check progress
 - `sparkboost_grok_task_list` (Query) — batch status check
-- `sparkboost_grok_wait` (Operate) — block until one task completes
 - `sparkboost_video_compliance` (Query)
 - `sparkboost_publish` (Operate)
 - `sparkboost_check_status` (Query)

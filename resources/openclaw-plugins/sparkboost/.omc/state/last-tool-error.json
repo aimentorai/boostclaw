@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"rtk tsc --noEmit 2>&1 && echo \\\"---\\\" && echo \\\"Plugin files:\\\" && find resources/openclaw-plugins -type f | sort && echo \\\"---\\\" && echo \\\"Manifest:\\\" && cat resources/openclaw-plugins/sp...",
-  "error": "Exit code 1\nTypeScript compilation completed\n---\nPlugin files:\nfind: resources/openclaw-plugins: No such file or directory\n---\nManifest:\ncat: resources/openclaw-plugins/sparkboost/openclaw.plugin.json: No such file or directory",
-  "timestamp": "2026-04-21T05:01:14.608Z",
-  "retry_count": 1
+  "tool_input_preview": "{\"command\":\"rtk git diff -- resources/openclaw-plugins/sparkboost/src/index.ts\",\"description\":\"Full diff of index.ts\"}",
+  "error": "Exit code 128\nfatal: ambiguous argument 'resources/openclaw-plugins/sparkboost/src/index.ts': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'",
+  "timestamp": "2026-04-23T02:31:32.844Z",
+  "retry_count": 3
 }

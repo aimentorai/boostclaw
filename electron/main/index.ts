@@ -47,7 +47,10 @@ import {
   ensureBuiltinSkillsInstalled,
   ensurePreinstalledSkillsInstalled,
 } from '../utils/skill-config';
-import { ensureAllBundledPluginsInstalled } from '../utils/plugin-install';
+import {
+  ensureAllBundledPluginsInstalled,
+  ensureSparkBoostPluginEnabled,
+} from '../utils/plugin-install';
 import { initializeExperts } from '../utils/expert-init';
 import {
   initializeSparkBoostKeys,
@@ -588,6 +591,11 @@ async function initialize(): Promise<void> {
       );
       await injectSparkBoostKeys().catch((err) =>
         logger.warn('SparkBoost key injection failed:', err)
+      );
+
+      // Register sparkboost in plugins.entries so Gateway loads it
+      await ensureSparkBoostPluginEnabled().catch((err) =>
+        logger.warn('SparkBoost plugin registration failed:', err)
       );
 
       logger.debug('Auto-starting Gateway...');

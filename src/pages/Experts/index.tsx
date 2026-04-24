@@ -115,8 +115,15 @@ export function Experts() {
     sessionStorage.setItem('boostclaw-expert-redirected', '1');
     const sessionKey = `agent:${runtime.agentId}:main`;
     switchSession(sessionKey);
-    navigate('/');
+    navigate('/', { state: { fromExpertRedirect: true } });
   }, [loading, enabledExperts, runtimes, switchSession, navigate]);
+
+  // Clear redirect flag when user navigates back to experts list
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('boostclaw-expert-redirected');
+    };
+  }, []);
 
   const handleStartExpert = (runtime: ExpertRuntime) => {
     if (runtime.status === 'unavailable') return;

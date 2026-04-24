@@ -69,8 +69,13 @@ export async function readEncryptedKeys(): Promise<SparkBoostKeys | null> {
     }
 
     const encrypted = await readFile(filePath);
-    const decrypted = safeStorage.decryptString(encrypted as any);
-    return JSON.parse(decrypted) as SparkBoostKeys;
+    const decrypted = safeStorage.decryptString(Buffer.from(encrypted));
+    const parsed = JSON.parse(decrypted);
+    if (typeof parsed?.secretKey !== 'string' || typeof parsed?.apiKey !== 'string') {
+      logger.error('Decrypted SparkBoost keys have invalid format');
+      return null;
+    }
+    return parsed as SparkBoostKeys;
   } catch (err) {
     logger.error('Failed to decrypt SparkBoost keys:', err);
     return null;
@@ -120,7 +125,13 @@ async function readDotEnv(): Promise<void> {
       if (eqIndex === -1) continue;
       const key = trimmed.slice(0, eqIndex).trim();
       if (key !== ENV_SECRET_KEY && key !== ENV_API_KEY) continue;
-      const value = trimmed.slice(eqIndex + 1).trim();
+      let value = trimmed.slice(eqIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
       if (!process.env[key]) process.env[key] = value;
     }
   } catch {
