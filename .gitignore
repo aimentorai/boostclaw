@@ -55,6 +55,7 @@ test-results/
 *.rpm
 
 resources/bin
+resources/openclaw-plugins/sparkboost/.omc
 
 # Secrets
 *.p12
@@ -70,3 +71,4 @@ docs/pr-session-notes-*.md
 package-lock.json
 .gstack/
 .omc/
+
