@@ -3,22 +3,13 @@
  * Handles routing and global providers
  */
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Component, useEffect } from 'react';
+import { Component, Suspense, useEffect, lazy } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import i18n from './i18n';
 import { MainLayout } from './components/layout/MainLayout';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Models } from './pages/Models';
 import { Chat } from './pages/Chat';
-import { Agents } from './pages/Agents';
-import { Experts } from './pages/Experts';
-import { Channels } from './pages/Channels';
-import { Skills } from './pages/Skills';
-import { Cron } from './pages/Cron';
-import { Settings } from './pages/Settings';
-import { Setup } from './pages/Setup';
-import { Login } from './pages/Login';
 import { useSettingsStore } from './stores/settings';
 import { useGatewayStore } from './stores/gateway';
 import { useProviderStore } from './stores/providers';
@@ -26,6 +17,16 @@ import { applyGatewayTransportPreference } from './lib/api-client';
 import { rendererTimer } from './lib/startup-timer';
 import { useAuthStore } from './stores/auth';
 import { subscribeHostEvent } from './lib/host-events';
+
+const Models = lazy(() => import('./pages/Models'));
+const Agents = lazy(() => import('./pages/Agents'));
+const Experts = lazy(() => import('./pages/Experts'));
+const Channels = lazy(() => import('./pages/Channels'));
+const Skills = lazy(() => import('./pages/Skills'));
+const Cron = lazy(() => import('./pages/Cron'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Setup = lazy(() => import('./pages/Setup'));
+const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 
 /**
  * Error Boundary to catch and display React rendering errors
@@ -252,24 +253,32 @@ function App() {
   return (
     <ErrorBoundary>
       <TooltipProvider delayDuration={300}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+        <Suspense
+          fallback={
+            <div className="flex h-screen items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          {/* Setup wizard (shown on first launch) */}
-          <Route path="/setup/*" element={<Setup />} />
+            {/* Setup wizard (shown on first launch) */}
+            <Route path="/setup/*" element={<Setup />} />
 
-          {/* Main application routes */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<Chat />} />
-            <Route path="/models" element={<Models />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/experts" element={<Experts />} />
-            <Route path="/channels" element={<Channels />} />
-            <Route path="/skills" element={<Skills />} />
-            <Route path="/cron" element={<Cron />} />
-            <Route path="/settings/*" element={<Settings />} />
-          </Route>
-        </Routes>
+            {/* Main application routes */}
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<Chat />} />
+              <Route path="/models" element={<Models />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/experts" element={<Experts />} />
+              <Route path="/channels" element={<Channels />} />
+              <Route path="/skills" element={<Skills />} />
+              <Route path="/cron" element={<Cron />} />
+              <Route path="/settings/*" element={<Settings />} />
+            </Route>
+          </Routes>
+        </Suspense>
 
         {/* Global toast notifications */}
         <Toaster position="bottom-right" richColors closeButton style={{ zIndex: 99999 }} />

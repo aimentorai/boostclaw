@@ -46,6 +46,7 @@ import { getSetting } from '../utils/store';
 import {
   ensureBuiltinSkillsInstalled,
   ensurePreinstalledSkillsInstalled,
+  ensureProboostMcpConfigured,
 } from '../utils/skill-config';
 import {
   ensureAllBundledPluginsInstalled,
@@ -63,6 +64,7 @@ import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
 import { appAuthManager } from '../utils/app-auth';
+import { runFirstLaunchMigration, runAuthProfilesMigration } from '../utils/config-migration';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.BoostClaw.desktop';
 const isE2EMode = process.env.BoostClaw_E2E === '1';
@@ -324,6 +326,24 @@ function createMainWindow(): BrowserWindow {
   });
 
   mainWindow = win;
+
+  // Forward tagged renderer console logs ([perf], [e2e], [sendMessage]) to
+  // the main-process log file so latency diagnostics are available without
+  // opening DevTools.
+  win.webContents.on('console-message', (_event, level, message) => {
+    if (
+      message.startsWith('[perf]') ||
+      message.startsWith('[e2e]') ||
+      message.startsWith('[sendMessage]')
+    ) {
+      if (level === 'warning') {
+        logger.warn(`[renderer] ${message}`);
+      } else {
+        logger.info(`[renderer] ${message}`);
+      }
+    }
+  });
+
   return win;
 }
 
@@ -382,7 +402,7 @@ async function initialize(): Promise<void> {
   // The URL filter ensures this callback only fires for gateway requests,
   // avoiding unnecessary overhead on every other HTTP response.
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['http://127.0.0.1:18789/*', 'http://localhost:18789/*'] },
+    { urls: ['http://127.0.0.1:18790/*', 'http://localhost:18790/*'] },
     (details, callback) => {
       const headers = { ...details.responseHeaders };
       delete headers['X-Frame-Options'];
@@ -416,6 +436,20 @@ async function initialize(): Promise<void> {
 
   // Note: Auto-check for updates is driven by the renderer (update store init)
   // so it respects the user's "Auto-check for updates" setting.
+
+  // Migrate config from legacy ~/.openclaw/ to isolated ~/.boostclaw/openclaw/
+  if (!isE2EMode) {
+    try {
+      runFirstLaunchMigration();
+    } catch (err) {
+      logger.warn('Config migration failed:', err);
+    }
+    try {
+      runAuthProfilesMigration();
+    } catch (err) {
+      logger.warn('Auth profiles migration failed:', err);
+    }
+  }
 
   // Repair any bootstrap files that only contain BoostClaw markers (no OpenClaw
   // template content). This fixes a race condition where ensureBoostClawContext()
@@ -582,21 +616,31 @@ async function initialize(): Promise<void> {
   if (!isE2EMode && gatewayAutoStart) {
     try {
       startupTimer.mark('provider_sync_start');
-      await syncAllProviderAuthToRuntime();
-      startupTimer.mark('provider_sync_done');
 
-      // Initialize and inject SparkBoost API keys (encrypted at rest)
-      await initializeSparkBoostKeys().catch((err) =>
-        logger.warn('SparkBoost key init failed:', err)
-      );
-      await injectSparkBoostKeys().catch((err) =>
-        logger.warn('SparkBoost key injection failed:', err)
-      );
-
-      // Register sparkboost in plugins.entries so Gateway loads it
-      await ensureSparkBoostPluginEnabled().catch((err) =>
-        logger.warn('SparkBoost plugin registration failed:', err)
-      );
+      // Run provider sync and BoostClaw setup in parallel — they are
+      // independent and all must complete before gateway start.
+      await Promise.all([
+        syncAllProviderAuthToRuntime().then(() => {
+          startupTimer.mark('provider_sync_done');
+        }),
+        (async () => {
+          // Initialize and inject SparkBoost API keys (encrypted at rest)
+          await initializeSparkBoostKeys().catch((err) =>
+            logger.warn('SparkBoost key init failed:', err)
+          );
+          await injectSparkBoostKeys().catch((err) =>
+            logger.warn('SparkBoost key injection failed:', err)
+          );
+          // Register sparkboost in plugins.entries so Gateway loads it
+          await ensureSparkBoostPluginEnabled().catch((err) =>
+            logger.warn('SparkBoost plugin registration failed:', err)
+          );
+          // Configure proboost-mcp as native MCP server (no plugin needed)
+          await ensureProboostMcpConfigured().catch((err) =>
+            logger.warn('Proboost MCP configuration failed:', err)
+          );
+        })(),
+      ]);
 
       logger.debug('Auto-starting Gateway...');
       await gatewayManager.start();

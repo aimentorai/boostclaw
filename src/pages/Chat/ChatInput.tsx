@@ -7,7 +7,23 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, ChevronDown, Wand2, Bot, Check, Search } from 'lucide-react';
+import {
+  ArrowUp,
+  Square,
+  X,
+  Paperclip,
+  FileText,
+  Film,
+  Music,
+  FileArchive,
+  File,
+  Loader2,
+  ChevronDown,
+  Wand2,
+  Bot,
+  Check,
+  Search,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -17,6 +33,8 @@ import { useGatewayStore } from '@/stores/gateway';
 import { useAgentsStore } from '@/stores/agents';
 import { useChatStore } from '@/stores/chat';
 import { useSkillsStore } from '@/stores/skills';
+import { useTemplatesStore } from '@/stores/templates';
+import { useExpertsStore } from '@/stores/experts';
 import type { AgentSummary } from '@/types/agent';
 import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
@@ -30,8 +48,8 @@ export interface FileAttachment {
   fileName: string;
   mimeType: string;
   fileSize: number;
-  stagedPath: string;        // disk path for gateway
-  preview: string | null;    // data URL for images, null for others
+  stagedPath: string; // disk path for gateway
+  preview: string | null; // data URL for images, null for others
   status: 'staging' | 'ready' | 'error';
   error?: string;
 }
@@ -56,8 +74,21 @@ function formatFileSize(bytes: number): string {
 function FileIcon({ mimeType, className }: { mimeType: string; className?: string }) {
   if (mimeType.startsWith('video/')) return <Film className={className} />;
   if (mimeType.startsWith('audio/')) return <Music className={className} />;
-  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml') return <FileText className={className} />;
-  if (mimeType.includes('zip') || mimeType.includes('compressed') || mimeType.includes('archive') || mimeType.includes('tar') || mimeType.includes('rar') || mimeType.includes('7z')) return <FileArchive className={className} />;
+  if (
+    mimeType.startsWith('text/') ||
+    mimeType === 'application/json' ||
+    mimeType === 'application/xml'
+  )
+    return <FileText className={className} />;
+  if (
+    mimeType.includes('zip') ||
+    mimeType.includes('compressed') ||
+    mimeType.includes('archive') ||
+    mimeType.includes('tar') ||
+    mimeType.includes('rar') ||
+    mimeType.includes('7z')
+  )
+    return <FileArchive className={className} />;
   if (mimeType === 'application/pdf') return <FileText className={className} />;
   return <File className={className} />;
 }
@@ -86,23 +117,35 @@ function readFileAsBase64(file: globalThis.File): Promise<string> {
   });
 }
 
-function buildSkillInjectedMessage(baseText: string, skill: Skill | null, hasAttachments: boolean): string {
-  if (!skill) return baseText;
+function buildSkillInjectedMessage(
+  baseText: string,
+  skills: Skill[],
+  hasAttachments: boolean
+): string {
+  if (skills.length === 0) return baseText;
   const userPrompt = baseText.trim();
-  const fallbackPrompt = hasAttachments ? 'Please process the attached file(s).' : 'Please help with this task.';
+  const fallbackPrompt = hasAttachments
+    ? 'Please process the attached file(s).'
+    : 'Please help with this task.';
+
+  const skillContexts = skills
+    .map((skill) => [
+      `<skill_context name="${skill.name}" id="${skill.id}">`,
+      `Use this skill as the primary approach for this request.`,
+      skill.description ? `Skill description: ${skill.description}` : null,
+      `</skill_context>`,
+    ])
+    .flat()
+    .filter((line): line is string => Boolean(line))
+    .join('\n');
 
   return [
-    `<skill_context name="${skill.name}" id="${skill.id}">`,
-    `Use this skill as the primary approach for this request.`,
-    skill.description ? `Skill description: ${skill.description}` : null,
-    `</skill_context>`,
+    skillContexts,
     '',
     `<user_request>`,
     userPrompt || fallbackPrompt,
     `</user_request>`,
-  ]
-    .filter((line): line is string => Boolean(line))
-    .join('\n');
+  ].join('\n');
 }
 
 function resolveRuntimeProviderKey(account: ProviderAccount): string {
@@ -120,9 +163,13 @@ function resolveRuntimeProviderKey(account: ProviderAccount): string {
 
 function hasConfiguredProviderCredentials(
   account: ProviderAccount,
-  statusById: Map<string, ProviderWithKeyInfo>,
+  statusById: Map<string, ProviderWithKeyInfo>
 ): boolean {
-  if (account.authMode === 'oauth_device' || account.authMode === 'oauth_browser' || account.authMode === 'local') {
+  if (
+    account.authMode === 'oauth_device' ||
+    account.authMode === 'oauth_browser' ||
+    account.authMode === 'local'
+  ) {
     return true;
   }
   return statusById.get(account.id)?.hasKey ?? false;
@@ -136,7 +183,7 @@ function formatModelLabel(modelRef: string): string {
 
 function shouldOpenDropdownUpward(
   triggerEl: HTMLElement | null,
-  estimatedPanelHeight = 220,
+  estimatedPanelHeight = 220
 ): boolean {
   if (!triggerEl || typeof window === 'undefined') return true;
   const rect = triggerEl.getBoundingClientRect();
@@ -149,7 +196,13 @@ function shouldOpenDropdownUpward(
 
 // ── Component ────────────────────────────────────────────────────
 
-export function ChatInput({ onSend, onStop, disabled = false, sending = false, isEmpty = false }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  onStop,
+  disabled = false,
+  sending = false,
+  isEmpty = false,
+}: ChatInputProps) {
   const { t } = useTranslation('chat');
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -161,7 +214,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerUpward, setModelPickerUpward] = useState(true);
   const [switchingModel, setSwitchingModel] = useState(false);
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [skillSearchQuery, setSkillSearchQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -179,41 +232,89 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const providerDefaultAccountId = useProviderStore((s) => s.defaultAccountId);
   const refreshProviderSnapshot = useProviderStore((s) => s.refreshProviderSnapshot);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
+  const switchSession = useChatStore((s) => s.switchSession);
+  const currentSessionKey = useChatStore((s) => s.currentSessionKey);
   const currentAgent = useMemo(
     () => (agents ?? []).find((agent) => agent.id === currentAgentId) ?? null,
-    [agents, currentAgentId],
+    [agents, currentAgentId]
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
   const currentModelRef = useMemo(
-    () => (currentAgent?.overrideModelRef || currentAgent?.modelRef || defaultModelRef || '').trim(),
-    [currentAgent?.modelRef, currentAgent?.overrideModelRef, defaultModelRef],
+    () =>
+      (currentAgent?.overrideModelRef || currentAgent?.modelRef || defaultModelRef || '').trim(),
+    [currentAgent?.modelRef, currentAgent?.overrideModelRef, defaultModelRef]
   );
-  const selectableAgents = useMemo(
-    () => (agents ?? []),
-    [agents],
+
+  // Templates as virtual agents in the picker
+  const templates = useTemplatesStore((s) => s.templates);
+  const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
+  const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
+  const getExpertByAgentId = useExpertsStore((s) => s.getExpertByAgentId);
+  const marketingStaffRuntime = getExpertByAgentId(
+    (agents ?? []).find((a) => a.expertId === 'marketing-staff')?.id ?? ''
   );
+
+  const TEMPLATE_AGENT_PREFIX = 'tpl:';
+
+  const templateVirtualAgents = useMemo<AgentSummary[]>(() => {
+    if (!marketingStaffRuntime?.agentId) return [];
+    return templates.map((t) => ({
+      id: `${TEMPLATE_AGENT_PREFIX}${t.id}`,
+      name: t.name,
+      description: t.description,
+      isDefault: false,
+      modelDisplay: t.category,
+      modelRef: null,
+      overrideModelRef: null,
+      inheritedModel: false,
+      workspace: '',
+      agentDir: '',
+      mainSessionKey: `agent:${marketingStaffRuntime.agentId}:tpl-${t.id}`,
+      channelTypes: [],
+    }));
+  }, [templates, marketingStaffRuntime?.agentId]);
+
+  const currentTemplateId = useMemo(() => {
+    if (!currentSessionKey.includes(':tpl-')) return null;
+    const match = currentSessionKey.match(/:tpl-(.+)$/);
+    return match?.[1] ?? null;
+  }, [currentSessionKey]);
+
+  const selectableAgents = useMemo(() => {
+    const result = [...(agents ?? []), ...templateVirtualAgents];
+    console.log(
+      '[AgentPicker] selectableAgents:',
+      result.length,
+      'expert-backed:',
+      result.filter((a) => a.expertId).map((a) => a.name),
+      'regular:',
+      result.filter((a) => !a.expertId && !a.id.startsWith('tpl:')).map((a) => a.name)
+    );
+    return result;
+  }, [agents, templateVirtualAgents]);
   const selectedTarget = useMemo(
     () => (agents ?? []).find((agent) => agent.id === targetAgentId) ?? null,
-    [agents, targetAgentId],
+    [agents, targetAgentId]
   );
-  const effectiveTargetLabel = selectedTarget?.name || currentAgentName;
+  const effectiveTargetLabel = useMemo(() => {
+    if (currentTemplateId) {
+      const tpl = templates.find((t) => t.id === currentTemplateId);
+      if (tpl) return tpl.name;
+    }
+    return selectedTarget?.name || currentAgentName;
+  }, [currentTemplateId, templates, selectedTarget?.name, currentAgentName]);
 
-  /** 当前输入框选择的 skill（仅用于 UI 选择，不会改变发送链路） */
-  const selectedSkill: Skill | null = useMemo(
-    () => (skills ?? []).find((s) => s.id === selectedSkillId) ?? null,
-    [skills, selectedSkillId],
+  /** 当前输入框选择的 skills（仅用于 UI 选择，不会改变发送链路） */
+  const selectedSkills: Skill[] = useMemo(
+    () => (skills ?? []).filter((s) => selectedSkillIds.includes(s.id)),
+    [skills, selectedSkillIds]
   );
   const filteredSkills = useMemo(() => {
     const query = skillSearchQuery.trim().toLowerCase();
     if (!query) return skills ?? [];
     return (skills ?? []).filter((skill) => {
-      const searchable = [
-        skill.name,
-        skill.id,
-        skill.slug,
-        skill.description,
-      ]
+      const searchable = [skill.name, skill.id, skill.slug, skill.description]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
@@ -221,7 +322,9 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     });
   }, [skillSearchQuery, skills]);
   const modelOptions = useMemo(() => {
-    const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
+    const statusById = new Map<string, ProviderWithKeyInfo>(
+      providerStatuses.map((status) => [status.id, status])
+    );
     const entries = providerAccounts
       .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
       .sort((left, right) => {
@@ -306,9 +409,9 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
 
   const pickFiles = useCallback(async () => {
     try {
-      const result = await invokeIpc('dialog:open', {
+      const result = (await invokeIpc('dialog:open', {
         properties: ['openFile', 'multiSelections'],
-      }) as { canceled: boolean; filePaths?: string[] };
+      })) as { canceled: boolean; filePaths?: string[] };
       if (result.canceled || !result.filePaths?.length) return;
 
       // Add placeholder entries immediately
@@ -318,50 +421,61 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         tempIds.push(tempId);
         // Handle both Unix (/) and Windows (\) path separators
         const fileName = filePath.split(/[\\/]/).pop() || 'file';
-        setAttachments(prev => [...prev, {
-          id: tempId,
-          fileName,
-          mimeType: '',
-          fileSize: 0,
-          stagedPath: '',
-          preview: null,
-          status: 'staging' as const,
-        }]);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: tempId,
+            fileName,
+            mimeType: '',
+            fileSize: 0,
+            stagedPath: '',
+            preview: null,
+            status: 'staging' as const,
+          },
+        ]);
       }
 
       // Stage all files via IPC
       console.log('[pickFiles] Staging files:', result.filePaths);
-      const staged = await hostApiFetch<Array<{
-        id: string;
-        fileName: string;
-        mimeType: string;
-        fileSize: number;
-        stagedPath: string;
-        preview: string | null;
-      }>>('/api/files/stage-paths', {
+      const staged = await hostApiFetch<
+        Array<{
+          id: string;
+          fileName: string;
+          mimeType: string;
+          fileSize: number;
+          stagedPath: string;
+          preview: string | null;
+        }>
+      >('/api/files/stage-paths', {
         method: 'POST',
         body: JSON.stringify({ filePaths: result.filePaths }),
       });
-      console.log('[pickFiles] Stage result:', staged?.map(s => ({ id: s?.id, fileName: s?.fileName, mimeType: s?.mimeType, fileSize: s?.fileSize, stagedPath: s?.stagedPath, hasPreview: !!s?.preview })));
+      console.log(
+        '[pickFiles] Stage result:',
+        staged?.map((s) => ({
+          id: s?.id,
+          fileName: s?.fileName,
+          mimeType: s?.mimeType,
+          fileSize: s?.fileSize,
+          stagedPath: s?.stagedPath,
+          hasPreview: !!s?.preview,
+        }))
+      );
 
       // Update each placeholder with real data
-      setAttachments(prev => {
+      setAttachments((prev) => {
         let updated = [...prev];
         for (let i = 0; i < tempIds.length; i++) {
           const tempId = tempIds[i];
           const data = staged[i];
           if (data) {
-            updated = updated.map(a =>
-              a.id === tempId
-                ? { ...data, status: 'ready' as const }
-                : a,
+            updated = updated.map((a) =>
+              a.id === tempId ? { ...data, status: 'ready' as const } : a
             );
           } else {
             console.warn(`[pickFiles] No staged data for tempId=${tempId} at index ${i}`);
-            updated = updated.map(a =>
-              a.id === tempId
-                ? { ...a, status: 'error' as const, error: 'Staging failed' }
-                : a,
+            updated = updated.map((a) =>
+              a.id === tempId ? { ...a, status: 'error' as const, error: 'Staging failed' } : a
             );
           }
         }
@@ -371,11 +485,11 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
       console.error('[pickFiles] Failed to stage files:', err);
       // Mark any stuck 'staging' attachments as 'error' so the user can remove them
       // and the send button isn't permanently blocked
-      setAttachments(prev => prev.map(a =>
-        a.status === 'staging'
-          ? { ...a, status: 'error' as const, error: String(err) }
-          : a,
-      ));
+      setAttachments((prev) =>
+        prev.map((a) =>
+          a.status === 'staging' ? { ...a, status: 'error' as const, error: String(err) } : a
+        )
+      );
     }
   }, []);
 
@@ -384,15 +498,18 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const stageBufferFiles = useCallback(async (files: globalThis.File[]) => {
     for (const file of files) {
       const tempId = crypto.randomUUID();
-      setAttachments(prev => [...prev, {
-        id: tempId,
-        fileName: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        fileSize: file.size,
-        stagedPath: '',
-        preview: null,
-        status: 'staging' as const,
-      }]);
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+          stagedPath: '',
+          preview: null,
+          status: 'staging' as const,
+        },
+      ]);
 
       try {
         console.log(`[stageBuffer] Reading file: ${file.name} (${file.type}, ${file.size} bytes)`);
@@ -413,17 +530,19 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
             mimeType: file.type || 'application/octet-stream',
           }),
         });
-        console.log(`[stageBuffer] Staged: id=${staged?.id}, path=${staged?.stagedPath}, size=${staged?.fileSize}`);
-        setAttachments(prev => prev.map(a =>
-          a.id === tempId ? { ...staged, status: 'ready' as const } : a,
-        ));
+        console.log(
+          `[stageBuffer] Staged: id=${staged?.id}, path=${staged?.stagedPath}, size=${staged?.fileSize}`
+        );
+        setAttachments((prev) =>
+          prev.map((a) => (a.id === tempId ? { ...staged, status: 'ready' as const } : a))
+        );
       } catch (err) {
         console.error(`[stageBuffer] Error staging ${file.name}:`, err);
-        setAttachments(prev => prev.map(a =>
-          a.id === tempId
-            ? { ...a, status: 'error' as const, error: String(err) }
-            : a,
-        ));
+        setAttachments((prev) =>
+          prev.map((a) =>
+            a.id === tempId ? { ...a, status: 'error' as const, error: String(err) } : a
+          )
+        );
       }
     }
   }, []);
@@ -431,27 +550,41 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   // ── Attachment management ──────────────────────────────────────
 
   const removeAttachment = useCallback((id: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== id));
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  const allReady = attachments.length === 0 || attachments.every(a => a.status === 'ready');
+  const allReady = attachments.length === 0 || attachments.every((a) => a.status === 'ready');
   const hasFailedAttachments = attachments.some((a) => a.status === 'error');
   const canSend = (input.trim() || attachments.length > 0) && allReady && !disabled && !sending;
   const canStop = sending && !disabled && !!onStop;
 
   const handleSend = useCallback(() => {
     if (!canSend) return;
-    const readyAttachments = attachments.filter(a => a.status === 'ready');
+    const readyAttachments = attachments.filter((a) => a.status === 'ready');
     // Capture values before clearing — clear input immediately for snappy UX,
     // but keep attachments available for the async send
-    const textToSend = buildSkillInjectedMessage(input, selectedSkill, readyAttachments.length > 0);
+    const textToSend = buildSkillInjectedMessage(
+      input,
+      selectedSkills,
+      readyAttachments.length > 0
+    );
     const attachmentsToSend = readyAttachments.length > 0 ? readyAttachments : undefined;
-    console.log(`[handleSend] text="${textToSend.substring(0, 50)}", attachments=${attachments.length}, ready=${readyAttachments.length}, sending=${!!attachmentsToSend}`);
+    console.log(
+      `[handleSend] text="${textToSend.substring(0, 50)}", attachments=${attachments.length}, ready=${readyAttachments.length}, sending=${!!attachmentsToSend}`
+    );
     if (attachmentsToSend) {
-      console.log('[handleSend] Attachment details:', attachmentsToSend.map(a => ({
-        id: a.id, fileName: a.fileName, mimeType: a.mimeType, fileSize: a.fileSize,
-        stagedPath: a.stagedPath, status: a.status, hasPreview: !!a.preview,
-      })));
+      console.log(
+        '[handleSend] Attachment details:',
+        attachmentsToSend.map((a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          fileSize: a.fileSize,
+          stagedPath: a.stagedPath,
+          status: a.status,
+          hasPreview: !!a.preview,
+        }))
+      );
     }
     setInput('');
     setAttachments([]);
@@ -461,7 +594,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     onSend(textToSend, attachmentsToSend, targetAgentId);
     setTargetAgentId(null);
     setPickerOpen(false);
-  }, [input, attachments, canSend, onSend, selectedSkill, targetAgentId]);
+  }, [input, attachments, canSend, onSend, selectedSkills, targetAgentId]);
 
   const handleStop = useCallback(() => {
     if (!canStop) return;
@@ -483,7 +616,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         handleSend();
       }
     },
-    [handleSend, input, targetAgentId],
+    [handleSend, input, targetAgentId, selectedSkillIds]
   );
 
   // Handle paste (Ctrl/Cmd+V with files)
@@ -504,7 +637,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         stageBufferFiles(pastedFiles);
       }
     },
-    [stageBufferFiles],
+    [stageBufferFiles]
   );
 
   // Handle drag & drop
@@ -531,15 +664,15 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         stageBufferFiles(Array.from(e.dataTransfer.files));
       }
     },
-    [stageBufferFiles],
+    [stageBufferFiles]
   );
 
   return (
     <div
       className={cn(
-        "relative z-10 w-full mx-auto transition-all duration-300",
-        isEmpty ? "px-5 py-4" : "px-4 py-3",
-        isEmpty ? "max-w-4xl" : "max-w-4xl"
+        'relative z-10 w-full mx-auto transition-all duration-300',
+        isEmpty ? 'px-5 py-4' : 'px-4 py-3',
+        isEmpty ? 'max-w-4xl' : 'max-w-4xl'
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -571,7 +704,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
           <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
           {/* 顶部状态标签：目标 Agent / Skill */}
-          {(selectedTarget || selectedSkill) && (
+          {(selectedTarget || selectedSkills.length > 0) && (
             <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-0">
               {selectedTarget && (
                 <button
@@ -584,19 +717,22 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   <X className="h-3.5 w-3.5 text-primary-foreground/75" />
                 </button>
               )}
-              {selectedSkill && (
+              {selectedSkills.map((skill) => (
                 <button
+                  key={skill.id}
                   type="button"
                   data-testid="chat-skill-chip"
-                  onClick={() => setSelectedSkillId(null)}
+                  onClick={() =>
+                    setSelectedSkillIds((prev) => prev.filter((id) => id !== skill.id))
+                  }
                   className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                  title={`Clear skill: ${selectedSkill.name}`}
+                  title={`Clear skill: ${skill.name}`}
                 >
                   <Wand2 className="h-3.5 w-3.5 text-primary-foreground/75" />
-                  <span>{selectedSkill.name}</span>
+                  <span>{skill.name}</span>
                   <X className="h-3.5 w-3.5 text-primary-foreground/75" />
                 </button>
-              )}
+              ))}
             </div>
           )}
 
@@ -607,10 +743,16 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              onCompositionStart={() => { isComposingRef.current = true; }}
-              onCompositionEnd={() => { isComposingRef.current = false; }}
+              onCompositionStart={() => {
+                isComposingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                isComposingRef.current = false;
+              }}
               onPaste={handlePaste}
-              placeholder={disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')}
+              placeholder={
+                disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')
+              }
               disabled={disabled}
               className="min-h-[48px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
               rows={1}
@@ -619,10 +761,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
 
           {/* 底部工具栏：左侧选择器与图标，右侧发送 */}
           <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
-
             {/* 左侧：Agent + 模型 + Skill + 附件 */}
             <div className="flex items-center gap-1 min-w-0">
-
               {/* Agent 选择器按钮 - 胶囊背景样式（参考原型） */}
               <div ref={pickerRef} className="relative w-[150px] shrink-0">
                 <Button
@@ -631,7 +771,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   className={cn(
                     'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground transition-colors',
                     'border border-border/70 bg-[#f7f7f7] shadow-sm hover:bg-[#efefef]',
-                    (pickerOpen || selectedTarget) && 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+                    (pickerOpen || selectedTarget) &&
+                      'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
                   )}
                   onClick={() => {
                     if (!pickerOpen) {
@@ -651,18 +792,46 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                 </Button>
                 {/* Agent 下拉面板 */}
                 {pickerOpen && (
-                  <div className={cn(
-                    "absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl",
-                    pickerUpward ? "bottom-full mb-2" : "top-full mt-2",
-                  )}>
+                  <div
+                    className={cn(
+                      'absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl',
+                      pickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+                    )}
+                  >
                     <div className="max-h-56 overflow-y-auto">
                       {selectableAgents.map((agent) => (
                         <AgentPickerItem
                           key={agent.id}
                           agent={agent}
-                          selected={(targetAgentId ?? currentAgentId) === agent.id}
+                          selected={
+                            agent.id.startsWith(TEMPLATE_AGENT_PREFIX)
+                              ? currentTemplateId === agent.id.slice(TEMPLATE_AGENT_PREFIX.length)
+                              : !currentTemplateId && (targetAgentId ?? currentAgentId) === agent.id
+                          }
                           onSelect={() => {
-                            setTargetAgentId(agent.id === currentAgentId ? null : agent.id);
+                            console.log(
+                              '[AgentPicker] selected:',
+                              agent.name,
+                              'expertId:',
+                              agent.expertId ?? 'none',
+                              'id:',
+                              agent.id
+                            );
+                            if (agent.id.startsWith(TEMPLATE_AGENT_PREFIX)) {
+                              // Template: switch to template session + set active template
+                              const templateId = agent.id.slice(TEMPLATE_AGENT_PREFIX.length);
+                              const template = templates.find((t) => t.id === templateId);
+                              if (template && agent.mainSessionKey) {
+                                setActiveTemplate(template);
+                                switchSession(agent.mainSessionKey);
+                                setTargetAgentId(null);
+                              }
+                            } else {
+                              // Regular agent: clear template and skill when switching
+                              if (activeTemplate) setActiveTemplate(null);
+                              setSelectedSkillIds([]);
+                              setTargetAgentId(agent.id === currentAgentId ? null : agent.id);
+                            }
                             setPickerOpen(false);
                             textareaRef.current?.focus();
                           }}
@@ -682,7 +851,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                     className={cn(
                       'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground',
                       'border border-border/70 bg-[#f7f7f7] shadow-sm hover:bg-[#efefef]',
-                      modelPickerOpen && 'border-primary bg-primary text-primary-foreground hover:bg-primary/90',
+                      modelPickerOpen &&
+                        'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
                     )}
                     disabled={disabled || sending || switchingModel || modelOptions.length === 0}
                     onClick={() => {
@@ -693,14 +863,18 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                     }}
                     title="Select model"
                   >
-                    <span className="min-w-0 flex-1 truncate text-left">{currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}</span>
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}
+                    </span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                   </Button>
                   {modelPickerOpen && (
-                    <div className={cn(
-                      "absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl",
-                      modelPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
-                    )}>
+                    <div
+                      className={cn(
+                        'absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-sm border border-border/70 bg-[#f7f7f7] p-1 shadow-xl',
+                        modelPickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+                      )}
+                    >
                       <div className="max-h-56 overflow-y-auto">
                         {modelOptions.map((option) => {
                           const selected = option.modelRef === currentModelRef;
@@ -710,7 +884,9 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                               type="button"
                               className={cn(
                                 'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                                selected ? 'bg-primary text-primary-foreground' : 'hover:bg-white/[0.06]',
+                                selected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'hover:bg-white/[0.06]'
                               )}
                               onClick={async () => {
                                 if (switchingModel || selected) {
@@ -722,7 +898,10 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                                   const normalizedDefaultModelRef = (defaultModelRef || '').trim();
                                   await updateAgentModel(
                                     currentAgentId,
-                                    normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
+                                    normalizedDefaultModelRef &&
+                                      option.modelRef === normalizedDefaultModelRef
+                                      ? null
+                                      : option.modelRef
                                   );
                                 } finally {
                                   setSwitchingModel(false);
@@ -731,10 +910,31 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                               }}
                             >
                               <span className="min-w-0">
-                                <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-primary-foreground' : 'text-foreground')}>{option.label}</span>
-                                <span className={cn('block truncate text-[9px]', selected ? 'text-primary-foreground/75' : 'text-muted-foreground')}>{option.description}</span>
+                                <span
+                                  className={cn(
+                                    'block truncate text-[11px] font-medium',
+                                    selected ? 'text-primary-foreground' : 'text-foreground'
+                                  )}
+                                >
+                                  {option.label}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'block truncate text-[9px]',
+                                    selected
+                                      ? 'text-primary-foreground/75'
+                                      : 'text-muted-foreground'
+                                  )}
+                                >
+                                  {option.description}
+                                </span>
                               </span>
-                              <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-primary-foreground' : 'opacity-0')} />
+                              <Check
+                                className={cn(
+                                  'h-4 w-4 shrink-0',
+                                  selected ? 'opacity-100 text-primary-foreground' : 'opacity-0'
+                                )}
+                              />
                             </button>
                           );
                         })}
@@ -751,12 +951,17 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "h-9 w-9 rounded-full transition-colors",
-                    "border border-border/70 bg-background/60 shadow-sm hover:bg-background/80",
-                    (skillPickerOpen || selectedSkill) && "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                    'h-9 w-9 rounded-full transition-colors',
+                    'border border-border/70 bg-background/60 shadow-sm hover:bg-background/80',
+                    (skillPickerOpen || selectedSkills.length > 0) &&
+                      'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
                   )}
                   disabled={disabled || sending}
-                  title={selectedSkill ? `Skill: ${selectedSkill.name}` : 'Skills'}
+                  title={
+                    selectedSkills.length > 0
+                      ? `Skills: ${selectedSkills.map((s) => s.name).join(', ')}`
+                      : 'Skills'
+                  }
                   onClick={() => {
                     if (!skillPickerOpen) {
                       setSkillPickerUpward(shouldOpenDropdownUpward(skillPickerRef.current, 240));
@@ -769,10 +974,12 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                 </Button>
 
                 {skillPickerOpen && (
-                  <div className={cn(
-                    "panel-elevated absolute left-0 z-20 w-48 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl",
-                    skillPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
-                  )}>
+                  <div
+                    className={cn(
+                      'panel-elevated absolute left-0 z-20 w-48 overflow-hidden rounded-xl border border-border/70 p-1 shadow-xl',
+                      skillPickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+                    )}
+                  >
                     <div className="relative mb-1">
                       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <input
@@ -793,25 +1000,56 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                       <button
                         type="button"
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
-                          !selectedSkillId ? "bg-primary text-primary-foreground" : "hover:bg-white/[0.06]"
+                          'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
+                          selectedSkillIds.length === 0
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-white/[0.06]'
                         )}
                         onClick={() => {
-                          setSelectedSkillId(null);
+                          setSelectedSkillIds([]);
                           setSkillSearchQuery('');
                           setSkillPickerOpen(false);
                           textareaRef.current?.focus();
                         }}
                       >
-                        <span className={cn(
-                          "flex h-6 w-6 items-center justify-center rounded-full",
-                          !selectedSkillId ? "bg-white/20" : "bg-black/5 dark:bg-white/10",
-                        )}>
-                          <Wand2 className={cn("h-3.5 w-3.5", !selectedSkillId ? "text-primary-foreground/75" : "text-muted-foreground")} />
+                        <span
+                          className={cn(
+                            'flex h-6 w-6 items-center justify-center rounded-full',
+                            selectedSkillIds.length === 0
+                              ? 'bg-white/20'
+                              : 'bg-black/5 dark:bg-white/10'
+                          )}
+                        >
+                          <Wand2
+                            className={cn(
+                              'h-3.5 w-3.5',
+                              selectedSkillIds.length === 0
+                                ? 'text-primary-foreground/75'
+                                : 'text-muted-foreground'
+                            )}
+                          />
                         </span>
                         <div className="min-w-0">
-                          <div className={cn("text-[12px] font-medium", !selectedSkillId ? "text-primary-foreground" : "text-foreground")}>不使用 Skill</div>
-                          <div className={cn("text-[10px]", !selectedSkillId ? "text-primary-foreground/75" : "text-muted-foreground")}>按当前 Agent 配置运行</div>
+                          <div
+                            className={cn(
+                              'text-[12px] font-medium',
+                              selectedSkillIds.length === 0
+                                ? 'text-primary-foreground'
+                                : 'text-foreground'
+                            )}
+                          >
+                            不使用 Skill
+                          </div>
+                          <div
+                            className={cn(
+                              'text-[10px]',
+                              selectedSkillIds.length === 0
+                                ? 'text-primary-foreground/75'
+                                : 'text-muted-foreground'
+                            )}
+                          >
+                            按当前 Agent 配置运行
+                          </div>
                         </div>
                       </button>
 
@@ -822,43 +1060,68 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                       )}
 
                       {filteredSkills.map((skill) => {
-                        const selected = skill.id === selectedSkillId;
+                        const selected = selectedSkillIds.includes(skill.id);
                         return (
                           <button
                             key={skill.id}
                             type="button"
                             className={cn(
-                              "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
-                              selected ? "bg-primary text-primary-foreground" : "hover:bg-white/[0.06]"
+                              'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
+                              selected
+                                ? 'bg-primary text-primary-foreground'
+                                : 'hover:bg-white/[0.06]'
                             )}
                             onClick={() => {
-                              setSelectedSkillId(skill.id);
-                              setSkillSearchQuery('');
-                              setSkillPickerOpen(false);
-                              textareaRef.current?.focus();
+                              setSelectedSkillIds((prev) =>
+                                prev.includes(skill.id)
+                                  ? prev.filter((id) => id !== skill.id)
+                                  : [...prev, skill.id]
+                              );
                             }}
                             title={skill.description}
                           >
-                            <span className={cn(
-                              "flex h-6 w-6 items-center justify-center rounded-full text-[13px]",
-                              selected ? "bg-white/20" : "bg-black/5 dark:bg-white/10",
-                            )}>
-                              {skill.icon || "✨"}
+                            <span
+                              className={cn(
+                                'flex h-6 w-6 items-center justify-center rounded-full text-[13px]',
+                                selected ? 'bg-white/20' : 'bg-black/5 dark:bg-white/10'
+                              )}
+                            >
+                              {skill.icon || '✨'}
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className={cn("truncate text-[12px] font-medium", selected ? "text-primary-foreground" : "text-foreground")}>{skill.name}</span>
+                                <span
+                                  className={cn(
+                                    'truncate text-[12px] font-medium',
+                                    selected ? 'text-primary-foreground' : 'text-foreground'
+                                  )}
+                                >
+                                  {skill.name}
+                                </span>
                                 {!skill.enabled && (
-                                  <span className={cn(
-                                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px]",
-                                    selected ? "border-white/30 bg-white/15 text-primary-foreground/80" : "border-border/70 bg-background/60 text-muted-foreground",
-                                  )}>
+                                  <span
+                                    className={cn(
+                                      'shrink-0 rounded-full border px-2 py-0.5 text-[10px]',
+                                      selected
+                                        ? 'border-white/30 bg-white/15 text-primary-foreground/80'
+                                        : 'border-border/70 bg-background/60 text-muted-foreground'
+                                    )}
+                                  >
                                     disabled
                                   </span>
                                 )}
                               </div>
                               {skill.description && (
-                                <div className={cn("truncate text-[10px]", selected ? "text-primary-foreground/75" : "text-muted-foreground")}>{skill.description}</div>
+                                <div
+                                  className={cn(
+                                    'truncate text-[10px]',
+                                    selected
+                                      ? 'text-primary-foreground/75'
+                                      : 'text-muted-foreground'
+                                  )}
+                                >
+                                  {skill.description}
+                                </div>
                               )}
                             </div>
                           </button>
@@ -891,7 +1154,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                 size="icon"
                 className={cn(
                   'shrink-0 h-8 w-8 rounded-full transition-all bg-primary text-primary-foreground',
-                  (sending || canSend)
+                  sending || canSend
                     ? 'shadow-[0_0_10px_hsl(var(--glow)/0.20)] hover:brightness-110'
                     : 'opacity-40'
                 )}
@@ -909,7 +1172,14 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
         </div>
         <div className="mt-2.5 flex items-center justify-between gap-2 px-4 text-[11px] text-muted-foreground/60">
           <div className="flex items-center gap-1.5">
-            <div className={cn("h-1.5 w-1.5 rounded-full", gatewayStatus.state === 'running' ? "bg-green-500/80 shadow-[0_0_10px_rgba(34,197,94,0.6)]" : "bg-red-500/80")} />
+            <div
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                gatewayStatus.state === 'running'
+                  ? 'bg-green-500/80 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
+                  : 'bg-red-500/80'
+              )}
+            />
             <span>
               {gatewayStatus.state === 'running'
                 ? t('composer.gatewayConnected')
@@ -960,7 +1230,10 @@ function AttachmentPreview({
       ) : (
         // Generic file card
         <div className="flex max-w-[200px] items-center gap-2 bg-muted/30 px-3 py-2">
-          <FileIcon mimeType={attachment.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <FileIcon
+            mimeType={attachment.mimeType}
+            className="h-5 w-5 shrink-0 text-muted-foreground"
+          />
           <div className="min-w-0 overflow-hidden">
             <p className="text-xs font-medium truncate">{attachment.fileName}</p>
             <p className="text-[10px] text-muted-foreground">
@@ -1015,20 +1288,41 @@ function AgentPickerItem({
       )}
     >
       <div className="min-w-0 flex items-center gap-2">
-        <span className={cn(
-          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
-          selected ? 'bg-white/20 text-primary-foreground' : 'bg-black/5 text-foreground dark:bg-white/10',
-        )}>
+        <span
+          className={cn(
+            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+            selected
+              ? 'bg-white/20 text-primary-foreground'
+              : 'bg-black/5 text-foreground dark:bg-white/10'
+          )}
+        >
           {agent.name?.trim()?.charAt(0)?.toUpperCase() || 'A'}
         </span>
         <span className="min-w-0">
-          <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-primary-foreground' : 'text-foreground')}>{agent.name}</span>
-          <span className={cn('block truncate text-[9px]', selected ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+          <span
+            className={cn(
+              'block truncate text-[11px] font-medium',
+              selected ? 'text-primary-foreground' : 'text-foreground'
+            )}
+          >
+            {agent.name}
+          </span>
+          <span
+            className={cn(
+              'block truncate text-[9px]',
+              selected ? 'text-primary-foreground/75' : 'text-muted-foreground'
+            )}
+          >
             {agent.modelDisplay || 'Agent'}
           </span>
         </span>
       </div>
-      <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-primary-foreground' : 'opacity-0')} />
+      <Check
+        className={cn(
+          'h-4 w-4 shrink-0',
+          selected ? 'opacity-100 text-primary-foreground' : 'opacity-0'
+        )}
+      />
     </button>
   );
 }

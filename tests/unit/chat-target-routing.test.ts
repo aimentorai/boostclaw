@@ -40,8 +40,8 @@ describe('chat target routing', () => {
         isDefault: true,
         modelDisplay: 'MiniMax',
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
@@ -51,8 +51,8 @@ describe('chat target routing', () => {
         isDefault: false,
         modelDisplay: 'Claude',
         inheritedModel: false,
-        workspace: '~/.openclaw/workspace-research',
-        agentDir: '~/.openclaw/agents/research/agent',
+        workspace: '~/.boostclaw/openclaw/workspace-research',
+        agentDir: '~/.boostclaw/openclaw/agents/research/agent',
         mainSessionKey: 'agent:research:desk',
         channelTypes: [],
       },
@@ -162,7 +162,7 @@ describe('chat target routing', () => {
           preview: 'data:image/png;base64,abc',
         },
       ],
-      'research',
+      'research'
     );
 
     expect(useChatStore.getState().currentSessionKey).toBe('agent:research:desk');
@@ -172,12 +172,10 @@ describe('chat target routing', () => {
       expect.objectContaining({
         method: 'POST',
         body: expect.any(String),
-      }),
+      })
     );
 
-    const payload = JSON.parse(
-      (hostApiFetchMock.mock.calls[0]?.[1] as { body: string }).body,
-    ) as {
+    const payload = JSON.parse((hostApiFetchMock.mock.calls[0]?.[1] as { body: string }).body) as {
       sessionKey: string;
       message: string;
       media: Array<{ filePath: string }>;
@@ -239,8 +237,7 @@ describe('chat target routing', () => {
 
     const assistantMessages = useChatStore
       .getState()
-      .messages
-      .filter((message) => message.role === 'assistant');
+      .messages.filter((message) => message.role === 'assistant');
 
     expect(assistantMessages).toHaveLength(1);
     expect(assistantMessages[0].id).toBe('history-assistant-1');

@@ -62,13 +62,14 @@ export interface AppSettings {
  * Default settings
  */
 function getSystemLocale(): string {
-  const preferredLanguages = typeof app.getPreferredSystemLanguages === 'function'
-    ? app.getPreferredSystemLanguages()
-    : [];
-  return preferredLanguages[0]
-    || (typeof app.getLocale === 'function' ? app.getLocale() : '')
-    || Intl.DateTimeFormat().resolvedOptions().locale
-    || 'en';
+  const preferredLanguages =
+    typeof app.getPreferredSystemLanguages === 'function' ? app.getPreferredSystemLanguages() : [];
+  return (
+    preferredLanguages[0] ||
+    (typeof app.getLocale === 'function' ? app.getLocale() : '') ||
+    Intl.DateTimeFormat().resolvedOptions().locale ||
+    'en'
+  );
 }
 
 function createDefaultSettings(): AppSettings {
@@ -84,7 +85,7 @@ function createDefaultSettings(): AppSettings {
 
     // Gateway
     gatewayAutoStart: true,
-    gatewayPort: 18789,
+    gatewayPort: 18790,
     gatewayToken: generateToken(),
     proxyEnabled: false,
     proxyServer: '',

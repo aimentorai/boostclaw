@@ -3,7 +3,7 @@
  *
  * The sanitizeOpenClawConfig() function in openclaw-auth.ts relies on
  * Electron-specific helpers (readOpenClawJson / writeOpenClawJson) that
- * read from ~/.openclaw/openclaw.json.  To avoid mocking Electron + the
+ * read from ~/.boostclaw/openclaw/openclaw.json.  To avoid mocking Electron + the
  * real HOME directory, this test uses a standalone version of the
  * sanitization logic that mirrors the production code exactly, operating
  * on a temp directory with real file I/O.
@@ -32,7 +32,7 @@ async function readConfig(): Promise<Record<string, unknown>> {
  */
 async function sanitizeConfig(
   filePath: string,
-  bundledPlugins?: { all: string[]; enabledByDefault: string[] },
+  bundledPlugins?: { all: string[]; enabledByDefault: string[] }
 ): Promise<boolean> {
   let raw: string;
   try {
@@ -99,7 +99,11 @@ async function sanitizeConfig(
         }
       }
       if (modified) pluginsObj.load = validLoad;
-    } else if (pluginsObj.load && typeof pluginsObj.load === 'object' && !Array.isArray(pluginsObj.load)) {
+    } else if (
+      pluginsObj.load &&
+      typeof pluginsObj.load === 'object' &&
+      !Array.isArray(pluginsObj.load)
+    ) {
       const loadObj = pluginsObj.load as Record<string, unknown>;
       if (Array.isArray(loadObj.paths)) {
         const validPaths: unknown[] = [];
@@ -121,9 +125,11 @@ async function sanitizeConfig(
       }
     }
 
-    const allow = Array.isArray(pluginsObj.allow) ? [...pluginsObj.allow as string[]] : [];
+    const allow = Array.isArray(pluginsObj.allow) ? [...(pluginsObj.allow as string[])] : [];
     const entries = (
-      pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries)
+      pluginsObj.entries &&
+      typeof pluginsObj.entries === 'object' &&
+      !Array.isArray(pluginsObj.entries)
         ? { ...(pluginsObj.entries as Record<string, unknown>) }
         : {}
     ) as Record<string, unknown>;
@@ -137,7 +143,9 @@ async function sanitizeConfig(
     const configuredBuiltIns = new Set<string>();
     const channels = config.channels;
     if (channels && typeof channels === 'object' && !Array.isArray(channels)) {
-      for (const [channelId, section] of Object.entries(channels as Record<string, Record<string, unknown>>)) {
+      for (const [channelId, section] of Object.entries(
+        channels as Record<string, Record<string, unknown>>
+      )) {
         if (!BUILTIN_CHANNEL_IDS.has(channelId)) continue;
         if (!section || section.enabled === false) continue;
         if (Object.keys(section).length > 0) {
@@ -152,7 +160,7 @@ async function sanitizeConfig(
     const bundledEnabledByDefault = bundledPlugins?.enabledByDefault ?? [];
 
     const externalPluginIds = allow.filter(
-      (id) => !BUILTIN_CHANNEL_IDS.has(id) && !bundledAll.has(id),
+      (id) => !BUILTIN_CHANNEL_IDS.has(id) && !bundledAll.has(id)
     );
     const nextAllow = [...externalPluginIds];
     if (externalPluginIds.length > 0) {
@@ -201,7 +209,10 @@ async function sanitizeConfig(
   }
 
   // Mirror: remove stale tools.web.search.kimi.apiKey when moonshot provider exists.
-  const providers = ((config.models as Record<string, unknown> | undefined)?.providers as Record<string, unknown> | undefined) || {};
+  const providers =
+    ((config.models as Record<string, unknown> | undefined)?.providers as
+      | Record<string, unknown>
+      | undefined) || {};
   if (providers.moonshot) {
     const tools = (config.tools as Record<string, unknown> | undefined) || {};
     const web = (tools.web as Record<string, unknown> | undefined) || {};
@@ -209,14 +220,19 @@ async function sanitizeConfig(
     const kimi = (search.kimi as Record<string, unknown> | undefined) || {};
     const plugins = Array.isArray(config.plugins)
       ? { load: [...config.plugins] }
-      : ((config.plugins as Record<string, unknown> | undefined) || {});
+      : (config.plugins as Record<string, unknown> | undefined) || {};
     const entries = (plugins.entries as Record<string, unknown> | undefined) || {};
     const moonshot = (entries.moonshot as Record<string, unknown> | undefined) || {};
     const moonshotConfig = (moonshot.config as Record<string, unknown> | undefined) || {};
-    const currentWebSearch = (moonshotConfig.webSearch as Record<string, unknown> | undefined) || {};
+    const currentWebSearch =
+      (moonshotConfig.webSearch as Record<string, unknown> | undefined) || {};
     if (Object.keys(kimi).length > 0) {
       delete kimi.apiKey;
-      moonshotConfig.webSearch = { ...kimi, ...currentWebSearch, baseUrl: 'https://api.moonshot.cn/v1' };
+      moonshotConfig.webSearch = {
+        ...kimi,
+        ...currentWebSearch,
+        baseUrl: 'https://api.moonshot.cn/v1',
+      };
       moonshot.config = moonshotConfig;
       entries.moonshot = moonshot;
       plugins.entries = entries;
@@ -287,7 +303,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig({
       skills: {
         disabled: false,
-        entries: { 'x': { enabled: false } },
+        entries: { x: { enabled: false } },
       },
     });
 
@@ -306,7 +322,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
       skills: {
         enabled: true,
         disabled: false,
-        entries: { 'a': { enabled: true } },
+        entries: { a: { enabled: true } },
         allowBundled: ['web-search'],
       },
     });
@@ -344,12 +360,12 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     // the blocklist approach should NOT strip them.
     const original = {
       skills: {
-        entries: { 'x': { enabled: true } },
+        entries: { x: { enabled: true } },
         allowBundled: ['web-search'],
         load: { extraDirs: ['/my/dir'], watch: true },
         install: { preferBrew: false },
         limits: { maxSkillsInPrompt: 5 },
-        futureNewKey: { some: 'value' },  // hypothetical future key
+        futureNewKey: { some: 'value' }, // hypothetical future key
       },
     };
     await writeConfig(original);
@@ -438,7 +454,12 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const tools = (result.tools as Record<string, unknown> | undefined) || {};
     const web = (tools.web as Record<string, unknown> | undefined) || {};
     const search = (web.search as Record<string, unknown> | undefined) || {};
-    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    const moonshot = (
+      (
+        ((result.plugins as Record<string, unknown>).entries as Record<string, unknown>)
+          .moonshot as Record<string, unknown>
+      ).config as Record<string, unknown>
+    ).webSearch as Record<string, unknown>;
     expect(search).not.toHaveProperty('kimi');
     expect(moonshot).not.toHaveProperty('apiKey');
     expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
@@ -469,7 +490,12 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const result = await readConfig();
     const plugins = result.plugins as Record<string, unknown>;
     const load = plugins.load as string[];
-    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    const moonshot = (
+      (
+        ((result.plugins as Record<string, unknown>).entries as Record<string, unknown>)
+          .moonshot as Record<string, unknown>
+      ).config as Record<string, unknown>
+    ).webSearch as Record<string, unknown>;
 
     expect(load).toEqual(['/tmp/custom-plugin.js']);
     expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
@@ -507,10 +533,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig({
       plugins: {
         load: {
-          paths: [
-            '/nonexistent/path/to/some-plugin',
-            '/another/missing/plugin/dir',
-          ],
+          paths: ['/nonexistent/path/to/some-plugin', '/another/missing/plugin/dir'],
         },
         entries: { customPlugin: { enabled: true } },
       },
@@ -584,10 +607,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig({
       plugins: {
         load: {
-          paths: [
-            tempDir,
-            '/nonexistent/stale/plugin',
-          ],
+          paths: [tempDir, '/nonexistent/stale/plugin'],
         },
       },
     });
@@ -606,11 +626,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig({
       plugins: {
         load: {
-          paths: [
-            'relative/plugin-path',
-            './another-relative',
-            '/nonexistent/absolute/path',
-          ],
+          paths: ['relative/plugin-path', './another-relative', '/nonexistent/absolute/path'],
         },
       },
     });
@@ -731,8 +747,8 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     });
 
     const bundled = {
-      all: ['browser', 'openai', 'old-bundled'],  // old-bundled still bundled
-      enabledByDefault: ['browser', 'openai'],      // but no longer enabledByDefault
+      all: ['browser', 'openai', 'old-bundled'], // old-bundled still bundled
+      enabledByDefault: ['browser', 'openai'], // but no longer enabledByDefault
     };
 
     const modified = await sanitizeConfig(configPath, bundled);
@@ -741,11 +757,11 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const result = await readConfig();
     const plugins = result.plugins as Record<string, unknown>;
     const allow = plugins.allow as string[];
-    expect(allow).toContain('customPlugin');      // external — preserved
-    expect(allow).toContain('unknown-plugin');    // not bundled — treated as external, preserved
-    expect(allow).toContain('browser');           // still enabledByDefault
-    expect(allow).toContain('openai');            // newly added enabledByDefault
-    expect(allow).not.toContain('old-bundled');   // bundled but demoted — removed
+    expect(allow).toContain('customPlugin'); // external — preserved
+    expect(allow).toContain('unknown-plugin'); // not bundled — treated as external, preserved
+    expect(allow).toContain('browser'); // still enabledByDefault
+    expect(allow).toContain('openai'); // newly added enabledByDefault
+    expect(allow).not.toContain('old-bundled'); // bundled but demoted — removed
   });
 
   it('removes demoted bundled plugin from allowlist when no longer enabledByDefault', async () => {
@@ -758,7 +774,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
 
     const bundled = {
       all: ['browser', 'diffs', 'openai'],
-      enabledByDefault: ['browser', 'openai'],  // diffs no longer enabledByDefault
+      enabledByDefault: ['browser', 'openai'], // diffs no longer enabledByDefault
     };
 
     const modified = await sanitizeConfig(configPath, bundled);
@@ -770,14 +786,14 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(allow).toContain('customPlugin');
     expect(allow).toContain('browser');
     expect(allow).toContain('openai');
-    expect(allow).not.toContain('diffs');  // demoted — removed
+    expect(allow).not.toContain('diffs'); // demoted — removed
   });
 
   it('does not add enabledByDefault plugins when allowlist is empty (no external plugins)', async () => {
     // When no external plugins exist, allowlist should be dropped entirely
     await writeConfig({
       plugins: {
-        allow: ['whatsapp'],  // built-in channel only
+        allow: ['whatsapp'], // built-in channel only
       },
     });
 
@@ -800,7 +816,10 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     };
     await writeConfig(original);
 
-    const modified = await sanitizeConfig(configPath, { all: ['browser'], enabledByDefault: ['browser'] });
+    const modified = await sanitizeConfig(configPath, {
+      all: ['browser'],
+      enabledByDefault: ['browser'],
+    });
     expect(modified).toBe(false);
   });
 });

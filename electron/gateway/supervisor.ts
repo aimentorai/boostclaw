@@ -2,23 +2,25 @@ import { app, utilityProcess } from 'electron';
 import path from 'path';
 import { existsSync } from 'fs';
 import WebSocket from 'ws';
-import { getOpenClawDir, getOpenClawEntryPath } from '../utils/paths';
+import { getOpenClawConfigDir, getOpenClawDir, getOpenClawEntryPath } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
 import { logger } from '../utils/logger';
 import { prependPathEntry } from '../utils/env-path';
 
 export function warmupManagedPythonReadiness(): void {
-  void isPythonReady().then((pythonReady) => {
-    if (!pythonReady) {
-      logger.info('Python environment missing or incomplete, attempting background repair...');
-      void setupManagedPython().catch((err) => {
-        logger.error('Background Python repair failed:', err);
-      });
-    }
-  }).catch((err) => {
-    logger.error('Failed to check Python environment:', err);
-  });
+  void isPythonReady()
+    .then((pythonReady) => {
+      if (!pythonReady) {
+        logger.info('Python environment missing or incomplete, attempting background repair...');
+        void setupManagedPython().catch((err) => {
+          logger.error('Background Python repair failed:', err);
+        });
+      }
+    })
+    .catch((err) => {
+      logger.error('Failed to check Python environment:', err);
+    });
 }
 
 export async function terminateOwnedGatewayProcess(child: Electron.UtilityProcess): Promise<void> {
@@ -156,14 +158,17 @@ export async function waitForPortFree(port: number, timeoutMs = 30000): Promise<
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
-  logger.error(`Port ${port} still occupied after ${timeoutMs}ms; aborting startup to avoid port conflict`);
+  logger.error(
+    `Port ${port} still occupied after ${timeoutMs}ms; aborting startup to avoid port conflict`
+  );
   throw new Error(`Port ${port} still occupied after ${timeoutMs}ms`);
 }
 
 async function getListeningProcessIds(port: number): Promise<string[]> {
-  const cmd = process.platform === 'win32'
-    ? `netstat -ano | findstr :${port}`
-    : `lsof -i :${port} -sTCP:LISTEN -t`;
+  const cmd =
+    process.platform === 'win32'
+      ? `netstat -ano | findstr :${port}`
+      : `lsof -i :${port} -sTCP:LISTEN -t`;
 
   const cp = await import('child_process');
   const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
@@ -191,11 +196,21 @@ async function getListeningProcessIds(port: number): Promise<string[]> {
     return [...new Set(pids)];
   }
 
-  return [...new Set(stdout.trim().split(/\r?\n/).map((value) => value.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 async function terminateOrphanedProcessIds(port: number, pids: string[]): Promise<void> {
-  logger.info(`Found orphaned process listening on port ${port} (PIDs: ${pids.join(', ')}), attempting to kill...`);
+  logger.info(
+    `Found orphaned process listening on port ${port} (PIDs: ${pids.join(', ')}), attempting to kill...`
+  );
 
   if (process.platform === 'darwin') {
     await unloadLaunchctlGatewayService();
@@ -206,10 +221,8 @@ async function terminateOrphanedProcessIds(port: number, pids: string[]): Promis
       if (process.platform === 'win32') {
         const cp = await import('child_process');
         await new Promise<void>((resolve) => {
-          cp.exec(
-            `taskkill /F /PID ${pid} /T`,
-            { timeout: 5000, windowsHide: true },
-            () => resolve(),
+          cp.exec(`taskkill /F /PID ${pid} /T`, { timeout: 5000, windowsHide: true }, () =>
+            resolve()
           );
         });
       } else {
@@ -259,7 +272,11 @@ export async function findExistingGatewayProcess(options: {
       const testWs = new WebSocket(`ws://localhost:${port}/ws`);
       const terminateAndResolve = (result: { port: number; externalToken?: string } | null) => {
         // terminate() avoids TIME_WAIT on Windows (vs close() which does WS handshake)
-        try { testWs.terminate(); } catch { /* ignore */ }
+        try {
+          testWs.terminate();
+        } catch {
+          /* ignore */
+        }
         resolve(result);
       };
       const timeout = setTimeout(() => {
@@ -304,7 +321,7 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
   const uvEnv = await getUvMirrorEnv();
   const doctorArgs = ['doctor', '--fix', '--yes', '--non-interactive'];
   logger.info(
-    `Running OpenClaw doctor repair (entry="${entryScript}", args="${doctorArgs.join(' ')}", cwd="${openclawDir}", bundledBin=${binPathExists ? 'yes' : 'no'})`,
+    `Running OpenClaw doctor repair (entry="${entryScript}", args="${doctorArgs.join(' ')}", cwd="${openclawDir}", bundledBin=${binPathExists ? 'yes' : 'no'})`
   );
 
   return await new Promise<boolean>((resolve) => {
@@ -312,6 +329,7 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       ...baseEnvPatched,
       ...uvEnv,
       OPENCLAW_NO_RESPAWN: '1',
+      OPENCLAW_STATE_DIR: getOpenClawConfigDir(),
     };
 
     const child = utilityProcess.fork(entryScript, doctorArgs, {

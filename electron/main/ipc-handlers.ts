@@ -1205,10 +1205,18 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
 
   // Gateway RPC call
   ipcMain.handle('gateway:rpc', async (_, method: string, params?: unknown, timeoutMs?: number) => {
+    const trace = method === 'chat.send' || method === 'chat.sendWithMedia';
+    const t0 = trace ? Date.now() : 0;
     try {
       const result = await gatewayManager.rpc(method, params, timeoutMs);
+      if (trace) {
+        logger.info(`[e2e] ${method} IPC→WS→GW→WS→IPC: ${Date.now() - t0}ms`);
+      }
       return { success: true, result };
     } catch (error) {
+      if (trace) {
+        logger.info(`[e2e] ${method} failed after ${Date.now() - t0}ms`);
+      }
       logger.warn(
         `[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}): ${String(error)}`
       );
@@ -1222,7 +1230,7 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
   ipcMain.handle('gateway:httpProxy', async (_, request: GatewayHttpProxyRequest) => {
     try {
       const status = gatewayManager.getStatus();
-      const port = status.port || 18789;
+      const port = status.port || 18790;
       const path = request?.path && request.path.startsWith('/') ? request.path : '/';
       const method = (request?.method || 'GET').toUpperCase();
       const timeoutMs =
@@ -1386,7 +1394,7 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
     try {
       const status = gatewayManager.getStatus();
       const token = await getSetting('gatewayToken');
-      const port = status.port || 18789;
+      const port = status.port || 18790;
       const url = buildOpenClawControlUiUrl(port, token);
       return { success: true, url, port, token };
     } catch (error) {
@@ -1429,9 +1437,27 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
     }
   });
 
+  // Micro-batch chat:message events to reduce per-token IPC overhead.
+  // Streaming deltas arrive at high frequency; batching with setImmediate
+  // coalesces events within the same event-loop tick into a single IPC send.
+  const chatBatch: unknown[] = [];
+  let chatBatchFlush: ReturnType<typeof setImmediate> | null = null;
+  let chatEventCount = 0;
   gatewayManager.on('chat:message', (data) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:chat-message', data);
+    chatEventCount++;
+    chatBatch.push(data);
+    if (!chatBatchFlush) {
+      chatBatchFlush = setImmediate(() => {
+        chatBatchFlush = null;
+        if (mainWindow.isDestroyed() || chatBatch.length === 0) return;
+        const batch = chatBatch.splice(0);
+        logger.info(`[e2e] IPC forward chat:message batch=${batch.length} total=${chatEventCount}`);
+        if (batch.length === 1) {
+          mainWindow.webContents.send('gateway:chat-message', batch[0]);
+        } else {
+          mainWindow.webContents.send('gateway:chat-message', batch);
+        }
+      });
     }
   });
 
@@ -2363,7 +2389,7 @@ function mimeToExt(mimeType: string): string {
   return '';
 }
 
-const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
+const OUTBOUND_DIR = join(getOpenClawConfigDir(), 'media', 'outbound');
 
 /**
  * Generate a preview data URL for image files.

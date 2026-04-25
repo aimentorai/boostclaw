@@ -24,7 +24,8 @@ function getElectronApp() {
     return (require('electron') as typeof import('electron')).app;
   }
 
-  const fallbackUserData = process.env.BoostClaw_USER_DATA_DIR?.trim() || join(homedir(), '.BoostClaw');
+  const fallbackUserData =
+    process.env.BoostClaw_USER_DATA_DIR?.trim() || join(homedir(), '.BoostClaw');
   const fallbackAppPath = process.cwd();
   const fallbackApp: ElectronAppLike = {
     isPackaged: false,
@@ -48,9 +49,16 @@ export function expandPath(path: string): string {
 }
 
 /**
- * Get OpenClaw config directory
+ * Get OpenClaw config directory (isolated for BoostClaw)
  */
 export function getOpenClawConfigDir(): string {
+  return join(homedir(), '.boostclaw', 'openclaw');
+}
+
+/**
+ * Get legacy OpenClaw config directory (user-installed CLI)
+ */
+export function getLegacyOpenClawConfigDir(): string {
   return join(homedir(), '.openclaw');
 }
 

@@ -9,7 +9,7 @@ import {
 describe('gateway startup recovery heuristics', () => {
   it('detects invalid-config signal from stderr lines', () => {
     const lines = [
-      'Invalid config at C:\\Users\\pc\\.openclaw\\openclaw.json:\\n- skills: Unrecognized key: "enabled"',
+      'Invalid config at C:\\Users\\pc\\.boostclaw\\openclaw\\openclaw.json:\\n- skills: Unrecognized key: "enabled"',
       'Run: openclaw doctor --fix',
     ];
     expect(hasInvalidConfigFailureSignal(new Error('gateway start failed'), lines)).toBe(true);
@@ -17,10 +17,7 @@ describe('gateway startup recovery heuristics', () => {
 
   it('detects invalid-config signal from error message fallback', () => {
     expect(
-      hasInvalidConfigFailureSignal(
-        new Error('Config invalid. Run: openclaw doctor --fix'),
-        [],
-      ),
+      hasInvalidConfigFailureSignal(new Error('Config invalid. Run: openclaw doctor --fix'), [])
     ).toBe(true);
   });
 
@@ -32,8 +29,8 @@ describe('gateway startup recovery heuristics', () => {
     expect(
       hasInvalidConfigFailureSignal(
         new Error('Gateway process exited before becoming ready (code=1)'),
-        lines,
-      ),
+        lines
+      )
     ).toBe(false);
   });
 

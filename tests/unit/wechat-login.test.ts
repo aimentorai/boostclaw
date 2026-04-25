@@ -39,7 +39,8 @@ describe('wechat login utility', () => {
   });
 
   it('starts a QR session, waits for confirmation, and stores account state in the plugin path', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -53,21 +54,19 @@ describe('wechat login utility', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        text: async () => JSON.stringify({
-          status: 'confirmed',
-          bot_token: 'secret-token',
-          ilink_bot_id: 'bot@im.bot',
-          baseurl: 'https://ilinkai.weixin.qq.com',
-          ilink_user_id: 'user-123',
-        }),
+        text: async () =>
+          JSON.stringify({
+            status: 'confirmed',
+            bot_token: 'secret-token',
+            ilink_bot_id: 'bot@im.bot',
+            baseurl: 'https://ilinkai.weixin.qq.com',
+            ilink_user_id: 'user-123',
+          }),
       });
     vi.stubGlobal('fetch', fetchMock);
 
-    const {
-      saveWeChatAccountState,
-      startWeChatLoginSession,
-      waitForWeChatLoginSession,
-    } = await import('@electron/utils/wechat-login');
+    const { saveWeChatAccountState, startWeChatLoginSession, waitForWeChatLoginSession } =
+      await import('@electron/utils/wechat-login');
 
     const startResult = await startWeChatLoginSession({});
     expect(startResult.qrcodeUrl).toMatch(/^data:image\/png;base64,/);
@@ -90,14 +89,20 @@ describe('wechat login utility', () => {
     expect(normalizedAccountId).toBe('bot-im-bot');
 
     const accountFile = JSON.parse(
-      await readFile(join(testHome, '.openclaw', 'openclaw-weixin', 'accounts', 'bot-im-bot.json'), 'utf-8'),
+      await readFile(
+        join(testHome, '.boostclaw', 'openclaw', 'openclaw-weixin', 'accounts', 'bot-im-bot.json'),
+        'utf-8'
+      )
     ) as { token?: string; baseUrl?: string; userId?: string };
     expect(accountFile.token).toBe('secret-token');
     expect(accountFile.baseUrl).toBe('https://ilinkai.weixin.qq.com');
     expect(accountFile.userId).toBe('user-123');
 
     const accountIndex = JSON.parse(
-      await readFile(join(testHome, '.openclaw', 'openclaw-weixin', 'accounts.json'), 'utf-8'),
+      await readFile(
+        join(testHome, '.boostclaw', 'openclaw', 'openclaw-weixin', 'accounts.json'),
+        'utf-8'
+      )
     ) as string[];
     expect(accountIndex).toEqual(['bot-im-bot']);
   });

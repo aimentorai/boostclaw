@@ -68,12 +68,14 @@ interface SettingsState {
 
 const defaultSettings = {
   theme: 'system' as Theme,
-  language: resolveSupportedLanguage(typeof navigator !== 'undefined' ? navigator.language : undefined),
+  language: resolveSupportedLanguage(
+    typeof navigator !== 'undefined' ? navigator.language : undefined
+  ),
   startMinimized: false,
   launchAtStartup: false,
   telemetryEnabled: false,
   gatewayAutoStart: true,
-  gatewayPort: 18789,
+  gatewayPort: 18790,
   proxyEnabled: false,
   proxyServer: '',
   proxyHttpServer: '',
@@ -119,7 +121,7 @@ export const useSettingsStore = create<SettingsState>()(
         void hostApiFetch('/api/settings/theme', {
           method: 'PUT',
           body: JSON.stringify({ value: theme }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setLanguage: (language) => {
         const resolvedLanguage = resolveSupportedLanguage(language);
@@ -128,7 +130,7 @@ export const useSettingsStore = create<SettingsState>()(
         void hostApiFetch('/api/settings/language', {
           method: 'PUT',
           body: JSON.stringify({ value: resolvedLanguage }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setLaunchAtStartup: (launchAtStartup) => {
@@ -136,28 +138,28 @@ export const useSettingsStore = create<SettingsState>()(
         void hostApiFetch('/api/settings/launchAtStartup', {
           method: 'PUT',
           body: JSON.stringify({ value: launchAtStartup }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setTelemetryEnabled: (telemetryEnabled) => {
         set({ telemetryEnabled });
         void hostApiFetch('/api/settings/telemetryEnabled', {
           method: 'PUT',
           body: JSON.stringify({ value: telemetryEnabled }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setGatewayAutoStart: (gatewayAutoStart) => {
         set({ gatewayAutoStart });
         void hostApiFetch('/api/settings/gatewayAutoStart', {
           method: 'PUT',
           body: JSON.stringify({ value: gatewayAutoStart }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setGatewayPort: (gatewayPort) => {
         set({ gatewayPort });
         void hostApiFetch('/api/settings/gatewayPort', {
           method: 'PUT',
           body: JSON.stringify({ value: gatewayPort }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setProxyEnabled: (proxyEnabled) => set({ proxyEnabled }),
       setProxyServer: (proxyServer) => set({ proxyServer }),
@@ -174,7 +176,7 @@ export const useSettingsStore = create<SettingsState>()(
         void hostApiFetch('/api/settings/devModeUnlocked', {
           method: 'PUT',
           body: JSON.stringify({ value: devModeUnlocked }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),

@@ -4,11 +4,13 @@
   "description": "SparkBoost TikTok & Grok video tools for OpenClaw",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  },
   "peerDependencies": {
     "openclaw": ">=2026.4.0"
   },
   "devDependencies": {
-    "@sinclair/typebox": "^0.34.0",
     "typescript": "^5.7.0"
   }
 }

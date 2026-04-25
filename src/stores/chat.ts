@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { hostApiFetch } from '@/lib/host-api';
 import { useGatewayStore } from './gateway';
+import { markSendOrigin } from './chat/runtime-event-actions';
 import { useAgentsStore } from './agents';
 import { buildCronSessionHistoryPath, isCronSessionKey } from './chat/cron-session-utils';
 import {
@@ -33,6 +34,11 @@ export type {
 // between tool-result finals and the next delta.
 let _lastChatEventAt = 0;
 
+// E2E latency tracking
+let _perfSendOrigin = 0;
+let _perfFirstDeltaAt = 0;
+let _perfDeltaCount = 0;
+
 /** Normalize a timestamp to milliseconds. Handles both seconds and ms. */
 function toMs(ts: number): number {
   // Timestamps < 1e12 are in seconds (before ~2033); >= 1e12 are milliseconds
@@ -54,7 +60,7 @@ const _historyLoadInFlight = new Map<string, Promise<void>>();
 const _lastHistoryLoadAtBySession = new Map<string, number>();
 const SESSION_LOAD_MIN_INTERVAL_MS = 1_200;
 const HISTORY_LOAD_MIN_INTERVAL_MS = 800;
-const HISTORY_POLL_SILENCE_WINDOW_MS = 2_500;
+const HISTORY_POLL_SILENCE_WINDOW_MS = 5_000;
 const CHAT_EVENT_DEDUPE_TTL_MS = 30_000;
 const _chatEventDedupe = new Map<string, number>();
 
@@ -1702,7 +1708,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     clearHistoryPoll();
     clearErrorRecoveryTimer();
 
-    const POLL_START_DELAY = 600;
+    const POLL_START_DELAY = 2_000;
     const POLL_INTERVAL = 4_000;
     const pollHistory = () => {
       const state = get();
@@ -1784,6 +1790,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Longer timeout for chat sends to tolerate high-latency networks (avoids connect error)
       const CHAT_SEND_TIMEOUT_MS = 120_000;
 
+      markSendOrigin();
+      _perfSendOrigin = performance.now();
+      _perfFirstDeltaAt = 0;
+      _perfDeltaCount = 0;
+
       if (hasMedia) {
         const sendPromise = hostApiFetch<{
           success: boolean;
@@ -1803,7 +1814,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
             })),
           }),
         });
-        void get().loadHistory(true);
         result = await sendPromise;
       } else {
         const sendPromise = useGatewayStore.getState().rpc<{ runId?: string }>(
@@ -1816,7 +1826,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           },
           CHAT_SEND_TIMEOUT_MS
         );
-        void get().loadHistory(true);
         const rpcResult = await sendPromise;
         result = { success: true, result: rpcResult };
       }
@@ -1891,6 +1900,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (isDuplicateChatEvent(eventState, event)) return;
 
     _lastChatEventAt = Date.now();
+
+    // E2E latency tracking
+    if (eventState === 'delta') {
+      _perfDeltaCount++;
+      if (!_perfFirstDeltaAt) {
+        _perfFirstDeltaAt = performance.now();
+        if (_perfSendOrigin) {
+          const ttfb = _perfFirstDeltaAt - _perfSendOrigin;
+          console.log(`[perf] Time to first token: ${ttfb.toFixed(0)}ms`);
+        }
+      }
+    }
+    if (eventState === 'final' && _perfFirstDeltaAt) {
+      const elapsed = performance.now() - _perfSendOrigin;
+      console.log(
+        `[perf] Stream complete: ${elapsed.toFixed(0)}ms total, ` +
+          `${_perfDeltaCount} deltas, ${(elapsed / Math.max(_perfDeltaCount, 1)).toFixed(1)}ms/delta avg`
+      );
+      _perfSendOrigin = 0;
+    }
 
     // Defensive: if state is missing but we have a message, try to infer state.
     let resolvedState = eventState;
@@ -2056,7 +2085,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const clearPendingImages = { pendingToolImages: [] as AttachedFileMeta[] };
 
             // Check if message already exists (prevent duplicates from stream final + history poll races)
-            const alreadyExists = s.messages.some((m) => isDuplicateAssistantMessage(m, msgWithImages));
+            const alreadyExists = s.messages.some((m) =>
+              isDuplicateAssistantMessage(m, msgWithImages)
+            );
             if (alreadyExists) {
               return toolOnly
                 ? {

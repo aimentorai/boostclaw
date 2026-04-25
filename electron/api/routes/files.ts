@@ -3,6 +3,7 @@ import { dialog, nativeImage } from 'electron';
 import crypto from 'node:crypto';
 import { extname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { getOpenClawConfigDir } from '../../utils/paths';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
@@ -53,7 +54,7 @@ function mimeToExt(mimeType: string): string {
   return '';
 }
 
-const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
+const OUTBOUND_DIR = join(getOpenClawConfigDir(), 'media', 'outbound');
 
 async function generateImagePreview(filePath: string, mimeType: string): Promise<string | null> {
   try {
@@ -62,9 +63,8 @@ async function generateImagePreview(filePath: string, mimeType: string): Promise
     const size = img.getSize();
     const maxDim = 512;
     if (size.width > maxDim || size.height > maxDim) {
-      const resized = size.width >= size.height
-        ? img.resize({ width: maxDim })
-        : img.resize({ height: maxDim });
+      const resized =
+        size.width >= size.height ? img.resize({ width: maxDim }) : img.resize({ height: maxDim });
       return `data:image/png;base64,${resized.toPNG().toString('base64')}`;
     }
     const { readFile } = await import('node:fs/promises');
@@ -79,7 +79,7 @@ export async function handleFileRoutes(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  _ctx: HostApiContext,
+  _ctx: HostApiContext
 ): Promise<boolean> {
   if (url.pathname === '/api/files/stage-paths' && req.method === 'POST') {
     try {
@@ -137,7 +137,9 @@ export async function handleFileRoutes(
 
   if (url.pathname === '/api/files/thumbnails' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<{ paths: Array<{ filePath: string; mimeType: string }> }>(req);
+      const body = await parseJsonBody<{ paths: Array<{ filePath: string; mimeType: string }> }>(
+        req
+      );
       const fsP = await import('node:fs/promises');
       const results: Record<string, { preview: string | null; fileSize: number }> = {};
       for (const { filePath, mimeType } of body.paths) {
@@ -168,7 +170,7 @@ export async function handleFileRoutes(
       }>(req);
       const ext = body.defaultFileName.includes('.')
         ? body.defaultFileName.split('.').pop()!
-        : (body.mimeType?.split('/')[1] || 'png');
+        : body.mimeType?.split('/')[1] || 'png';
       const result = await dialog.showSaveDialog({
         defaultPath: join(homedir(), 'Downloads', body.defaultFileName),
         filters: [

@@ -2,18 +2,17 @@ import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { normalizeOpenClawAccountId } from './channel-alias';
-import { getOpenClawResolvedDir } from './paths';
+import { getOpenClawResolvedDir, getOpenClawConfigDir } from './paths';
 
 export const DEFAULT_WECHAT_BASE_URL = 'https://ilinkai.weixin.qq.com';
 const DEFAULT_ILINK_BOT_TYPE = '3';
 const ACTIVE_LOGIN_TTL_MS = 5 * 60_000;
 const QR_POLL_TIMEOUT_MS = 35_000;
 const MAX_QR_REFRESH_COUNT = 3;
-const OPENCLAW_DIR = join(homedir(), '.openclaw');
+const OPENCLAW_DIR = getOpenClawConfigDir();
 const WECHAT_STATE_DIR = join(OPENCLAW_DIR, 'openclaw-weixin');
 const WECHAT_ACCOUNT_INDEX_FILE = join(WECHAT_STATE_DIR, 'accounts.json');
 const WECHAT_ACCOUNTS_DIR = join(WECHAT_STATE_DIR, 'accounts');
@@ -45,7 +44,9 @@ function getQrRenderDeps(): QrRenderDeps {
 
   const openclawRequire = createRequire(join(getOpenClawResolvedDir(), 'package.json'));
   const qrCodeModulePath = openclawRequire.resolve('qrcode-terminal/vendor/QRCode/index.js');
-  const qrErrorCorrectLevelPath = openclawRequire.resolve('qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js');
+  const qrErrorCorrectLevelPath = openclawRequire.resolve(
+    'qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js'
+  );
   qrRenderDeps = {
     QRCode: require(qrCodeModulePath),
     QRErrorCorrectLevel: require(qrErrorCorrectLevelPath),
@@ -107,7 +108,7 @@ function fillPixel(
   r: number,
   g: number,
   b: number,
-  a = 255,
+  a = 255
 ) {
   const idx = (y * width + x) * 4;
   buf[idx] = r;
@@ -177,7 +178,7 @@ function encodePngRgba(buffer: Buffer, width: number, height: number) {
 
 async function renderQrPngDataUrl(
   input: string,
-  opts: { scale?: number; marginModules?: number } = {},
+  opts: { scale?: number; marginModules?: number } = {}
 ): Promise<string> {
   const { scale = 6, marginModules = 4 } = opts;
   const qr = createQrMatrix(input);
@@ -220,10 +221,13 @@ function loadWeChatRouteTag(accountId?: string): string | undefined {
     if (!existsSync(configPath)) return undefined;
     const raw = readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as {
-      channels?: Record<string, {
-        routeTag?: string | number;
-        accounts?: Record<string, { routeTag?: string | number }>;
-      }>;
+      channels?: Record<
+        string,
+        {
+          routeTag?: string | number;
+          accounts?: Record<string, { routeTag?: string | number }>;
+        }
+      >;
     };
     const section = parsed.channels?.['openclaw-weixin'];
     if (!section) return undefined;
@@ -234,14 +238,19 @@ function loadWeChatRouteTag(accountId?: string): string | undefined {
       if (typeof scopedRouteTag === 'string' && scopedRouteTag.trim()) return scopedRouteTag.trim();
     }
     if (typeof section.routeTag === 'number') return String(section.routeTag);
-    if (typeof section.routeTag === 'string' && section.routeTag.trim()) return section.routeTag.trim();
+    if (typeof section.routeTag === 'string' && section.routeTag.trim())
+      return section.routeTag.trim();
   } catch {
     return undefined;
   }
   return undefined;
 }
 
-async function fetchWeChatQrCode(apiBaseUrl: string, accountId?: string, botType = DEFAULT_ILINK_BOT_TYPE): Promise<QrCodeResponse> {
+async function fetchWeChatQrCode(
+  apiBaseUrl: string,
+  accountId?: string,
+  botType = DEFAULT_ILINK_BOT_TYPE
+): Promise<QrCodeResponse> {
   const base = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
   const url = new URL(`ilink/bot/get_bot_qrcode?bot_type=${encodeURIComponent(botType)}`, base);
   const headers: Record<string, string> = {};
@@ -255,10 +264,14 @@ async function fetchWeChatQrCode(apiBaseUrl: string, accountId?: string, botType
     const body = await response.text().catch(() => '(unreadable)');
     throw new Error(`Failed to fetch QR code: ${response.status} ${response.statusText} ${body}`);
   }
-  return await response.json() as QrCodeResponse;
+  return (await response.json()) as QrCodeResponse;
 }
 
-async function pollWeChatQrStatus(apiBaseUrl: string, qrcode: string, accountId?: string): Promise<QrStatusResponse> {
+async function pollWeChatQrStatus(
+  apiBaseUrl: string,
+  qrcode: string,
+  accountId?: string
+): Promise<QrStatusResponse> {
   const base = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
   const url = new URL(`ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(qrcode)}`, base);
   const headers: Record<string, string> = {
@@ -276,7 +289,9 @@ async function pollWeChatQrStatus(apiBaseUrl: string, qrcode: string, accountId?
     clearTimeout(timer);
     const rawText = await response.text();
     if (!response.ok) {
-      throw new Error(`Failed to poll QR status: ${response.status} ${response.statusText} ${rawText}`);
+      throw new Error(
+        `Failed to poll QR status: ${response.status} ${response.statusText} ${rawText}`
+      );
     }
     return JSON.parse(rawText) as QrStatusResponse;
   } catch (error) {
@@ -293,7 +308,9 @@ async function readAccountIndex(): Promise<string[]> {
     const raw = await readFile(WECHAT_ACCOUNT_INDEX_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+    return parsed.filter(
+      (entry): entry is string => typeof entry === 'string' && entry.trim().length > 0
+    );
   } catch {
     return [];
   }
@@ -304,11 +321,14 @@ async function writeAccountIndex(accountIds: string[]): Promise<void> {
   await writeFile(WECHAT_ACCOUNT_INDEX_FILE, JSON.stringify(accountIds, null, 2), 'utf-8');
 }
 
-export async function saveWeChatAccountState(rawAccountId: string, payload: {
-  token: string;
-  baseUrl?: string;
-  userId?: string;
-}): Promise<string> {
+export async function saveWeChatAccountState(
+  rawAccountId: string,
+  payload: {
+    token: string;
+    baseUrl?: string;
+    userId?: string;
+  }
+): Promise<string> {
   const accountId = normalizeOpenClawAccountId(rawAccountId);
   await mkdir(WECHAT_ACCOUNTS_DIR, { recursive: true });
 
@@ -404,7 +424,11 @@ export async function waitForWeChatLoginSession(options: {
       };
     }
 
-    const statusResponse = await pollWeChatQrStatus(current.apiBaseUrl, current.qrcode, options.accountId);
+    const statusResponse = await pollWeChatQrStatus(
+      current.apiBaseUrl,
+      current.qrcode,
+      options.accountId
+    );
     switch (statusResponse.status) {
       case 'wait':
       case 'scaned':
@@ -434,7 +458,8 @@ export async function waitForWeChatLoginSession(options: {
         if (!statusResponse.ilink_bot_id || !statusResponse.bot_token) {
           return {
             connected: false,
-            message: 'WeChat login succeeded but the server did not return the required account credentials.',
+            message:
+              'WeChat login succeeded but the server did not return the required account credentials.',
           };
         }
         return {

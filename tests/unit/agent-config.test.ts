@@ -31,13 +31,13 @@ vi.mock('electron', () => ({
 }));
 
 async function writeOpenClawJson(config: unknown): Promise<void> {
-  const openclawDir = join(testHome, '.openclaw');
+  const openclawDir = join(testHome, '.boostclaw', 'openclaw');
   await mkdir(openclawDir, { recursive: true });
   await writeFile(join(openclawDir, 'openclaw.json'), JSON.stringify(config, null, 2), 'utf8');
 }
 
 async function readOpenClawJson(): Promise<Record<string, unknown>> {
-  const content = await readFile(join(testHome, '.openclaw', 'openclaw.json'), 'utf8');
+  const content = await readFile(join(testHome, '.boostclaw', 'openclaw', 'openclaw.json'), 'utf8');
   return JSON.parse(content) as Record<string, unknown>;
 }
 
@@ -98,7 +98,7 @@ describe('agent config lifecycle', () => {
           id: 'research',
           mainSessionKey: 'agent:research:desk',
         }),
-      ]),
+      ])
     );
   });
 
@@ -140,21 +140,21 @@ describe('agent config lifecycle', () => {
   it('persists agent descriptions in openclaw.json and exposes them in snapshots', async () => {
     await writeOpenClawJson({
       agents: {
-        list: [
-          { id: 'main', name: 'Main', default: true },
-        ],
+        list: [{ id: 'main', name: 'Main', default: true }],
       },
     });
 
-    const { createAgent, listAgentsSnapshot, updateAgentProfile } = await import('@electron/utils/agent-config');
+    const { createAgent, listAgentsSnapshot, updateAgentProfile } =
+      await import('@electron/utils/agent-config');
 
     await createAgent('Content Summary', {
       description: 'Summarizes product reviews and competitor notes',
     });
 
     let config = await readOpenClawJson();
-    let created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
-      .find((agent) => agent.id === 'content-summary');
+    let created = (
+      config.agents as { list: Array<{ id: string; description?: string }> }
+    ).list.find((agent) => agent.id === 'content-summary');
     expect(created?.description).toBe('Summarizes product reviews and competitor notes');
 
     let snapshot = await listAgentsSnapshot();
@@ -167,8 +167,9 @@ describe('agent config lifecycle', () => {
       description: 'Creates short summaries for marketplace research',
     });
     config = await readOpenClawJson();
-    created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
-      .find((agent) => agent.id === 'content-summary');
+    created = (config.agents as { list: Array<{ id: string; description?: string }> }).list.find(
+      (agent) => agent.id === 'content-summary'
+    );
     expect(created?.description).toBe('Creates short summaries for marketplace research');
 
     await updateAgentProfile('content-summary', {
@@ -176,8 +177,9 @@ describe('agent config lifecycle', () => {
       description: '',
     });
     config = await readOpenClawJson();
-    created = ((config.agents as { list: Array<{ id: string; description?: string }> }).list)
-      .find((agent) => agent.id === 'content-summary');
+    created = (config.agents as { list: Array<{ id: string; description?: string }> }).list.find(
+      (agent) => agent.id === 'content-summary'
+    );
     expect(created?.description).toBeUndefined();
   });
 
@@ -200,8 +202,9 @@ describe('agent config lifecycle', () => {
 
     await updateAgentModel('coder', 'ark/ark-code-latest');
     let config = await readOpenClawJson();
-    let coder = ((config.agents as { list: Array<{ id: string; model?: { primary?: string } }> }).list)
-      .find((agent) => agent.id === 'coder');
+    let coder = (
+      config.agents as { list: Array<{ id: string; model?: { primary?: string } }> }
+    ).list.find((agent) => agent.id === 'coder');
     expect(coder?.model?.primary).toBe('ark/ark-code-latest');
 
     let snapshot = await listAgentsSnapshot();
@@ -214,8 +217,9 @@ describe('agent config lifecycle', () => {
 
     await updateAgentModel('coder', null);
     config = await readOpenClawJson();
-    coder = ((config.agents as { list: Array<{ id: string; model?: unknown }> }).list)
-      .find((agent) => agent.id === 'coder');
+    coder = (config.agents as { list: Array<{ id: string; model?: unknown }> }).list.find(
+      (agent) => agent.id === 'coder'
+    );
     expect(coder?.model).toBeUndefined();
 
     snapshot = await listAgentsSnapshot();
@@ -237,7 +241,7 @@ describe('agent config lifecycle', () => {
     const { updateAgentModel } = await import('@electron/utils/agent-config');
 
     await expect(updateAgentModel('main', 'invalid-model-ref')).rejects.toThrow(
-      'modelRef must be in "provider/model" format',
+      'modelRef must be in "provider/model" format'
     );
   });
 
@@ -255,20 +259,20 @@ describe('agent config lifecycle', () => {
             id: 'main',
             name: 'Main',
             default: true,
-            workspace: '~/.openclaw/workspace',
-            agentDir: '~/.openclaw/agents/main/agent',
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
           },
           {
             id: 'test2',
             name: 'test2',
-            workspace: '~/.openclaw/workspace-test2',
-            agentDir: '~/.openclaw/agents/test2/agent',
+            workspace: '~/.boostclaw/openclaw/workspace-test2',
+            agentDir: '~/.boostclaw/openclaw/agents/test2/agent',
           },
           {
             id: 'test3',
             name: 'test3',
-            workspace: '~/.openclaw/workspace-test3',
-            agentDir: '~/.openclaw/agents/test3/agent',
+            workspace: '~/.boostclaw/openclaw/workspace-test3',
+            agentDir: '~/.boostclaw/openclaw/agents/test3/agent',
           },
         ],
       },
@@ -287,15 +291,15 @@ describe('agent config lifecycle', () => {
       ],
     });
 
-    const test2RuntimeDir = join(testHome, '.openclaw', 'agents', 'test2');
-    const test2WorkspaceDir = join(testHome, '.openclaw', 'workspace-test2');
+    const test2RuntimeDir = join(testHome, '.boostclaw', 'openclaw', 'agents', 'test2');
+    const test2WorkspaceDir = join(testHome, '.boostclaw', 'openclaw', 'workspace-test2');
     await mkdir(join(test2RuntimeDir, 'agent'), { recursive: true });
     await mkdir(join(test2RuntimeDir, 'sessions'), { recursive: true });
-    await mkdir(join(test2WorkspaceDir, '.openclaw'), { recursive: true });
+    await mkdir(join(test2WorkspaceDir, '.boostclaw', 'openclaw'), { recursive: true });
     await writeFile(
       join(test2RuntimeDir, 'agent', 'auth-profiles.json'),
       JSON.stringify({ version: 1, profiles: {} }, null, 2),
-      'utf8',
+      'utf8'
     );
     await writeFile(join(test2WorkspaceDir, 'AGENTS.md'), '# test2', 'utf8');
 
@@ -308,10 +312,9 @@ describe('agent config lifecycle', () => {
     expect(snapshot.channelOwners.feishu).toBe('main');
 
     const config = await readOpenClawJson();
-    expect((config.agents as { list: Array<{ id: string }> }).list.map((agent) => agent.id)).toEqual([
-      'main',
-      'test3',
-    ]);
+    expect(
+      (config.agents as { list: Array<{ id: string }> }).list.map((agent) => agent.id)
+    ).toEqual(['main', 'test3']);
     expect(config.bindings).toEqual([]);
     await expect(access(test2RuntimeDir)).rejects.toThrow();
     // Workspace deletion is intentionally deferred by `deleteAgentConfig` to avoid
@@ -331,20 +334,22 @@ describe('agent config lifecycle', () => {
             id: 'main',
             name: 'Main',
             default: true,
-            workspace: '~/.openclaw/workspace',
-            agentDir: '~/.openclaw/agents/main/agent',
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
           },
           {
             id: 'test2',
             name: 'test2',
             workspace: customWorkspaceDir,
-            agentDir: '~/.openclaw/agents/test2/agent',
+            agentDir: '~/.boostclaw/openclaw/agents/test2/agent',
           },
         ],
       },
     });
 
-    await mkdir(join(testHome, '.openclaw', 'agents', 'test2', 'agent'), { recursive: true });
+    await mkdir(join(testHome, '.boostclaw', 'openclaw', 'agents', 'test2', 'agent'), {
+      recursive: true,
+    });
     await mkdir(customWorkspaceDir, { recursive: true });
     await writeFile(join(customWorkspaceDir, 'AGENTS.md'), '# custom', 'utf8');
 
@@ -403,9 +408,7 @@ describe('agent config lifecycle', () => {
   it('allows the same agent to bind multiple different channels', async () => {
     await writeOpenClawJson({
       agents: {
-        list: [
-          { id: 'main', name: 'Main', default: true },
-        ],
+        list: [{ id: 'main', name: 'Main', default: true }],
       },
       channels: {
         feishu: { enabled: true },
@@ -413,7 +416,8 @@ describe('agent config lifecycle', () => {
       },
     });
 
-    const { assignChannelAccountToAgent, listAgentsSnapshot } = await import('@electron/utils/agent-config');
+    const { assignChannelAccountToAgent, listAgentsSnapshot } =
+      await import('@electron/utils/agent-config');
 
     await assignChannelAccountToAgent('main', 'feishu', 'default');
     await assignChannelAccountToAgent('main', 'telegram', 'default');
@@ -426,9 +430,7 @@ describe('agent config lifecycle', () => {
   it('replaces previous account binding for the same agent and channel', async () => {
     await writeOpenClawJson({
       agents: {
-        list: [
-          { id: 'main', name: 'Main', default: true },
-        ],
+        list: [{ id: 'main', name: 'Main', default: true }],
       },
       channels: {
         feishu: {
@@ -442,7 +444,8 @@ describe('agent config lifecycle', () => {
       },
     });
 
-    const { assignChannelAccountToAgent, listAgentsSnapshot } = await import('@electron/utils/agent-config');
+    const { assignChannelAccountToAgent, listAgentsSnapshot } =
+      await import('@electron/utils/agent-config');
 
     await assignChannelAccountToAgent('main', 'feishu', 'default');
     await assignChannelAccountToAgent('main', 'feishu', 'alt');
@@ -470,7 +473,8 @@ describe('agent config lifecycle', () => {
       },
     });
 
-    const { assignChannelAccountToAgent, listAgentsSnapshot } = await import('@electron/utils/agent-config');
+    const { assignChannelAccountToAgent, listAgentsSnapshot } =
+      await import('@electron/utils/agent-config');
 
     await assignChannelAccountToAgent('main', 'feishu', 'default');
     await assignChannelAccountToAgent('test2', 'feishu', 'default');
@@ -482,9 +486,7 @@ describe('agent config lifecycle', () => {
   it('can clear one channel account binding without affecting another channel on the same agent', async () => {
     await writeOpenClawJson({
       agents: {
-        list: [
-          { id: 'main', name: 'Main', default: true },
-        ],
+        list: [{ id: 'main', name: 'Main', default: true }],
       },
       channels: {
         feishu: { enabled: true },
@@ -492,7 +494,8 @@ describe('agent config lifecycle', () => {
       },
     });
 
-    const { assignChannelAccountToAgent, clearChannelBinding, listAgentsSnapshot } = await import('@electron/utils/agent-config');
+    const { assignChannelAccountToAgent, clearChannelBinding, listAgentsSnapshot } =
+      await import('@electron/utils/agent-config');
 
     await assignChannelAccountToAgent('main', 'feishu', 'default');
     await assignChannelAccountToAgent('main', 'telegram', 'default');

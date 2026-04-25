@@ -3,9 +3,11 @@
  * Displays expert-specific welcome message and suggested prompts
  * when the current chat session belongs to an expert agent.
  */
+import { useEffect } from 'react';
 import { ArrowRight, AlertCircle } from 'lucide-react';
 import { useExpertsStore } from '@/stores/experts';
 import { useChatStore } from '@/stores/chat';
+import { useTemplatesStore } from '@/stores/templates';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { ExpertRuntime } from '@/types/expert';
@@ -16,11 +18,74 @@ interface ExpertWelcomeProps {
 
 export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
   const currentAgentId = useChatStore((s) => s.currentAgentId);
+  const currentSessionKey = useChatStore((s) => s.currentSessionKey);
   const getExpertByAgentId = useExpertsStore((s) => s.getExpertByAgentId);
+  const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
+  const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
 
   const runtime = getExpertByAgentId(currentAgentId);
 
+  // Clear active template when session no longer matches
+  useEffect(() => {
+    if (activeTemplate && !currentSessionKey.includes(`:tpl-${activeTemplate.id}`)) {
+      setActiveTemplate(null);
+    }
+  }, [activeTemplate, currentSessionKey, setActiveTemplate]);
+
   if (!runtime) return null;
+
+  // Template welcome takes priority
+  if (activeTemplate) {
+    return (
+      <div className="w-full max-w-2xl px-4 text-center mb-8">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-3xl">
+          {activeTemplate.icon}
+        </div>
+        <h1 className="text-2xl font-semibold text-foreground md:text-3xl leading-snug">
+          {activeTemplate.name}
+        </h1>
+        <Badge
+          variant="secondary"
+          className="mt-2 text-[10px] font-medium px-1.5 py-0 h-4 bg-purple-500/10 border-0 shadow-none text-purple-600 dark:text-purple-400"
+        >
+          {activeTemplate.category}
+        </Badge>
+        {activeTemplate.welcomeMessage && (
+          <p className="mt-4 text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
+            {activeTemplate.welcomeMessage}
+          </p>
+        )}
+        {activeTemplate.suggestedPrompts.length > 0 && (
+          <div className="mt-6 flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-foreground/40 font-medium">
+              Try asking
+            </span>
+            <div className="flex flex-col gap-2 mt-1">
+              {activeTemplate.suggestedPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => {
+                    setActiveTemplate(null);
+                    onPromptClick(prompt);
+                  }}
+                  className={cn(
+                    'group flex items-center gap-3 w-full rounded-xl border px-4 py-3 text-left transition-all',
+                    'border-black/8 dark:border-white/8 bg-white dark:bg-card',
+                    'hover:border-[#3964F2]/30 hover:shadow-sm active:scale-[0.99]'
+                  )}
+                >
+                  <span className="flex-1 text-[13px] text-foreground/70 group-hover:text-foreground transition-colors">
+                    {prompt}
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 text-foreground/30 group-hover:text-[#3964F2] shrink-0 transition-colors" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl px-4 text-center mb-8">
