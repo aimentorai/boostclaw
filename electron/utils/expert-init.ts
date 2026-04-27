@@ -8,6 +8,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import {
+  MAIN_AGENT_ID,
   createAgent,
   deleteAgentConfig,
   listAgentsSnapshot,
@@ -31,6 +32,8 @@ export interface ExpertManifestEntry {
   usageTips: string[];
   enabled: boolean;
   version?: number;
+  /** When true, write config to the main agent's workspace instead of creating a separate agent. */
+  mergeToMainAgent?: boolean;
 }
 
 export interface ExpertManifest {
@@ -199,6 +202,68 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
 
   for (const expert of manifest.experts) {
     if (!expert.enabled) continue;
+
+    // Merged expert: write config to main agent's workspace, no separate agent.
+    if (expert.mergeToMainAgent) {
+      try {
+        // Clean up any existing separate agent for this expert (from before merge)
+        const existingSeparateAgent = await findExistingExpertAgent(expert.id);
+        if (existingSeparateAgent && existingSeparateAgent !== MAIN_AGENT_ID) {
+          logger.info('Removing separate agent for merged expert', {
+            expertId: expert.id,
+            agentId: existingSeparateAgent,
+          });
+          try {
+            const { removedEntry } = await deleteAgentConfig(existingSeparateAgent);
+            await removeAgentWorkspaceDirectory(removedEntry);
+          } catch (err) {
+            logger.error('Failed to remove separate agent for merged expert', {
+              expertId: expert.id,
+              agentId: existingSeparateAgent,
+              error: String(err),
+            });
+          }
+        }
+
+        // Version check: only rewrite bootstrap files when manifest version bumps
+        const marker = await readExpertMarker(MAIN_AGENT_ID);
+        const storedVersion = marker?.version ?? 0;
+        const manifestVersion = expert.version ?? 1;
+
+        if (storedVersion < manifestVersion) {
+          const snapshot = await listAgentsSnapshot();
+          const mainEntry = snapshot.agents.find((a) => a.id === MAIN_AGENT_ID);
+          if (mainEntry?.workspace) {
+            await writeExpertBootstrapFiles(mainEntry.workspace, expert);
+          }
+          await writeExpertMarker(MAIN_AGENT_ID, expert);
+          logger.info('Updated merged expert in main agent', {
+            expertId: expert.id,
+            fromVersion: storedVersion,
+            toVersion: manifestVersion,
+          });
+        } else {
+          logger.info('Merged expert already up to date', {
+            expertId: expert.id,
+            version: storedVersion,
+          });
+        }
+
+        results.push({ expertId: expert.id, agentId: MAIN_AGENT_ID, status: 'existing' });
+      } catch (err) {
+        logger.error('Failed to merge expert into main agent', {
+          expertId: expert.id,
+          error: String(err),
+        });
+        results.push({
+          expertId: expert.id,
+          agentId: MAIN_AGENT_ID,
+          status: 'failed',
+          error: String(err),
+        });
+      }
+      continue;
+    }
 
     try {
       // Check if agent already exists for this expert

@@ -611,7 +611,7 @@ exports.default = async function afterPack(context) {
     .length;
 
   console.log(`[after-pack] Copying ${depCount} openclaw dependencies to ${dest} ...`);
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, { recursive: true, dereference: true });
   console.log('[after-pack] ✅ openclaw node_modules copied.');
 
   // Patch broken modules whose CJS transpiled output sets module.exports = undefined,
@@ -686,7 +686,7 @@ exports.default = async function afterPack(context) {
       // Copy to extension's own node_modules (for direct requires from extension code)
       const destExtNM = join(packExtDir, extEntry.name, 'node_modules');
       if (!existsSync(destExtNM)) {
-        cpSync(srcNM, destExtNM, { recursive: true });
+        cpSync(srcNM, destExtNM, { recursive: true, dereference: true });
       }
       extNMCount++;
 
@@ -704,13 +704,13 @@ exports.default = async function afterPack(context) {
             const destScoped = join(destPkg, scopeEntry.name);
             if (!existsSync(destScoped)) {
               mkdirSync(dirname(destScoped), { recursive: true });
-              cpSync(srcScoped, destScoped, { recursive: true });
+              cpSync(srcScoped, destScoped, { recursive: true, dereference: true });
               mergedPkgCount++;
             }
           }
         } else {
           if (!existsSync(destPkg)) {
-            cpSync(srcPkg, destPkg, { recursive: true });
+            cpSync(srcPkg, destPkg, { recursive: true, dereference: true });
             mergedPkgCount++;
           }
         }

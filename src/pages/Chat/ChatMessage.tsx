@@ -275,7 +275,7 @@ export const ChatMessage = memo(function ChatMessage({
 
         {/* Hover row for user messages — timestamp only */}
         {isUser && message.timestamp && (
-          <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
+          <span className="text-xs text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity duration-200 select-none">
             {formatTimestamp(message.timestamp)}
           </span>
         )}
@@ -367,14 +367,14 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   }, [text]);
 
   return (
-    <div className="flex w-full select-none items-center justify-between px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <div className="flex w-full select-none items-center justify-between px-1 opacity-30 transition-opacity duration-200 group-hover:opacity-100">
       <span className="text-xs text-muted-foreground">
         {timestamp ? formatTimestamp(timestamp) : ''}
       </span>
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 rounded-lg hover:bg-white/[0.06]"
+        className="h-6 w-6 rounded-lg hover:bg-muted"
         onClick={copyContent}
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
@@ -625,7 +625,7 @@ function ThinkingBlock({ content }: { content: string }) {
   const taskProgress = useMemo(() => parseTaskProgressText(content), [content]);
 
   return (
-    <div className="w-full rounded-2xl border border-border/70 bg-white/[0.04] text-[14px]">
+    <div className="w-full rounded-2xl border border-border/70 bg-muted/20 text-[14px]">
       <button
         className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setExpanded(!expanded)}
@@ -635,7 +635,7 @@ function ThinkingBlock({ content }: { content: string }) {
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <span className="font-medium">Thinking</span>
+        <span className="font-medium">{t('thinking.label')}</span>
       </button>
       {expanded && (
         <div className="px-3 pb-3 text-muted-foreground">

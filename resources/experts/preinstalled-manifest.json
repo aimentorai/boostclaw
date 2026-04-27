@@ -32,7 +32,8 @@
         "可以先让我用 AI 生成视频，再发布到店铺"
       ],
       "enabled": true,
-      "version": 6
+      "version": 7,
+      "mergeToMainAgent": true
     }
   ]
 }

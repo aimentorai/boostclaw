@@ -69,7 +69,17 @@
         "stop": "停止",
         "gatewayConnected": "接続済み",
         "gatewayStatus": "Gateway {{state}} | ポート: {{port}} {{pid}}",
-        "retryFailedAttachments": "失敗した添付を再試行"
+        "retryFailedAttachments": "失敗した添付を再試行",
+        "searchExpert": "専門家を検索",
+        "searchModel": "モデルを検索",
+        "selectModel": "モデルを選択",
+        "otherAgents": "その他"
+    },
+    "thinking": {
+        "label": "思考中"
+    },
+    "activity": {
+        "toolProcessing": "ツール結果を処理中…"
     },
     "historyBuckets": {
         "today": "今日",

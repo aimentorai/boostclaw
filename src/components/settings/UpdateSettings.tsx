@@ -154,7 +154,7 @@ export function UpdateSettings() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium">{t('updates.currentVersion')}</p>
-          <p className="text-2xl font-bold">v{DISPLAY_VERSION}</p>
+          <p className="text-xl font-semibold">v{DISPLAY_VERSION}</p>
         </div>
         {renderStatusIcon()}
       </div>
@@ -210,9 +210,7 @@ export function UpdateSettings() {
       )}
 
       {/* Help Text */}
-      <p className="text-xs text-muted-foreground">
-        {t('updates.help')}
-      </p>
+      <p className="text-xs text-muted-foreground">{t('updates.help')}</p>
     </div>
   );
 }

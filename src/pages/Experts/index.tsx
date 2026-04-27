@@ -212,15 +212,10 @@ export function Experts() {
       <div className="w-full max-w-4xl mx-auto flex flex-col h-full p-10 pt-16">
         {/* Header */}
         <div className="mb-8 shrink-0">
-          <h1
-            className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
-            style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}
-          >
+          <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
             {t('chat:experts.pageTitle')}
           </h1>
-          <p className="text-[17px] text-foreground/70 font-medium">
-            {t('chat:experts.pageSubtitle')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('chat:experts.pageSubtitle')}</p>
         </div>
 
         {/* Gateway Warning */}

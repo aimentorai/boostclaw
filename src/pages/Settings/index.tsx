@@ -4,15 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Sun,
-  Moon,
-  Monitor,
-  RefreshCw,
-  ExternalLink,
-  Copy,
-  FileText,
-} from 'lucide-react';
+import { Sun, Moon, Monitor, RefreshCw, ExternalLink, Copy, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -164,12 +156,19 @@ export function Settings() {
       });
       setDoctorResult(result);
       if (result.success) {
-        toast.success(mode === 'fix' ? t('developer.doctorFixSucceeded') : t('developer.doctorSucceeded'));
+        toast.success(
+          mode === 'fix' ? t('developer.doctorFixSucceeded') : t('developer.doctorSucceeded')
+        );
       } else {
-        toast.error(result.error || (mode === 'fix' ? t('developer.doctorFixFailed') : t('developer.doctorFailed')));
+        toast.error(
+          result.error ||
+            (mode === 'fix' ? t('developer.doctorFixFailed') : t('developer.doctorFailed'))
+        );
       }
     } catch (error) {
-      const message = toUserMessage(error) || (mode === 'fix' ? t('developer.doctorFixRunFailed') : t('developer.doctorRunFailed'));
+      const message =
+        toUserMessage(error) ||
+        (mode === 'fix' ? t('developer.doctorFixRunFailed') : t('developer.doctorRunFailed'));
       toast.error(message);
       setDoctorResult({
         mode,
@@ -209,8 +208,6 @@ export function Settings() {
       toast.error(`Failed to copy doctor output: ${String(error)}`);
     }
   };
-
-
 
   const refreshControlUiInfo = async () => {
     try {
@@ -286,7 +283,9 @@ export function Settings() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [devModeUnlocked, showCliTools]);
 
   const handleCopyCliCommand = async () => {
@@ -305,9 +304,11 @@ export function Settings() {
       (...args: unknown[]) => {
         const installedPath = typeof args[0] === 'string' ? args[0] : '';
         toast.success(`openclaw CLI installed at ${installedPath}`);
-      },
+      }
     );
-    return () => { unsubscribe?.(); };
+    return () => {
+      unsubscribe?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -355,12 +356,12 @@ export function Settings() {
 
   const proxySettingsDirty = useMemo(() => {
     return (
-      proxyEnabledDraft !== proxyEnabled
-      || proxyServerDraft.trim() !== proxyServer
-      || proxyHttpServerDraft.trim() !== proxyHttpServer
-      || proxyHttpsServerDraft.trim() !== proxyHttpsServer
-      || proxyAllServerDraft.trim() !== proxyAllServer
-      || proxyBypassRulesDraft.trim() !== proxyBypassRules
+      proxyEnabledDraft !== proxyEnabled ||
+      proxyServerDraft.trim() !== proxyServer ||
+      proxyHttpServerDraft.trim() !== proxyHttpServer ||
+      proxyHttpsServerDraft.trim() !== proxyHttpsServer ||
+      proxyAllServerDraft.trim() !== proxyAllServer ||
+      proxyBypassRulesDraft.trim() !== proxyBypassRules
     );
   }, [
     proxyAllServer,
@@ -417,9 +418,8 @@ export function Settings() {
       if (entry.event.endsWith('_error') || entry.event.includes('request_error')) {
         errorCount += 1;
       }
-      const durationMs = typeof entry.payload.durationMs === 'number'
-        ? entry.payload.durationMs
-        : Number.NaN;
+      const durationMs =
+        typeof entry.payload.durationMs === 'number' ? entry.payload.durationMs : Number.NaN;
       if (Number.isFinite(durationMs) && durationMs >= 800) {
         slowCount += 1;
       }
@@ -428,15 +428,18 @@ export function Settings() {
   }, [telemetryEntries]);
 
   const telemetryByEvent = useMemo(() => {
-    const map = new Map<string, {
-      event: string;
-      count: number;
-      errorCount: number;
-      slowCount: number;
-      totalDuration: number;
-      timedCount: number;
-      lastTs: string;
-    }>();
+    const map = new Map<
+      string,
+      {
+        event: string;
+        count: number;
+        errorCount: number;
+        slowCount: number;
+        totalDuration: number;
+        timedCount: number;
+        lastTs: string;
+      }
+    >();
 
     for (const entry of telemetryEntries) {
       const current = map.get(entry.event) ?? {
@@ -456,9 +459,8 @@ export function Settings() {
         current.errorCount += 1;
       }
 
-      const durationMs = typeof entry.payload.durationMs === 'number'
-        ? entry.payload.durationMs
-        : Number.NaN;
+      const durationMs =
+        typeof entry.payload.durationMs === 'number' ? entry.payload.durationMs : Number.NaN;
       if (Number.isFinite(durationMs)) {
         current.totalDuration += durationMs;
         current.timedCount += 1;
@@ -470,9 +472,7 @@ export function Settings() {
       map.set(entry.event, current);
     }
 
-    return [...map.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 12);
+    return [...map.values()].sort((a, b) => b.count - a.count).slice(0, 12);
   }, [telemetryEntries]);
 
   const handleCopyTelemetry = async () => {
@@ -495,43 +495,47 @@ export function Settings() {
     setGatewayWsDiagnosticEnabled(enabled);
     setWsDiagnosticEnabled(enabled);
     toast.success(
-      enabled
-        ? t('developer.wsDiagnosticEnabled')
-        : t('developer.wsDiagnosticDisabled'),
+      enabled ? t('developer.wsDiagnosticEnabled') : t('developer.wsDiagnosticDisabled')
     );
   };
 
   return (
-    <div data-testid="settings-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
+    <div
+      data-testid="settings-page"
+      className="flex flex-col bg-background h-[calc(100vh-2.5rem)] overflow-hidden"
+    >
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
-
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
-              {t('subtitle')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2 space-y-12">
-
           {/* Appearance */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
               {t('appearance.title')}
             </h2>
             <div className="space-y-6">
               <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.theme')}</Label>
+                <Label className="text-[15px] font-medium text-foreground/80">
+                  {t('appearance.theme')}
+                </Label>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={theme === 'light' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'light' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
+                    className={cn(
+                      'rounded-full px-5 h-10 border-black/10 dark:border-white/10',
+                      theme === 'light'
+                        ? 'bg-black/5 dark:bg-white/10 text-foreground'
+                        : 'bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                    )}
                     onClick={() => setTheme('light')}
                   >
                     <Sun className="h-4 w-4 mr-2" />
@@ -539,7 +543,12 @@ export function Settings() {
                   </Button>
                   <Button
                     variant={theme === 'dark' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'dark' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
+                    className={cn(
+                      'rounded-full px-5 h-10 border-black/10 dark:border-white/10',
+                      theme === 'dark'
+                        ? 'bg-black/5 dark:bg-white/10 text-foreground'
+                        : 'bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                    )}
                     onClick={() => setTheme('dark')}
                   >
                     <Moon className="h-4 w-4 mr-2" />
@@ -547,7 +556,12 @@ export function Settings() {
                   </Button>
                   <Button
                     variant={theme === 'system' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'system' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
+                    className={cn(
+                      'rounded-full px-5 h-10 border-black/10 dark:border-white/10',
+                      theme === 'system'
+                        ? 'bg-black/5 dark:bg-white/10 text-foreground'
+                        : 'bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                    )}
                     onClick={() => setTheme('system')}
                   >
                     <Monitor className="h-4 w-4 mr-2" />
@@ -556,13 +570,20 @@ export function Settings() {
                 </div>
               </div>
               <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.language')}</Label>
+                <Label className="text-[15px] font-medium text-foreground/80">
+                  {t('appearance.language')}
+                </Label>
                 <div className="flex flex-wrap gap-2">
                   {SUPPORTED_LANGUAGES.map((lang) => (
                     <Button
                       key={lang.code}
                       variant={language === lang.code ? 'secondary' : 'outline'}
-                      className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", language === lang.code ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
+                      className={cn(
+                        'rounded-full px-5 h-10 border-black/10 dark:border-white/10',
+                        language === lang.code
+                          ? 'bg-black/5 dark:bg-white/10 text-foreground'
+                          : 'bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                      )}
                       onClick={() => setLanguage(lang.code)}
                     >
                       {lang.label}
@@ -572,15 +593,14 @@ export function Settings() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.launchAtStartup')}</Label>
+                  <Label className="text-[15px] font-medium text-foreground/80">
+                    {t('appearance.launchAtStartup')}
+                  </Label>
                   <p className="text-[13px] text-muted-foreground mt-1">
                     {t('appearance.launchAtStartupDesc')}
                   </p>
                 </div>
-                <Switch
-                  checked={launchAtStartup}
-                  onCheckedChange={setLaunchAtStartup}
-                />
+                <Switch checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
               </div>
             </div>
           </div>
@@ -589,12 +609,14 @@ export function Settings() {
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div>
-                <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
                   {t('account.title')}
                 </h2>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <Label className="text-[15px] font-medium text-foreground/80">{t('account.current')}</Label>
+                    <Label className="text-[15px] font-medium text-foreground/80">
+                      {t('account.current')}
+                    </Label>
                     <p className="text-[13px] text-muted-foreground mt-1">
                       {authProfile?.email || authProfile?.subject || t('account.signedIn')}
                     </p>
@@ -617,39 +639,66 @@ export function Settings() {
 
           {/* Gateway */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
               {t('gateway.title')}
             </h2>
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('gateway.status')}</Label>
+                  <Label className="text-[15px] font-medium text-foreground">
+                    {t('gateway.status')}
+                  </Label>
                   <p className="text-[13px] text-muted-foreground mt-1">
                     {t('gateway.port')}: {gatewayStatus.port}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border",
-                    gatewayStatus.state === 'running' ? "bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20" :
-                      gatewayStatus.state === 'error' ? "bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20" :
-                        "bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent"
-                  )}>
-                    <div className={cn("w-1.5 h-1.5 rounded-full",
-                      gatewayStatus.state === 'running' ? "bg-green-500" :
-                        gatewayStatus.state === 'error' ? "bg-red-500" : "bg-muted-foreground"
-                    )} />
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border',
+                      gatewayStatus.state === 'running'
+                        ? 'bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20'
+                        : gatewayStatus.state === 'error'
+                          ? 'bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20'
+                          : 'bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'w-1.5 h-1.5 rounded-full',
+                        gatewayStatus.state === 'running'
+                          ? 'bg-green-500'
+                          : gatewayStatus.state === 'error'
+                            ? 'bg-red-500'
+                            : 'bg-muted-foreground'
+                      )}
+                    />
                     {gatewayStatus.state}
                   </div>
-                  <Button variant="outline" size="sm" onClick={restartGateway} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={restartGateway}
+                    className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                  >
                     <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                     {t('common:actions.restart')}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleShowLogs} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleShowLogs}
+                    className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                  >
                     <FileText className="h-3.5 w-3.5 mr-1.5" />
                     {t('gateway.logs')}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenControlUi} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenControlUi}
+                    className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                  >
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                     {t('developer.console')}
                   </Button>
@@ -661,11 +710,21 @@ export function Settings() {
                   <div className="flex items-center justify-between mb-3">
                     <p className="font-medium text-[14px]">{t('gateway.appLogs')}</p>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={handleOpenLogDir}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                        onClick={handleOpenLogDir}
+                      >
                         <ExternalLink className="h-3 w-3 mr-1.5" />
                         {t('gateway.openFolder')}
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={() => setShowLogs(false)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                        onClick={() => setShowLogs(false)}
+                      >
                         {t('common:actions.close')}
                       </Button>
                     </div>
@@ -678,22 +737,22 @@ export function Settings() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('gateway.autoStart')}</Label>
+                  <Label className="text-[15px] font-medium text-foreground">
+                    {t('gateway.autoStart')}
+                  </Label>
                   <p className="text-[13px] text-muted-foreground mt-1">
                     {t('gateway.autoStartDesc')}
                   </p>
                 </div>
-                <Switch
-                  checked={gatewayAutoStart}
-                  onCheckedChange={setGatewayAutoStart}
-                />
+                <Switch checked={gatewayAutoStart} onCheckedChange={setGatewayAutoStart} />
               </div>
-
 
               {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
+                    <Label className="text-[15px] font-medium text-foreground">
+                      {t('advanced.devMode')}
+                    </Label>
                     <p className="text-[13px] text-muted-foreground mt-1">
                       {t('advanced.devModeDesc')}
                     </p>
@@ -709,28 +768,28 @@ export function Settings() {
               {showHiddenDeveloperSettings && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
+                    <Label className="text-[15px] font-medium text-foreground">
+                      {t('advanced.telemetry')}
+                    </Label>
                     <p className="text-[13px] text-muted-foreground mt-1">
                       {t('advanced.telemetryDesc')}
                     </p>
                   </div>
-                  <Switch
-                    checked={telemetryEnabled}
-                    onCheckedChange={setTelemetryEnabled}
-                  />
+                  <Switch checked={telemetryEnabled} onCheckedChange={setTelemetryEnabled} />
                 </div>
               )}
-
             </div>
           </div>
-
 
           {/* Developer */}
           {showHiddenDeveloperSettings && devModeUnlocked && (
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
-                <h2 data-testid="settings-developer-title" className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                <h2
+                  data-testid="settings-developer-title"
+                  className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight"
+                >
                   {t('developer.title')}
                 </h2>
                 <div className="space-y-8">
@@ -738,7 +797,9 @@ export function Settings() {
                   <div className="space-y-4" data-testid="settings-proxy-section">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground/80">Gateway Proxy</Label>
+                        <Label className="text-[14px] font-medium text-foreground/80">
+                          Gateway Proxy
+                        </Label>
                         <p className="text-[13px] text-muted-foreground">
                           {t('gateway.proxyDesc')}
                         </p>
@@ -758,7 +819,9 @@ export function Settings() {
                         data-testid="settings-proxy-save-button"
                         className="rounded-xl h-10 px-5 bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
                       >
-                        <RefreshCw className={`h-4 w-4 mr-2${savingProxy ? ' animate-spin' : ''}`} />
+                        <RefreshCw
+                          className={`h-4 w-4 mr-2${savingProxy ? ' animate-spin' : ''}`}
+                        />
                         {savingProxy ? t('common:status.saving') : t('common:actions.save')}
                       </Button>
                       <p className="text-[12px] text-muted-foreground">
@@ -770,7 +833,12 @@ export function Settings() {
                       <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-server" className="text-[13px] text-foreground/80">{t('gateway.proxyServer')}</Label>
+                            <Label
+                              htmlFor="proxy-server"
+                              className="text-[13px] text-foreground/80"
+                            >
+                              {t('gateway.proxyServer')}
+                            </Label>
                             <Input
                               id="proxy-server"
                               value={proxyServerDraft}
@@ -784,7 +852,12 @@ export function Settings() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-http-server" className="text-[13px] text-foreground/80">{t('gateway.proxyHttpServer')}</Label>
+                            <Label
+                              htmlFor="proxy-http-server"
+                              className="text-[13px] text-foreground/80"
+                            >
+                              {t('gateway.proxyHttpServer')}
+                            </Label>
                             <Input
                               id="proxy-http-server"
                               value={proxyHttpServerDraft}
@@ -798,7 +871,12 @@ export function Settings() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-https-server" className="text-[13px] text-foreground/80">{t('gateway.proxyHttpsServer')}</Label>
+                            <Label
+                              htmlFor="proxy-https-server"
+                              className="text-[13px] text-foreground/80"
+                            >
+                              {t('gateway.proxyHttpsServer')}
+                            </Label>
                             <Input
                               id="proxy-https-server"
                               value={proxyHttpsServerDraft}
@@ -812,7 +890,12 @@ export function Settings() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-all-server" className="text-[13px] text-foreground/80">{t('gateway.proxyAllServer')}</Label>
+                            <Label
+                              htmlFor="proxy-all-server"
+                              className="text-[13px] text-foreground/80"
+                            >
+                              {t('gateway.proxyAllServer')}
+                            </Label>
                             <Input
                               id="proxy-all-server"
                               value={proxyAllServerDraft}
@@ -827,7 +910,9 @@ export function Settings() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="proxy-bypass" className="text-[13px] text-foreground/80">{t('gateway.proxyBypass')}</Label>
+                          <Label htmlFor="proxy-bypass" className="text-[13px] text-foreground/80">
+                            {t('gateway.proxyBypass')}
+                          </Label>
                           <Input
                             id="proxy-bypass"
                             value={proxyBypassRulesDraft}
@@ -839,12 +924,13 @@ export function Settings() {
                             {t('gateway.proxyBypassHelp')}
                           </p>
                         </div>
-
                       </div>
                     )}
                   </div>
                   <div className="space-y-4 pt-4">
-                    <Label className="text-[14px] font-medium text-foreground/80">{t('developer.gatewayToken')}</Label>
+                    <Label className="text-[14px] font-medium text-foreground/80">
+                      {t('developer.gatewayToken')}
+                    </Label>
                     <p className="text-[13px] text-muted-foreground">
                       {t('developer.gatewayTokenDesc')}
                     </p>
@@ -881,10 +967,10 @@ export function Settings() {
 
                   {showCliTools && (
                     <div className="space-y-3">
-                      <Label className="text-[15px] font-medium text-foreground">{t('developer.cli')}</Label>
-                      <p className="text-[13px] text-muted-foreground">
-                        {t('developer.cliDesc')}
-                      </p>
+                      <Label className="text-[15px] font-medium text-foreground">
+                        {t('developer.cli')}
+                      </Label>
+                      <p className="text-[13px] text-muted-foreground">{t('developer.cliDesc')}</p>
                       {isWindows && (
                         <p className="text-[12px] text-muted-foreground">
                           {t('developer.cliPowershell')}
@@ -914,7 +1000,9 @@ export function Settings() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.doctor')}</Label>
+                        <Label className="text-[14px] font-medium text-foreground">
+                          {t('developer.doctor')}
+                        </Label>
                         <p className="text-[13px] text-muted-foreground mt-1">
                           {t('developer.doctorDesc')}
                         </p>
@@ -927,8 +1015,12 @@ export function Settings() {
                           disabled={doctorRunningMode !== null}
                           className="rounded-xl h-10 px-4 bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
                         >
-                          <RefreshCw className={`h-4 w-4 mr-2${doctorRunningMode === 'diagnose' ? ' animate-spin' : ''}`} />
-                          {doctorRunningMode === 'diagnose' ? t('common:status.running') : t('developer.runDoctor')}
+                          <RefreshCw
+                            className={`h-4 w-4 mr-2${doctorRunningMode === 'diagnose' ? ' animate-spin' : ''}`}
+                          />
+                          {doctorRunningMode === 'diagnose'
+                            ? t('common:status.running')
+                            : t('developer.runDoctor')}
                         </Button>
                         <Button
                           type="button"
@@ -937,8 +1029,12 @@ export function Settings() {
                           disabled={doctorRunningMode !== null}
                           className="rounded-xl h-10 px-4 bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
                         >
-                          <RefreshCw className={`h-4 w-4 mr-2${doctorRunningMode === 'fix' ? ' animate-spin' : ''}`} />
-                          {doctorRunningMode === 'fix' ? t('common:status.running') : t('developer.runDoctorFix')}
+                          <RefreshCw
+                            className={`h-4 w-4 mr-2${doctorRunningMode === 'fix' ? ' animate-spin' : ''}`}
+                          />
+                          {doctorRunningMode === 'fix'
+                            ? t('common:status.running')
+                            : t('developer.runDoctorFix')}
                         </Button>
                         <Button
                           type="button"
@@ -956,10 +1052,17 @@ export function Settings() {
                     {doctorResult && (
                       <div className="space-y-3 rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-black/5 dark:bg-white/5">
                         <div className="flex flex-wrap gap-2 text-[12px]">
-                          <Badge variant={doctorResult.success ? 'secondary' : 'destructive'} className="rounded-full px-3 py-1">
+                          <Badge
+                            variant={doctorResult.success ? 'secondary' : 'destructive'}
+                            className="rounded-full px-3 py-1"
+                          >
                             {doctorResult.mode === 'fix'
-                              ? (doctorResult.success ? t('developer.doctorFixOk') : t('developer.doctorFixIssue'))
-                              : (doctorResult.success ? t('developer.doctorOk') : t('developer.doctorIssue'))}
+                              ? doctorResult.success
+                                ? t('developer.doctorFixOk')
+                                : t('developer.doctorFixIssue')
+                              : doctorResult.success
+                                ? t('developer.doctorOk')
+                                : t('developer.doctorIssue')}
                           </Badge>
                           <Badge variant="outline" className="rounded-full px-3 py-1">
                             {t('developer.doctorExitCode')}: {doctorResult.exitCode ?? 'null'}
@@ -969,19 +1072,31 @@ export function Settings() {
                           </Badge>
                         </div>
                         <div className="space-y-1 text-[12px] text-muted-foreground font-mono break-all">
-                          <p>{t('developer.doctorCommand')}: {doctorResult.command}</p>
-                          <p>{t('developer.doctorWorkingDir')}: {doctorResult.cwd || '-'}</p>
-                          {doctorResult.error && <p>{t('developer.doctorError')}: {doctorResult.error}</p>}
+                          <p>
+                            {t('developer.doctorCommand')}: {doctorResult.command}
+                          </p>
+                          <p>
+                            {t('developer.doctorWorkingDir')}: {doctorResult.cwd || '-'}
+                          </p>
+                          {doctorResult.error && (
+                            <p>
+                              {t('developer.doctorError')}: {doctorResult.error}
+                            </p>
+                          )}
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="space-y-2">
-                            <p className="text-[12px] font-semibold text-foreground/80">{t('developer.doctorStdout')}</p>
+                            <p className="text-[12px] font-semibold text-foreground/80">
+                              {t('developer.doctorStdout')}
+                            </p>
                             <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card p-3 text-[11px] font-mono whitespace-pre-wrap break-words">
                               {doctorResult.stdout.trim() || t('developer.doctorOutputEmpty')}
                             </pre>
                           </div>
                           <div className="space-y-2">
-                            <p className="text-[12px] font-semibold text-foreground/80">{t('developer.doctorStderr')}</p>
+                            <p className="text-[12px] font-semibold text-foreground/80">
+                              {t('developer.doctorStderr')}
+                            </p>
                             <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card p-3 text-[11px] font-mono whitespace-pre-wrap break-words">
                               {doctorResult.stderr.trim() || t('developer.doctorOutputEmpty')}
                             </pre>
@@ -994,7 +1109,9 @@ export function Settings() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-transparent">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.wsDiagnostic')}</Label>
+                        <Label className="text-[14px] font-medium text-foreground">
+                          {t('developer.wsDiagnostic')}
+                        </Label>
                         <p className="text-[13px] text-muted-foreground mt-1">
                           {t('developer.wsDiagnosticDesc')}
                         </p>
@@ -1007,7 +1124,9 @@ export function Settings() {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.telemetryViewer')}</Label>
+                        <Label className="text-[14px] font-medium text-foreground">
+                          {t('developer.telemetryViewer')}
+                        </Label>
                         <p className="text-[13px] text-muted-foreground mt-1">
                           {t('developer.telemetryViewerDesc')}
                         </p>
@@ -1019,28 +1138,57 @@ export function Settings() {
                         onClick={() => setShowTelemetryViewer((prev) => !prev)}
                         className="rounded-full px-5 h-9 bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
                       >
-                        {showTelemetryViewer
-                          ? t('common:actions.hide')
-                          : t('common:actions.show')}
+                        {showTelemetryViewer ? t('common:actions.hide') : t('common:actions.show')}
                       </Button>
                     </div>
 
                     {showTelemetryViewer && (
                       <div className="space-y-4 rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-black/5 dark:bg-white/5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="rounded-full px-3 py-1 bg-white dark:bg-card border border-black/5 dark:border-white/5">{t('developer.telemetryTotal')}: {telemetryStats.total}</Badge>
-                          <Badge variant={telemetryStats.errorCount > 0 ? 'destructive' : 'secondary'} className={cn("rounded-full px-3 py-1", telemetryStats.errorCount === 0 && "bg-white dark:bg-card border border-black/5 dark:border-white/5")}>
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-3 py-1 bg-white dark:bg-card border border-black/5 dark:border-white/5"
+                          >
+                            {t('developer.telemetryTotal')}: {telemetryStats.total}
+                          </Badge>
+                          <Badge
+                            variant={telemetryStats.errorCount > 0 ? 'destructive' : 'secondary'}
+                            className={cn(
+                              'rounded-full px-3 py-1',
+                              telemetryStats.errorCount === 0 &&
+                                'bg-white dark:bg-card border border-black/5 dark:border-white/5'
+                            )}
+                          >
                             {t('developer.telemetryErrors')}: {telemetryStats.errorCount}
                           </Badge>
-                          <Badge variant={telemetryStats.slowCount > 0 ? 'secondary' : 'outline'} className={cn("rounded-full px-3 py-1", telemetryStats.slowCount === 0 && "bg-white dark:bg-card border border-black/5 dark:border-white/5")}>
+                          <Badge
+                            variant={telemetryStats.slowCount > 0 ? 'secondary' : 'outline'}
+                            className={cn(
+                              'rounded-full px-3 py-1',
+                              telemetryStats.slowCount === 0 &&
+                                'bg-white dark:bg-card border border-black/5 dark:border-white/5'
+                            )}
+                          >
                             {t('developer.telemetrySlow')}: {telemetryStats.slowCount}
                           </Badge>
                           <div className="ml-auto flex gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={handleCopyTelemetry} className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCopyTelemetry}
+                              className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10"
+                            >
                               <Copy className="h-3.5 w-3.5 mr-1.5" />
                               {t('common:actions.copy')}
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={handleClearTelemetry} className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleClearTelemetry}
+                              className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10"
+                            >
                               {t('common:actions.clear')}
                             </Button>
                           </div>
@@ -1058,13 +1206,23 @@ export function Settings() {
                                     key={item.event}
                                     className="grid grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.8fr_1fr] gap-2 rounded-lg border border-black/5 dark:border-white/5 bg-white dark:bg-card px-3 py-2"
                                   >
-                                    <span className="truncate font-medium" title={item.event}>{item.event}</span>
+                                    <span className="truncate font-medium" title={item.event}>
+                                      {item.event}
+                                    </span>
                                     <span className="text-muted-foreground">n={item.count}</span>
                                     <span className="text-muted-foreground">
-                                      avg={item.timedCount > 0 ? Math.round(item.totalDuration / item.timedCount) : 0}ms
+                                      avg=
+                                      {item.timedCount > 0
+                                        ? Math.round(item.totalDuration / item.timedCount)
+                                        : 0}
+                                      ms
                                     </span>
-                                    <span className="text-muted-foreground">slow={item.slowCount}</span>
-                                    <span className="text-muted-foreground">err={item.errorCount}</span>
+                                    <span className="text-muted-foreground">
+                                      slow={item.slowCount}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      err={item.errorCount}
+                                    </span>
                                   </div>
                                 ))}
                               </div>
@@ -1072,19 +1230,32 @@ export function Settings() {
                           )}
                           <div className="space-y-2 p-3 font-mono text-[12px]">
                             {telemetryEntries.length === 0 ? (
-                              <div className="text-muted-foreground text-center py-4">{t('developer.telemetryEmpty')}</div>
+                              <div className="text-muted-foreground text-center py-4">
+                                {t('developer.telemetryEmpty')}
+                              </div>
                             ) : (
                               telemetryEntries
                                 .slice()
                                 .reverse()
                                 .map((entry) => (
-                                  <div key={entry.id} className="rounded-lg border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 p-3">
+                                  <div
+                                    key={entry.id}
+                                    className="rounded-lg border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 p-3"
+                                  >
                                     <div className="flex items-center justify-between gap-3 mb-2">
-                                      <span className="font-semibold text-foreground">{entry.event}</span>
-                                      <span className="text-muted-foreground text-[11px]">{entry.ts}</span>
+                                      <span className="font-semibold text-foreground">
+                                        {entry.event}
+                                      </span>
+                                      <span className="text-muted-foreground text-[11px]">
+                                        {entry.ts}
+                                      </span>
                                     </div>
                                     <pre className="whitespace-pre-wrap text-[11px] text-muted-foreground overflow-x-auto">
-                                      {JSON.stringify({ count: entry.count, ...entry.payload }, null, 2)}
+                                      {JSON.stringify(
+                                        { count: entry.count, ...entry.payload },
+                                        null,
+                                        2
+                                      )}
                                     </pre>
                                   </div>
                                 ))
@@ -1103,12 +1274,13 @@ export function Settings() {
 
           {/* About */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
               {t('about.title')}
             </h2>
             <div className="space-y-3 text-[14px] text-muted-foreground">
               <p>
-                <strong className="text-foreground font-semibold">{t('about.appName')}</strong> - {t('about.tagline')}
+                <strong className="text-foreground font-semibold">{t('about.appName')}</strong> -{' '}
+                {t('about.tagline')}
               </p>
               <p>{t('about.basedOn')}</p>
               <p>{t('about.version', { version: DISPLAY_VERSION })}</p>
@@ -1130,7 +1302,6 @@ export function Settings() {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>

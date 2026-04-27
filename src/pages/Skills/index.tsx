@@ -210,7 +210,7 @@ function SkillDetailDialog({
                 </div>
               )}
             </div>
-            <h2 className="text-[28px] font-serif text-foreground font-normal mb-3 text-center tracking-tight">
+            <h2 className="text-lg font-display text-foreground font-semibold mb-3 text-center tracking-tight">
               {skill.name}
             </h2>
             <div className="flex items-center justify-center gap-2.5 mb-6 opacity-80">
@@ -694,13 +694,10 @@ export function Skills() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-6 shrink-0 gap-4">
           <div>
-            <h1
-              className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
-              style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}
-            >
+            <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">{t('subtitle')}</p>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
 
           <div className="flex items-center gap-3 md:mt-2">
@@ -921,7 +918,7 @@ export function Skills() {
           side="right"
         >
           <div className="px-7 py-6 border-b border-black/10 dark:border-white/10">
-            <h2 className="text-[24px] font-serif text-foreground font-normal tracking-tight">
+            <h2 className="text-lg font-display text-foreground font-semibold tracking-tight">
               {t('marketplace.installDialogTitle')}
             </h2>
             <p className="mt-1 text-[13px] text-foreground/70">

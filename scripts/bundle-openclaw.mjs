@@ -794,6 +794,47 @@ function patchBundledRuntime(outputDir) {
 patchBrokenModules(outputNodeModules);
 patchBundledRuntime(OUTPUT);
 
+// 7b. Resolve all symlinks to real files.
+//     pnpm creates symlinks in node_modules/ pointing to the virtual store.
+//     fs.cpSync({dereference:true}) does NOT reliably resolve symlinks within
+//     the copied tree on macOS. Unresolved symlinks break when electron-builder
+//     copies the bundle to the release directory (absolute targets become invalid
+//     outside the pnpm workspace). We resolve everything here while the virtual
+//     store is still accessible.
+let resolvedCount = 0;
+let removedCount = 0;
+(function resolveSymlinks(dir) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      try {
+        const realTarget = fs.realpathSync(fullPath);
+        fs.unlinkSync(fullPath);
+        if (fs.statSync(realTarget).isDirectory()) {
+          fs.cpSync(realTarget, fullPath, { recursive: true, dereference: true });
+        } else {
+          fs.cpSync(realTarget, fullPath);
+        }
+        resolvedCount++;
+      } catch {
+        // Dangling symlink — target doesn't exist
+        try { fs.unlinkSync(fullPath); removedCount++; } catch { /* */ }
+      }
+    } else if (entry.isDirectory()) {
+      resolveSymlinks(fullPath);
+    }
+  }
+})(OUTPUT);
+if (resolvedCount > 0 || removedCount > 0) {
+  echo`   🔗 Resolved ${resolvedCount} symlink(s) to real files, removed ${removedCount} dangling`;
+}
+
 // 8. Verify the bundle
 const entryExists = fs.existsSync(path.join(OUTPUT, 'openclaw.mjs'));
 const distExists = fs.existsSync(path.join(OUTPUT, 'dist', 'entry.js'));

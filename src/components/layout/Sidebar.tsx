@@ -54,11 +54,14 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
       to={to}
       onClick={onClick}
       data-testid={testId}
+      aria-label={hideLabel ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all duration-200',
-          'text-white hover:bg-white/14 hover:text-white',
-          isActive ? 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]' : '',
+          'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all duration-200',
+          'text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14',
+          isActive
+            ? 'bg-[hsl(var(--sidebar-active-bg))] text-[hsl(var(--sidebar-active-text))] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
+            : '',
           collapsed && 'px-0'
         )
       }
@@ -68,7 +71,9 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
           <div
             className={cn(
               'flex shrink-0 items-center justify-center transition-colors',
-              isActive ? 'text-[#3964F2]' : 'text-white group-hover:text-white'
+              isActive
+                ? 'text-[hsl(var(--sidebar-active-text))]'
+                : 'text-[hsl(var(--sidebar-text))] group-hover:text-[hsl(var(--sidebar-text))]'
             )}
           >
             {icon}
@@ -81,7 +86,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
               {badge && (
                 <Badge
                   variant="secondary"
-                  className="shrink-0 rounded-full border border-[#dbe3ff] bg-[#eef2ff] text-[9px] text-[#3964F2]"
+                  className="shrink-0 rounded-full border border-[hsl(var(--sidebar-history-badge-border))] bg-[hsl(var(--sidebar-history-badge-bg))] text-[11px] text-[hsl(var(--sidebar-history-badge-text))]"
                 >
                   {badge}
                 </Badge>
@@ -244,7 +249,7 @@ export function Sidebar() {
     <aside
       data-testid="sidebar"
       className={cn(
-        'flex min-h-0 shrink-0 overflow-hidden border-r border-[#e9edf9] bg-[#3964F2] transition-all duration-300',
+        'flex min-h-0 shrink-0 overflow-hidden border-r border-border bg-[hsl(var(--sidebar-bg))] transition-all duration-300',
         sidebarCollapsed || !isOnChat ? 'w-[72px]' : 'w-[286px]'
       )}
     >
@@ -252,15 +257,15 @@ export function Sidebar() {
         {/* Left icon rail */}
         <div
           className={cn(
-            'flex min-h-0 shrink-0 flex-col border-r border-white/20 bg-[#3964F2]',
+            'flex min-h-0 shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-bg))]',
             sidebarCollapsed ? 'w-[72px]' : 'w-[76px]'
           )}
         >
-          <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-white/20">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white shadow-sm">
+          <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-[hsl(var(--sidebar-border))]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--sidebar-text))]/25 bg-[hsl(var(--sidebar-active-bg))] shadow-sm">
               <img src={logoSvg} alt="BoostClaw" className="h-4.5 w-auto shrink-0" />
             </div>
-            <span className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-bold leading-none text-white">
+            <span className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-bold leading-none text-[hsl(var(--sidebar-text))]">
               BoostClaw
             </span>
           </div>
@@ -271,18 +276,20 @@ export function Sidebar() {
             ))}
           </nav>
 
-          <div className="mt-auto flex flex-col gap-4 border-t border-white/20 px-2 py-4">
+          <div className="mt-auto flex flex-col gap-4 border-t border-[hsl(var(--sidebar-border))] px-2 py-4">
             {bottomNavItems.map((item) => (
               <NavItem key={item.to} {...item} collapsed={false} hideLabel />
             ))}
             <NavLink
               to="/settings"
               data-testid="sidebar-nav-settings"
+              aria-label={t('common:sidebar.settings')}
               className={({ isActive }) =>
                 cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium transition-all',
-                  'text-white hover:bg-white/14 hover:text-white',
-                  isActive && 'bg-white text-[#3964F2] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
+                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all',
+                  'text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14',
+                  isActive &&
+                    'bg-[hsl(var(--sidebar-active-bg))] text-[hsl(var(--sidebar-active-text))] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
                 )
               }
             >
@@ -292,7 +299,7 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="mx-auto h-7 w-7 rounded-lg text-white hover:bg-white/14 hover:text-white"
+                className="mx-auto h-8 w-8 rounded-lg text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14"
                 onClick={() => setSidebarCollapsed(false)}
               >
                 <PanelLeft className="h-[16px] w-[16px]" />
@@ -303,7 +310,7 @@ export function Sidebar() {
 
         {/* Right history pane */}
         {!sidebarCollapsed && isOnChat && (
-          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-[#ffffff]">
+          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-[hsl(var(--sidebar-history-bg))]">
             <div className="px-2.5 py-2">
               <button
                 data-testid="sidebar-new-chat"
@@ -312,9 +319,9 @@ export function Sidebar() {
                   if (messages.length > 0) newSession();
                   navigate('/');
                 }}
-                className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[#dfe6fb] bg-white px-2 py-1.5 text-[12px] font-medium text-[#3f4768] shadow-sm transition-colors hover:bg-[#f2f5ff]"
+                className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5 text-[12px] font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
               >
-                <Plus className="h-4 w-4 shrink-0 text-[#3964F2]" strokeWidth={2} />
+                <Plus className="h-4 w-4 shrink-0 text-primary" strokeWidth={2} />
                 <span className="min-w-0 truncate text-center">{t('sidebar.newChat')}</span>
               </button>
             </div>
@@ -324,7 +331,7 @@ export function Sidebar() {
                 {sessionBuckets.map((bucket) =>
                   bucket.sessions.length > 0 ? (
                     <div key={bucket.key} className="pt-1">
-                      <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-[#8a92b3]">
+                      <div className="px-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-history-muted))]">
                         {bucket.label}
                       </div>
                       {bucket.sessions.map((s) => {
@@ -340,19 +347,19 @@ export function Sidebar() {
                               }}
                               className={cn(
                                 'w-full min-w-0 rounded-sm px-2 py-1.5 pr-6 text-left text-[12px] transition-all',
-                                'hover:bg-[#f1f4ff]',
+                                'hover:bg-[hsl(var(--sidebar-history-hover))]',
                                 isActiveSession
-                                  ? 'bg-[#3964F2] text-white hover:bg-[#3964F2]'
-                                  : 'text-[#4d5579]'
+                                  ? 'bg-[hsl(var(--sidebar-history-active))] text-[hsl(var(--sidebar-history-active-text))] hover:bg-[hsl(var(--sidebar-history-active))]'
+                                  : 'text-[hsl(var(--sidebar-history-text))]'
                               )}
                             >
                               <div className="flex min-w-0 items-center gap-1">
                                 <span
                                   className={cn(
-                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[9px] font-medium',
+                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[11px] font-medium',
                                     isActiveSession
-                                      ? 'border-white/35 bg-white/15 text-white'
-                                      : 'border-[#d8e0fb] bg-white text-[#6370a0]'
+                                      ? 'border-[hsl(var(--sidebar-history-active-text))]/35 bg-[hsl(var(--sidebar-history-active-text))]/15 text-[hsl(var(--sidebar-history-active-text))]'
+                                      : 'border-border bg-background text-muted-foreground'
                                   )}
                                 >
                                   {agentName}
@@ -373,8 +380,8 @@ export function Sidebar() {
                               }}
                               className={cn(
                                 'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
-                                'opacity-0 group-hover:opacity-100',
-                                'text-[#8e96b7] hover:text-[#3964F2] hover:bg-[#eaf0ff]'
+                                'opacity-30 group-hover:opacity-100',
+                                'text-muted-foreground hover:text-primary hover:bg-accent'
                               )}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -387,11 +394,11 @@ export function Sidebar() {
                 )}
               </div>
             )}
-            <div className="mt-auto border-t border-[#e8ecf9] px-2 py-2">
+            <div className="mt-auto border-t border-border px-2 py-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="ml-auto h-7 w-7 rounded-lg text-[#7d86b0] hover:bg-white hover:text-[#3964F2]"
+                className="ml-auto h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-primary"
                 onClick={() => setSidebarCollapsed(true)}
               >
                 <PanelLeftClose className="h-[16px] w-[16px]" />
