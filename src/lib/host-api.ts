@@ -2,7 +2,7 @@ import { invokeIpc } from '@/lib/api-client';
 import { trackUiEvent } from './telemetry';
 import { normalizeAppError } from './error-model';
 
-const HOST_API_PORT = 13210;
+const HOST_API_PORT = 19880;
 const HOST_API_BASE = `http://127.0.0.1:${HOST_API_PORT}`;
 
 /** Cached Host API auth token, fetched once from the main process via IPC. */
@@ -52,7 +52,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`;
     try {
-      const payload = await response.json() as { error?: string };
+      const payload = (await response.json()) as { error?: string };
       if (payload?.error) {
         message = payload.error;
       }
@@ -69,20 +69,18 @@ async function parseResponse<T>(response: Response): Promise<T> {
     return undefined as T;
   }
 
-  return await response.json() as T;
+  return (await response.json()) as T;
 }
 
 function resolveProxyErrorMessage(error: HostApiProxyResponse['error']): string {
-  return typeof error === 'string'
-    ? error
-    : (error?.message || 'Host API proxy request failed');
+  return typeof error === 'string' ? error : error?.message || 'Host API proxy request failed';
 }
 
 function parseUnifiedProxyResponse<T>(
   response: HostApiProxyResponse,
   path: string,
   method: string,
-  startedAt: number,
+  startedAt: number
 ): T {
   if (!response.ok) {
     throw new Error(resolveProxyErrorMessage(response.error));
@@ -106,15 +104,18 @@ function parseLegacyProxyResponse<T>(
   response: HostApiProxyResponse,
   path: string,
   method: string,
-  startedAt: number,
+  startedAt: number
 ): T {
   if (!response.success) {
     throw new Error(resolveProxyErrorMessage(response.error));
   }
 
   if (!response.ok) {
-    const message = response.text
-      || (typeof response.json === 'object' && response.json != null && 'error' in (response.json as Record<string, unknown>)
+    const message =
+      response.text ||
+      (typeof response.json === 'object' &&
+      response.json != null &&
+      'error' in (response.json as Record<string, unknown>)
         ? String((response.json as Record<string, unknown>).error)
         : `HTTP ${response.status ?? 'unknown'}`);
     throw new Error(message);
@@ -135,11 +136,13 @@ function parseLegacyProxyResponse<T>(
 
 function shouldFallbackToBrowser(message: string): boolean {
   const normalized = message.toLowerCase();
-  return normalized.includes('invalid ipc channel: hostapi:fetch')
-    || normalized.includes("no handler registered for 'hostapi:fetch'")
-    || normalized.includes('no handler registered for "hostapi:fetch"')
-    || normalized.includes('no handler registered for hostapi:fetch')
-    || normalized.includes('window is not defined');
+  return (
+    normalized.includes('invalid ipc channel: hostapi:fetch') ||
+    normalized.includes("no handler registered for 'hostapi:fetch'") ||
+    normalized.includes('no handler registered for "hostapi:fetch"') ||
+    normalized.includes('no handler registered for hostapi:fetch') ||
+    normalized.includes('window is not defined')
+  );
 }
 
 function allowLocalhostFallback(): boolean {
@@ -200,7 +203,7 @@ export async function hostApiFetch<T>(path: string, init?: RequestInit): Promise
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       ...(init?.headers || {}),
     },
   });

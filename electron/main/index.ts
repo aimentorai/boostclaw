@@ -339,7 +339,7 @@ function createMainWindow(): BrowserWindow {
       if (level === 'warning') {
         logger.warn(`[renderer] ${message}`);
       } else {
-        logger.info(`[renderer] ${message}`);
+        logger.debug(`[renderer] ${message}`);
       }
     }
   });
@@ -402,7 +402,7 @@ async function initialize(): Promise<void> {
   // The URL filter ensures this callback only fires for gateway requests,
   // avoiding unnecessary overhead on every other HTTP response.
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['http://127.0.0.1:18790/*', 'http://localhost:18790/*'] },
+    { urls: ['http://127.0.0.1:19790/*', 'http://localhost:19790/*'] },
     (details, callback) => {
       const headers = { ...details.responseHeaders };
       delete headers['X-Frame-Options'];

@@ -728,7 +728,7 @@ export class GatewayManager extends EventEmitter {
       this.pendingRequests.set(id, {
         resolve: (value: unknown) => {
           if (trace) {
-            logger.info(`[e2e] WS ${method} round-trip: ${Date.now() - t0}ms`);
+            logger.debug(`[e2e] WS ${method} round-trip: ${Date.now() - t0}ms`);
           }
           (resolve as (value: unknown) => void)(value);
         },
@@ -957,7 +957,7 @@ export class GatewayManager extends EventEmitter {
       if (msg.event === 'chat' || msg.event === 'agent') {
         const state = (msg.payload as Record<string, unknown>)?.state ?? '';
         const phase = (msg.payload as Record<string, unknown>)?.phase ?? '';
-        logger.info(`[e2e] WS event: ${msg.event} state=${state} phase=${phase}`);
+        logger.debug(`[e2e] WS event: ${msg.event} state=${state} phase=${phase}`);
       }
       dispatchProtocolEvent(this, msg.event, msg.payload);
       return;

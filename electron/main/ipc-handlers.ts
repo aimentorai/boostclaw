@@ -1215,12 +1215,12 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
     try {
       const result = await gatewayManager.rpc(method, params, timeoutMs);
       if (trace) {
-        logger.info(`[e2e] ${method} IPC→WS→GW→WS→IPC: ${Date.now() - t0}ms`);
+        logger.debug(`[e2e] ${method} IPC→WS→GW→WS→IPC: ${Date.now() - t0}ms`);
       }
       return { success: true, result };
     } catch (error) {
       if (trace) {
-        logger.info(`[e2e] ${method} failed after ${Date.now() - t0}ms`);
+        logger.debug(`[e2e] ${method} failed after ${Date.now() - t0}ms`);
       }
       logger.warn(
         `[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}): ${String(error)}`
@@ -1235,7 +1235,7 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
   ipcMain.handle('gateway:httpProxy', async (_, request: GatewayHttpProxyRequest) => {
     try {
       const status = gatewayManager.getStatus();
-      const port = status.port || 18790;
+      const port = status.port || 19790;
       const path = request?.path && request.path.startsWith('/') ? request.path : '/';
       const method = (request?.method || 'GET').toUpperCase();
       const timeoutMs =
@@ -1399,7 +1399,7 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
     try {
       const status = gatewayManager.getStatus();
       const token = await getSetting('gatewayToken');
-      const port = status.port || 18790;
+      const port = status.port || 19790;
       const url = buildOpenClawControlUiUrl(port, token);
       return { success: true, url, port, token };
     } catch (error) {
@@ -1456,7 +1456,9 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
         chatBatchFlush = null;
         if (mainWindow.isDestroyed() || chatBatch.length === 0) return;
         const batch = chatBatch.splice(0);
-        logger.info(`[e2e] IPC forward chat:message batch=${batch.length} total=${chatEventCount}`);
+        logger.debug(
+          `[e2e] IPC forward chat:message batch=${batch.length} total=${chatEventCount}`
+        );
         if (batch.length === 1) {
           mainWindow.webContents.send('gateway:chat-message', batch[0]);
         } else {

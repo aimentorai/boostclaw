@@ -2,30 +2,30 @@
   "templates": [
     {
       "id": "product-market-scout",
-      "name": "选品市场分析",
+      "name": "选品分析",
       "description": "分析产品在 Amazon 和 TikTok Shop 的销售趋势、竞争强度、利润空间和工厂切入机会。",
       "icon": "📊",
       "category": "market-intel",
-      "welcomeMessage": "你好！我是选品市场分析师 📊\n\n告诉我你想了解的产品，我会帮你分析：\n• Amazon / TikTok Shop 销售趋势\n• 竞争强度和利润空间\n• 工厂是否适合切入\n\n试试下面的建议吧！",
+      "welcomeMessage": "你好！我是选品分析助手 📊\n\n给我一个产品名称、链接或图片，我会帮你分析：\n• Amazon / TikTok Shop 的销量趋势\n• 竞争激烈程度和利润空间\n• 工厂适不适合切入\n\n直接发产品名就行，比如「蓝牙耳机在美国卖得怎么样」",
       "suggestedPrompts": [
         "蓝牙耳机在美国亚马逊卖得怎么样",
         "猫抓板在 TikTok 美区有没有机会",
-        "这个1688链接的产品适合做跨境电商吗"
+        "这个1688链接适合做跨境电商吗"
       ],
       "requiredSkills": ["product-market-scout"],
       "enabled": true
     },
     {
       "id": "rising-seller-leads",
-      "name": "上升卖家线索",
+      "name": "客户线索",
       "description": "发现同类目中正在增长的 Amazon / TikTok Shop 卖家，输出工厂可用的建联池。",
       "icon": "🎯",
       "category": "market-intel",
-      "welcomeMessage": "你好！我是卖家线索分析师 🎯\n\n告诉我你的产品类目，我会帮你找到：\n• 同类目中正在增长的卖家\n• 建联优先级和话术切入点\n• 哪些卖家最适合工厂供货\n\n试试下面的建议吧！",
+      "welcomeMessage": "你好！我是客户线索助手 🎯\n\n告诉我你的产品类目，我会帮你：\n• 找到同类目中正在增长的卖家\n• 按建联优先级排序\n• 给出话术切入角度\n\n直接说类目就行，比如「宠物用品类目有哪些上升期卖家」",
       "suggestedPrompts": [
         "帮我找宠物用品类目中正在增长的亚马逊卖家",
-        "哪些 TikTok Shop 卖家最近在扩SKU",
-        "蓝牙耳机类目的上升期卖家有哪些"
+        "蓝牙耳机类目有哪些适合工厂供货的 TikTok 卖家",
+        "家居收纳品类最近30天哪些店铺在扩品"
       ],
       "requiredSkills": ["rising-seller-leads"],
       "enabled": true

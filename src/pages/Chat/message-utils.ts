@@ -11,18 +11,28 @@ import type { RawMessage, ContentBlock } from '@/stores/chat';
  * and the timestamp prefix [Day Date Time Timezone].
  */
 function cleanUserText(text: string): string {
-  return text
-    // Remove [media attached: path (mime) | path] references
-    .replace(/\s*\[media attached:[^\]]*\]/g, '')
-    // Remove [message_id: uuid]
-    .replace(/\s*\[message_id:\s*[^\]]+\]/g, '')
-    // Remove Gateway-injected "Conversation info (untrusted metadata): ```json...```" block
-    .replace(/^Conversation info\s*\([^)]*\):\s*```[a-z]*\n[\s\S]*?```\s*/i, '')
-    // Fallback: remove "Conversation info (...): {...}" without code block wrapper
-    .replace(/^Conversation info\s*\([^)]*\):\s*\{[\s\S]*?\}\s*/i, '')
-    // Remove Gateway timestamp prefix like [Fri 2026-02-13 22:39 GMT+8]
-    .replace(/^\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[^\]]+\]\s*/i, '')
-    .trim();
+  return (
+    text
+      // Extract user text from <skill_context>/<user_request> XML wrapper
+      .replace(
+        /^<skill_context[\s\S]*?<\/skill_context>\s*\n?\s*<user_request>\n?([\s\S]*?)\n?<\/user_request>$/m,
+        '$1'
+      )
+      // Remove [media attached: path (mime) | path] references
+      .replace(/\s*\[media attached:[^\]]*\]/g, '')
+      // Remove [message_id: uuid]
+      .replace(/\s*\[message_id:\s*[^\]]+\]/g, '')
+      // Remove Gateway-injected "Conversation info (untrusted metadata): ```json...```" block
+      .replace(/^Conversation info\s*\([^)]*\):\s*```[a-z]*\n[\s\S]*?```\s*/i, '')
+      // Fallback: remove "Conversation info (...): {...}" without code block wrapper
+      .replace(/^Conversation info\s*\([^)]*\):\s*\{[\s\S]*?\}\s*/i, '')
+      // Remove Gateway timestamp prefix like [Fri 2026-02-13 22:39 GMT+8]
+      .replace(
+        /^\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[^\]]+\]\s*/i,
+        ''
+      )
+      .trim()
+  );
 }
 
 /**
@@ -93,7 +103,9 @@ export function extractThinking(message: RawMessage | unknown): string | null {
  * Extract media file references from Gateway-formatted user message text.
  * Returns array of { filePath, mimeType } from [media attached: path (mime) | path] patterns.
  */
-export function extractMediaRefs(message: RawMessage | unknown): Array<{ filePath: string; mimeType: string }> {
+export function extractMediaRefs(
+  message: RawMessage | unknown
+): Array<{ filePath: string; mimeType: string }> {
   if (!message || typeof message !== 'object') return [];
   const msg = message as Record<string, unknown>;
   if (msg.role !== 'user') return [];
@@ -104,8 +116,8 @@ export function extractMediaRefs(message: RawMessage | unknown): Array<{ filePat
     text = content;
   } else if (Array.isArray(content)) {
     text = (content as ContentBlock[])
-      .filter(b => b.type === 'text' && b.text)
-      .map(b => b.text!)
+      .filter((b) => b.type === 'text' && b.text)
+      .map((b) => b.text!)
       .join('\n');
   }
 
@@ -122,7 +134,9 @@ export function extractMediaRefs(message: RawMessage | unknown): Array<{ filePat
  * Extract image attachments from a message.
  * Returns array of { mimeType, data } for base64 images.
  */
-export function extractImages(message: RawMessage | unknown): Array<{ mimeType: string; data: string }> {
+export function extractImages(
+  message: RawMessage | unknown
+): Array<{ mimeType: string; data: string }> {
   if (!message || typeof message !== 'object') return [];
   const msg = message as Record<string, unknown>;
   const content = msg.content;
@@ -154,7 +168,9 @@ export function extractImages(message: RawMessage | unknown): Array<{ mimeType: 
  * Handles both Anthropic format (tool_use in content array) and
  * OpenAI format (tool_calls array on the message object).
  */
-export function extractToolUse(message: RawMessage | unknown): Array<{ id: string; name: string; input: unknown }> {
+export function extractToolUse(
+  message: RawMessage | unknown
+): Array<{ id: string; name: string; input: unknown }> {
   if (!message || typeof message !== 'object') return [];
   const msg = message as Record<string, unknown>;
   const tools: Array<{ id: string; name: string; input: unknown }> = [];
@@ -185,7 +201,10 @@ export function extractToolUse(message: RawMessage | unknown): Array<{ id: strin
         if (!name) continue;
         let input: unknown;
         try {
-          input = typeof fn.arguments === 'string' ? JSON.parse(fn.arguments) : fn.arguments ?? fn.input;
+          input =
+            typeof fn.arguments === 'string'
+              ? JSON.parse(fn.arguments)
+              : (fn.arguments ?? fn.input);
         } catch {
           input = fn.arguments;
         }
