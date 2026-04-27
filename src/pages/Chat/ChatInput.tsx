@@ -231,8 +231,12 @@ export function ChatInput({
   const skillPickerRef = useRef<HTMLDivElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
+  /** Avoid spamming fetchAgents when agents list is still missing the current id after one refresh. */
+  const missingAgentFetchKey = useRef<string | null>(null);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
+  const agentsLoading = useAgentsStore((s) => s.loading);
+  const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const updateAgentModel = useAgentsStore((s) => s.updateAgentModel);
   const defaultModelRef = useAgentsStore((s) => s.defaultModelRef);
   const providerAccounts = useProviderStore((s) => s.accounts);
@@ -293,12 +297,30 @@ export function ChatInput({
     return currentAgentName;
   }, [currentTemplateId, templates, currentExpertRuntime, currentAgentName]);
 
-  // Unified picker items: experts → their templates → non-expert agents
+  // Keep AgentSummary in sync with chat session: expert switch updates currentAgentId before
+  // the agents list may be populated — without this, the model row stays hidden until another
+  // view (e.g. sidebar) triggers fetchAgents.
+  useEffect(() => {
+    if (!currentAgentId) {
+      missingAgentFetchKey.current = null;
+      return;
+    }
+    if (currentAgent) {
+      missingAgentFetchKey.current = null;
+      return;
+    }
+    if (agentsLoading) return;
+    if (missingAgentFetchKey.current === currentAgentId) return;
+    missingAgentFetchKey.current = currentAgentId;
+    void fetchAgents();
+  }, [currentAgent, currentAgentId, agentsLoading, fetchAgents]);
+
+  // Unified picker items: experts and their templates only (no separate "other agents" section)
   const pickerItems = useMemo<PickerItem[]>(() => {
     const items: PickerItem[] = [];
     const allAgents = agents ?? [];
 
-    // 1. Expert-backed items
+    // Expert-backed items
     for (const runtime of Object.values(expertRuntimes)) {
       if (!runtime.agentId || !runtime.mainSessionKey) continue;
       const cfg = runtime.config;
@@ -335,21 +357,6 @@ export function ChatInput({
           });
         }
       }
-    }
-
-    // 3. Non-expert agents
-    for (const agent of allAgents) {
-      if (agent.expertId && agent.id !== 'main') continue;
-      items.push({
-        id: `agent:${agent.id}`,
-        label: agent.name,
-        description: agent.modelDisplay || '',
-        icon: agent.name?.trim()?.charAt(0)?.toUpperCase() || 'A',
-        sessionKey: agent.mainSessionKey ?? `agent:${agent.id}:main`,
-        agentId: agent.id,
-        isExpert: false,
-        isTemplate: false,
-      });
     }
 
     return items;
@@ -410,6 +417,25 @@ export function ChatInput({
       return searchable.includes(query);
     });
   }, [modelSearchQuery, modelOptions]);
+
+  /** Show model control whenever we have data, or in expert/template mode while agent row hydrates. */
+  const showModelPicker = useMemo(
+    () =>
+      Boolean(
+        currentModelDisplay ||
+        (currentModelRef && currentModelRef.length > 0) ||
+        modelOptions.length > 0 ||
+        currentExpertRuntime ||
+        currentTemplateId
+      ),
+    [
+      currentModelDisplay,
+      currentModelRef,
+      modelOptions.length,
+      currentExpertRuntime,
+      currentTemplateId,
+    ]
+  );
 
   const selectedSkill: Skill | null = useMemo(
     () => (skills ?? []).find((s) => s.id === selectedSkillId) ?? null,
@@ -842,7 +868,6 @@ export function ChatInput({
                           (i) => i.isExpert && !i.isTemplate
                         );
                         const templateItems = filteredPickerItems.filter((i) => i.isTemplate);
-                        const otherItems = filteredPickerItems.filter((i) => !i.isExpert);
 
                         return (
                           <>
@@ -881,32 +906,6 @@ export function ChatInput({
                                 ))}
                               </div>
                             )}
-                            {otherItems.length > 0 &&
-                              (expertItems.length > 0 || templateItems.length > 0) && (
-                                <div className="my-1 border-t border-border/50" />
-                              )}
-                            {otherItems.length > 0 && (
-                              <>
-                                <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                                  {t('composer.otherAgents')}
-                                </div>
-                                {otherItems.map((item) => (
-                                  <ExpertPickerItem
-                                    key={item.id}
-                                    item={item}
-                                    selected={!currentTemplateId && currentAgentId === item.agentId}
-                                    onSelect={() => {
-                                      if (activeTemplate) setActiveTemplate(null);
-                                      if (item.sessionKey && item.agentId !== currentAgentId) {
-                                        switchSession(item.sessionKey);
-                                      }
-                                      setExpertPickerOpen(false);
-                                      textareaRef.current?.focus();
-                                    }}
-                                  />
-                                ))}
-                              </>
-                            )}
                           </>
                         );
                       })()}
@@ -916,7 +915,7 @@ export function ChatInput({
               </div>
 
               {/* 模型选择器 */}
-              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
+              {showModelPicker && (
                 <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
                   <Button
                     type="button"

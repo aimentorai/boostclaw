@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { useChatStore, type RawMessage } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
+import { useAgentsStore } from '@/stores/agents';
 import { useExpertsStore } from '@/stores/experts';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ChatMessage } from './ChatMessage';
@@ -48,6 +49,7 @@ export function Chat() {
   const clearError = useChatStore((s) => s.clearError);
   const getExpertByAgentId = useExpertsStore((s) => s.getExpertByAgentId);
   const loadExperts = useExpertsStore((s) => s.loadExperts);
+  const fetchAgents = useAgentsStore((s) => s.fetchAgents);
 
   const cleanupEmptySession = useChatStore((s) => s.cleanupEmptySession);
 
@@ -74,6 +76,12 @@ export function Chat() {
   useEffect(() => {
     void loadExperts();
   }, [loadExperts]);
+
+  // Align composer agent summary with the current session as early as the chat page opens
+  // (same data Sidebar loads; avoids a race where model/skill feel missing until navigation).
+  useEffect(() => {
+    void fetchAgents();
+  }, [fetchAgents]);
 
   const activeExpert = getExpertByAgentId(currentAgentId);
 
