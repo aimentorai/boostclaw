@@ -186,15 +186,18 @@ export function Chat() {
       style={{ height: '100%' }}
     >
       {isEmpty ? (
-        /* ── 新对话欢迎状态：居中布局，标题 + 输入框上下垂直居中 ── */
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-4">
-          {activeExpert ? (
-            <ExpertWelcome onPromptClick={(prompt) => sendMessage(prompt)} />
-          ) : (
-            <WelcomeScreen />
-          )}
-          {/* 将输入框嵌入欢迎区域，与标题保持统一的视觉重心 */}
-          <div className="w-full max-w-3xl">
+        /* ── 新对话欢迎状态：可滚动主区域（专家欢迎文案较长时不溢出视口）+ 底部固定输入框 ── */
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <div className="flex min-h-full w-full flex-col items-center justify-center px-6 py-4 sm:py-6">
+              {activeExpert ? (
+                <ExpertWelcome onPromptClick={(prompt) => sendMessage(prompt)} />
+              ) : (
+                <WelcomeScreen />
+              )}
+            </div>
+          </div>
+          <div className="mx-auto w-full max-w-3xl shrink-0 px-6 pb-4 pt-2">
             <ChatInput
               onSend={sendMessage}
               onStop={abortRun}

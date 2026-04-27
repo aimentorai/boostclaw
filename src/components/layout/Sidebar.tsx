@@ -96,7 +96,9 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
 }
 
 function getSessionBucket(activityMs: number, nowMs: number): SessionBucketKey {
-  if (!activityMs || activityMs <= 0) return 'older';
+  // New or not-yet-loaded sessions have no timestamp; show under "today", not "older"
+  // (zh: "一个月之前" / en: "Over a month ago" would look wrong for a fresh chat).
+  if (!activityMs || activityMs <= 0) return 'today';
 
   const now = new Date(nowMs);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -194,7 +196,8 @@ export function Sidebar() {
   ) as Record<SessionBucketKey, (typeof sessionBuckets)[number]>;
 
   for (const session of [...sessions].sort(
-    (a, b) => (sessionLastActivity[b.key] ?? 0) - (sessionLastActivity[a.key] ?? 0)
+    (a, b) =>
+      (sessionLastActivity[b.key] ?? nowMs) - (sessionLastActivity[a.key] ?? nowMs)
   )) {
     const bucketKey = getSessionBucket(sessionLastActivity[session.key] ?? 0, nowMs);
     sessionBucketMap[bucketKey].sessions.push(session);
