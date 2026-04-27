@@ -55,6 +55,47 @@ function mimeToExt(mimeType: string): string {
 
 const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
 
+function sendFileRange(
+  req: IncomingMessage,
+  res: ServerResponse,
+  filePath: string,
+  mimeType: string,
+  fileSize: number,
+): void {
+  import('node:fs').then(({ createReadStream }) => {
+    const range = req.headers.range;
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', mimeType);
+
+    if (!range) {
+      res.statusCode = 200;
+      res.setHeader('Content-Length', String(fileSize));
+      createReadStream(filePath).pipe(res);
+      return;
+    }
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match) {
+      res.statusCode = 416;
+      res.setHeader('Content-Range', `bytes */${fileSize}`);
+      res.end();
+      return;
+    }
+
+    const requestedStart = match[1] ? Number.parseInt(match[1], 10) : 0;
+    const requestedEnd = match[2] ? Number.parseInt(match[2], 10) : fileSize - 1;
+    const start = Math.min(Math.max(requestedStart, 0), Math.max(fileSize - 1, 0));
+    const end = Math.min(Math.max(requestedEnd, start), fileSize - 1);
+
+    res.statusCode = 206;
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+    res.setHeader('Content-Length', String(end - start + 1));
+    createReadStream(filePath, { start, end }).pipe(res);
+  }).catch((error) => {
+    sendJson(res, 500, { success: false, error: String(error) });
+  });
+}
+
 async function generateImagePreview(filePath: string, mimeType: string): Promise<string | null> {
   try {
     const img = nativeImage.createFromPath(filePath);
@@ -81,6 +122,38 @@ export async function handleFileRoutes(
   url: URL,
   _ctx: HostApiContext,
 ): Promise<boolean> {
+  if (url.pathname === '/api/files/media' && (req.method === 'GET' || req.method === 'HEAD')) {
+    try {
+      const filePath = url.searchParams.get('path') || '';
+      const mimeType = url.searchParams.get('mimeType') || getMimeType(extname(filePath));
+      if (!filePath) {
+        sendJson(res, 400, { success: false, error: 'path is required' });
+        return true;
+      }
+
+      const fsP = await import('node:fs/promises');
+      const stat = await fsP.stat(filePath);
+      if (!stat.isFile()) {
+        sendJson(res, 404, { success: false, error: 'File not found' });
+        return true;
+      }
+
+      if (req.method === 'HEAD') {
+        res.statusCode = 200;
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Length', String(stat.size));
+        res.end();
+        return true;
+      }
+
+      sendFileRange(req, res, filePath, mimeType, stat.size);
+    } catch (error) {
+      sendJson(res, 404, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
   if (url.pathname === '/api/files/stage-paths' && req.method === 'POST') {
     try {
       const body = await parseJsonBody<{ filePaths: string[] }>(req);

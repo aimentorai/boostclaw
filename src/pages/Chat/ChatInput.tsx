@@ -22,6 +22,12 @@ import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
 import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
+import {
+  filePathToHostedMediaSrc,
+  getVideoAspectRatio,
+  mediaLabel,
+  revealVideoPreviewFrame,
+} from './media-preview';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -950,6 +956,34 @@ function AttachmentPreview({
   onRemove: () => void;
 }) {
   const isImage = attachment.mimeType.startsWith('image/') && attachment.preview;
+  const isVideo = attachment.mimeType.startsWith('video/');
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<string>('16 / 9');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isVideo || attachment.status !== 'ready') {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void filePathToHostedMediaSrc(attachment.stagedPath, attachment.mimeType).then((src) => {
+      if (!cancelled) setVideoSrc(src);
+    }).catch((error) => {
+      console.warn('[AttachmentPreview] Failed to build video src', {
+        fileName: attachment.fileName,
+        stagedPath: attachment.stagedPath,
+        mimeType: attachment.mimeType,
+        error,
+      });
+      if (!cancelled) setVideoSrc(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachment.fileName, attachment.mimeType, attachment.stagedPath, attachment.status, isVideo]);
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border/70 bg-background/60">
@@ -961,6 +995,49 @@ function AttachmentPreview({
             alt={attachment.fileName}
             className="w-full h-full object-cover"
           />
+        </div>
+      ) : videoSrc ? (
+        <div data-testid="chat-attachment-video-preview" className="w-48 max-w-[70vw] bg-black">
+          <video
+            src={videoSrc}
+            controls
+            preload="auto"
+            onLoadedMetadata={(event) => {
+              setVideoAspectRatio(getVideoAspectRatio(event.currentTarget) || '16 / 9');
+              console.info('[AttachmentPreview] loaded video metadata', {
+                fileName: attachment.fileName,
+                stagedPath: attachment.stagedPath,
+                mimeType: attachment.mimeType,
+                duration: event.currentTarget.duration,
+                videoWidth: event.currentTarget.videoWidth,
+                videoHeight: event.currentTarget.videoHeight,
+                src: event.currentTarget.currentSrc || event.currentTarget.src,
+              });
+              revealVideoPreviewFrame(event.currentTarget);
+            }}
+            onError={(event) => {
+              const mediaError = event.currentTarget.error;
+              console.warn('[AttachmentPreview] video failed to load', {
+                fileName: attachment.fileName,
+                stagedPath: attachment.stagedPath,
+                mimeType: attachment.mimeType,
+                code: mediaError?.code,
+                message: mediaError?.message,
+                networkState: event.currentTarget.networkState,
+                readyState: event.currentTarget.readyState,
+                src: event.currentTarget.currentSrc || event.currentTarget.src,
+              });
+            }}
+            style={{ aspectRatio: videoAspectRatio }}
+            className="block w-full max-h-48 object-contain"
+            title={attachment.fileName}
+          />
+          <div className="flex items-center gap-2 bg-background/95 px-2.5 py-1.5 text-xs">
+            <Film className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 truncate">
+              {mediaLabel(attachment.fileName, attachment.fileSize, formatFileSize)}
+            </span>
+          </div>
         </div>
       ) : (
         // Generic file card

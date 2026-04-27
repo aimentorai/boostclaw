@@ -229,3 +229,21 @@ export function createHostEventSource(path = '/api/events'): EventSource {
 export function getHostApiBase(): string {
   return HOST_API_BASE;
 }
+
+export async function getHostApiBaseUrl(): Promise<string> {
+  try {
+    const baseUrl = await invokeIpc<string>('hostapi:baseUrl');
+    return baseUrl || HOST_API_BASE;
+  } catch {
+    return HOST_API_BASE;
+  }
+}
+
+export async function createAuthenticatedHostApiUrl(path: string): Promise<string> {
+  const [baseUrl, token] = await Promise.all([
+    getHostApiBaseUrl(),
+    getHostApiToken(),
+  ]);
+  const separator = path.includes('?') ? '&' : '?';
+  return `${baseUrl}${path}${separator}token=${encodeURIComponent(token)}`;
+}

@@ -39,6 +39,12 @@ import {
 } from './message-utils';
 import { TaskProgressText } from './TaskProgressText';
 import { formatReadableText, parseTaskProgressText } from './text-formatting';
+import {
+  filePathToHostedMediaSrc,
+  getVideoAspectRatio,
+  mediaLabel,
+  revealVideoPreviewFrame,
+} from './media-preview';
 
 interface ChatMessageProps {
   message: RawMessage;
@@ -169,6 +175,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
+              const isVideo = file.mimeType.startsWith('video/');
               // Skip image attachments if we already have images from content blocks
               if (isImage && images.length > 0) return null;
               if (isImage) {
@@ -196,6 +203,9 @@ export const ChatMessage = memo(function ChatMessage({
                     <File className="h-8 w-8" />
                   </div>
                 );
+              }
+              if (isVideo) {
+                return <VideoPreviewCard key={`local-${i}`} file={file} compact />;
               }
               // Non-image files → file card
               return <FileCard key={`local-${i}`} file={file} />;
@@ -238,6 +248,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
+              const isVideo = file.mimeType.startsWith('video/');
               if (isImage && images.length > 0) return null;
               if (isImage && file.preview) {
                 return (
@@ -267,6 +278,9 @@ export const ChatMessage = memo(function ChatMessage({
                     <File className="h-8 w-8" />
                   </div>
                 );
+              }
+              if (isVideo) {
+                return <VideoPreviewCard key={`local-${i}`} file={file} />;
               }
               return <FileCard key={`local-${i}`} file={file} />;
             })}
@@ -358,6 +372,7 @@ function ToolStatusBar({
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
 function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
+  const { t } = useTranslation('common');
   const [copied, setCopied] = useState(false);
 
   const copyContent = useCallback(() => {
@@ -367,17 +382,25 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   }, [text]);
 
   return (
-    <div className="flex w-full select-none items-center justify-between px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <div className="flex w-full select-none items-center justify-between px-1 opacity-100">
       <span className="text-xs text-muted-foreground">
         {timestamp ? formatTimestamp(timestamp) : ''}
       </span>
       <Button
         variant="ghost"
-        size="icon"
-        className="h-6 w-6 rounded-lg hover:bg-white/[0.06]"
+        size="sm"
+        className={cn(
+          'h-7 gap-1.5 rounded-full border px-2.5 text-[12px] font-medium shadow-sm transition-colors',
+          copied
+            ? 'border-green-500/25 bg-green-500/10 text-green-600 hover:bg-green-500/15'
+            : 'border-primary/25 bg-primary/10 text-primary hover:bg-primary/15'
+        )}
         onClick={copyContent}
+        title={t('actions.copy')}
+        data-testid="assistant-copy-button"
       >
-        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        <span>{t('actions.copy')}</span>
       </Button>
     </div>
   );
@@ -706,6 +729,128 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
           {file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
         </p>
       </div>
+    </div>
+  );
+}
+
+function VideoPreviewCard({
+  file,
+  compact = false,
+}: {
+  file: AttachedFileMeta;
+  compact?: boolean;
+}) {
+  const [src, setSrc] = useState<string | null>(file.preview);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
+    file.preview ? 'ready' : 'loading'
+  );
+  const [aspectRatio, setAspectRatio] = useState<string>('16 / 9');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (file.preview) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void filePathToHostedMediaSrc(file.filePath, file.mimeType).then((nextSrc) => {
+      if (cancelled) return;
+      setSrc(nextSrc);
+      setLoadState(nextSrc ? 'loading' : 'error');
+    }).catch((error) => {
+      console.warn('[VideoPreviewCard] Failed to build video src', {
+        fileName: file.fileName,
+        filePath: file.filePath,
+        mimeType: file.mimeType,
+        error,
+      });
+      if (!cancelled) {
+        setSrc(null);
+        setLoadState('error');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file.fileName, file.filePath, file.mimeType, file.preview]);
+
+  const handleOpen = useCallback(() => {
+    if (file.filePath) {
+      invokeIpc('shell:openPath', file.filePath);
+    }
+  }, [file.filePath]);
+
+  if (!src) {
+    return <FileCard file={file} />;
+  }
+
+  return (
+    <div
+      data-testid="chat-video-preview"
+      className={cn(
+        'relative overflow-hidden rounded-xl border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5',
+        compact ? 'w-64 max-w-full' : 'w-[min(28rem,100%)]'
+      )}
+    >
+      <video
+        src={src}
+        controls
+        preload="auto"
+        onLoadedMetadata={(event) => {
+          setAspectRatio(getVideoAspectRatio(event.currentTarget) || '16 / 9');
+          setLoadState('ready');
+          console.info('[VideoPreviewCard] loaded video metadata', {
+            fileName: file.fileName,
+            filePath: file.filePath,
+            mimeType: file.mimeType,
+            duration: event.currentTarget.duration,
+            videoWidth: event.currentTarget.videoWidth,
+            videoHeight: event.currentTarget.videoHeight,
+            src: event.currentTarget.currentSrc || event.currentTarget.src,
+          });
+          revealVideoPreviewFrame(event.currentTarget);
+        }}
+        onError={(event) => {
+          setLoadState('error');
+          const mediaError = event.currentTarget.error;
+          console.warn('[VideoPreviewCard] video failed to load', {
+            fileName: file.fileName,
+            filePath: file.filePath,
+            mimeType: file.mimeType,
+            code: mediaError?.code,
+            message: mediaError?.message,
+            networkState: event.currentTarget.networkState,
+            readyState: event.currentTarget.readyState,
+            src: event.currentTarget.currentSrc || event.currentTarget.src,
+          });
+        }}
+        style={{ aspectRatio }}
+        className="block w-full min-h-32 max-h-[70vh] bg-black object-contain"
+        title={file.fileName}
+      />
+      {loadState !== 'ready' && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 flex min-h-32 items-center justify-center bg-black/70 px-3 text-center text-[11px] text-white/70"
+          style={{ aspectRatio }}
+        >
+          {loadState === 'error' ? 'Video preview unavailable' : 'Loading video preview...'}
+        </div>
+      )}
+      <button
+        type="button"
+        className={cn(
+          'flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors',
+          file.filePath && 'hover:bg-black/10 dark:hover:bg-white/10'
+        )}
+        onClick={handleOpen}
+        disabled={!file.filePath}
+        title={file.filePath ? 'Open file' : undefined}
+      >
+        <Film className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 truncate">{mediaLabel(file.fileName, file.fileSize, formatFileSize)}</span>
+      </button>
     </div>
   );
 }
