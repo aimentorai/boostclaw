@@ -85,7 +85,6 @@ export const ChatMessage = memo(function ChatMessage({
   const isUser = message.role === 'user';
   const role = typeof message.role === 'string' ? message.role.toLowerCase() : '';
   const isToolResult = role === 'toolresult' || role === 'tool_result';
-  const { t } = useTranslation('chat');
   const text = extractText(message);
   const hasText = text.trim().length > 0;
   const thinking = extractThinking(message);
@@ -289,15 +288,15 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         )}
 
-        {/* Hover row for user messages — timestamp only */}
-        {isUser && message.timestamp && (
-          <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-            {formatTimestamp(message.timestamp, t as TimestampFormatter)}
-          </span>
+        {/* Hover row for user messages */}
+        {isUser && hasText && (
+          <MessageHoverBar text={text} timestamp={message.timestamp} role="user" />
         )}
 
         {/* Hover row for assistant messages — only when there is real text content */}
-        {!isUser && hasText && <AssistantHoverBar text={text} timestamp={message.timestamp} />}
+        {!isUser && hasText && (
+          <MessageHoverBar text={text} timestamp={message.timestamp} role="assistant" />
+        )}
       </div>
 
       {/* Image lightbox portal */}
@@ -371,9 +370,17 @@ function ToolStatusBar({
   );
 }
 
-// ── Assistant hover bar (timestamp + copy, shown on group hover) ─
+// ── Message hover bar (timestamp + copy) ─
 
-function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
+function MessageHoverBar({
+  text,
+  timestamp,
+  role,
+}: {
+  text: string;
+  timestamp?: number;
+  role: 'user' | 'assistant';
+}) {
   const { t: tCommon } = useTranslation('common');
   const { t } = useTranslation('chat');
   const [copied, setCopied] = useState(false);
@@ -401,7 +408,7 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
         onClick={copyContent}
         title={tCommon('actions.copy')}
         aria-label={tCommon('actions.copy')}
-        data-testid="assistant-copy-button"
+        data-testid={`${role}-copy-button`}
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
@@ -623,7 +630,12 @@ const MessageBubble = memo(function MessageBubble({
       )}
     >
       {isUser ? (
-        <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
+        <p
+          className="whitespace-pre-wrap break-words break-all text-sm selection:bg-white/35 selection:text-primary-foreground"
+          data-testid="user-message-text"
+        >
+          {text}
+        </p>
       ) : (
         <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
           {taskProgress ? (
