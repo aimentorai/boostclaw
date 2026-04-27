@@ -459,8 +459,8 @@ export class AppAuthManager extends EventEmitter {
   // When true, auth mask must stay visible until restore flow explicitly ends.
   private keepAuthMaskVisible = false;
   // Runtime mask toggle for debugging auth pages.
-  // Full-screen "logging in" overlay is off by default; set BoostClaw_APP_AUTH_MASK_ENABLED=1 to enable (debug).
-  private authMaskEnabled = process.env.BoostClaw_APP_AUTH_MASK_ENABLED === '1';
+  // Full-screen "logging in" overlay is on by default; set BoostClaw_APP_AUTH_MASK_ENABLED=0 to disable.
+  private authMaskEnabled = process.env.BoostClaw_APP_AUTH_MASK_ENABLED !== '0';
   private postLoginModelUserId: string | null = null;
   private postLoginSessionCookieValue: string | null = null;
   private systemDefaultModelProviderInfoCache: SystemDefaultModelProviderInfo | null = null;
@@ -1989,6 +1989,42 @@ export class AppAuthManager extends EventEmitter {
     return true;
   }
 
+  /** Web login: credential page — do not cover with the mask. */
+  private isWebLoginFormPage(urlText: string): boolean {
+    try {
+      return new URL(urlText).pathname.startsWith('/usercenter/login');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * OAuth consent step (e.g. https://open.am.microdata-inc.com/usercenter/oauth/consent) —
+   * user must see approve/deny; keep mask off.
+   */
+  private isWebOAuthConsentPage(urlText: string): boolean {
+    try {
+      const parsed = new URL(urlText);
+      const path = parsed.pathname.replace(/\/$/, '') || '/';
+      if (path === '/usercenter/oauth/consent' || path.startsWith('/usercenter/oauth/consent/')) {
+        return true;
+      }
+      if (
+        parsed.hostname === 'open.am.microdata-inc.com'
+        && parsed.pathname.toLowerCase().includes('oauth/consent')
+      ) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  private shouldUnmaskWebAuthPage(urlText: string): boolean {
+    return this.isWebLoginFormPage(urlText) || this.isWebOAuthConsentPage(urlText);
+  }
+
   private shouldHandleAuthNavigation(urlText: string): boolean {
     if (this.pendingFlow && !this.pendingFlow.completed) {
       return true;
@@ -2037,6 +2073,10 @@ export class AppAuthManager extends EventEmitter {
   }
 
   private async handleAuthNavigation(url: string): Promise<boolean> {
+    if (this.pendingFlow && !this.pendingFlow.completed && this.shouldUnmaskWebAuthPage(url)) {
+      this.clearAuthMaskTimeout();
+      this.closeAuthMaskWindow();
+    }
     await this.syncAuthMaskByUrl(url);
     const handledByStoredToken = await this.captureStoredTokenFromSession(url);
     if (handledByStoredToken) return true;
@@ -2308,13 +2348,21 @@ export class AppAuthManager extends EventEmitter {
 
     // Credential-entry page should stay visible. Every non-login auth page
     // (oauth/authorize, redirect bridges, callback pages) must be masked.
+    // OAuth consent must stay visible; after leaving consent, re-show the mask
+    // (will-navigate alone can miss some redirects — sync again on did-finish / did-navigate).
     let firstLoginPageShown = false;
-    const isPrimaryLoginPage = (targetUrl: string): boolean => {
-      try {
-        const parsed = new URL(targetUrl);
-        return parsed.pathname.startsWith('/usercenter/login');
-      } catch {
-        return false;
+
+    const syncAuthMaskForUrl = (targetUrl: string): void => {
+      if (!this.shouldHandleAuthNavigation(targetUrl)) {
+        return;
+      }
+      if (this.shouldUnmaskWebAuthPage(targetUrl)) {
+        this.clearAuthMaskTimeout();
+        this.closeAuthMaskWindow();
+        return;
+      }
+      if (this.pendingFlow && !this.pendingFlow.completed) {
+        void this.showAuthMaskWindow();
       }
     };
 
@@ -2327,15 +2375,7 @@ export class AppAuthManager extends EventEmitter {
       if (this.shouldPreventAuthNavigation(url)) {
         event.preventDefault();
       }
-      // Never mask the credential-entry page itself; users need to input
-      // username/password there. For any subsequent non-login auth pages,
-      // keep a full overlay so intermediate redirects are not exposed.
-      if (isPrimaryLoginPage(url)) {
-        this.clearAuthMaskTimeout();
-        this.closeAuthMaskWindow();
-      } else {
-        void this.showAuthMaskWindow();
-      }
+      syncAuthMaskForUrl(url);
       this.safeHandleAuthNavigation(url, 'will-navigate');
     };
     const handleAfterNavigate = (_event: Electron.Event, url: string) => {
@@ -2344,6 +2384,7 @@ export class AppAuthManager extends EventEmitter {
       }
       this.emitDebug('web_did_navigate', summarizeAuthUrl(url));
       logger.info(`[AppAuth] did-navigate/redirect: ${summarizeAuthUrl(url).location}`);
+      syncAuthMaskForUrl(url);
       this.safeHandleAuthNavigation(url, 'did-navigate');
     };
     const handleStartNavigation = (
@@ -2357,6 +2398,7 @@ export class AppAuthManager extends EventEmitter {
       }
       this.emitDebug('web_did_start_navigation', summarizeAuthUrl(url));
       logger.info(`[AppAuth] did-start-navigation: ${summarizeAuthUrl(url).location}`);
+      syncAuthMaskForUrl(url);
       this.safeHandleAuthNavigation(url, 'did-start-navigation');
     };
     const handleInPageNavigate = (_event: Electron.Event, url: string, isMainFrame: boolean) => {
@@ -2365,6 +2407,7 @@ export class AppAuthManager extends EventEmitter {
       }
       this.emitDebug('web_did_navigate_in_page', summarizeAuthUrl(url));
       logger.info(`[AppAuth] did-navigate-in-page: ${summarizeAuthUrl(url).location}`);
+      syncAuthMaskForUrl(url);
       this.safeHandleAuthNavigation(url, 'did-navigate-in-page');
       void this.probePageLocation('did-navigate-in-page');
     };
@@ -2377,13 +2420,10 @@ export class AppAuthManager extends EventEmitter {
       this.safeHandleAuthNavigation(currentUrl, 'did-finish-load');
       void this.probePageLocation('did-finish-load');
       this.scheduleCookiePoll(currentUrl);
-      if (isPrimaryLoginPage(currentUrl)) {
-        this.clearAuthMaskTimeout();
-        this.closeAuthMaskWindow();
-      }
+      syncAuthMaskForUrl(currentUrl);
       // Record that the first credential page has been shown to users once.
       // From now on, all later navigations in this flow remain masked.
-      if (!firstLoginPageShown && isPrimaryLoginPage(currentUrl)) {
+      if (!firstLoginPageShown && this.isWebLoginFormPage(currentUrl)) {
         firstLoginPageShown = true;
         logger.info('[AppAuth] Login form shown — all subsequent auth pages will be masked');
       }
