@@ -22,6 +22,72 @@ function parseSessionUpdatedAtMs(value: unknown): number | undefined {
   return undefined;
 }
 
+const SIDEBAR_LABEL_HISTORY_LIMIT = 50;
+const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 8_000;
+const SIDEBAR_LABEL_HISTORY_CONCURRENCY = 2;
+
+async function hydrateSidebarSessionMetadata(
+  sessions: ChatSession[],
+  set: ChatSet,
+  get: ChatGet
+): Promise<void> {
+  const candidates = sessions.filter((session) => {
+    if (session.key.endsWith(':main')) return false;
+    if (get().sessionLabels[session.key] || session.label) return false;
+    return true;
+  });
+
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < candidates.length) {
+      const session = candidates[nextIndex++];
+      if (!session) continue;
+
+      try {
+        const r = (await invokeIpc(
+          'gateway:rpc',
+          'chat.history',
+          { sessionKey: session.key, limit: SIDEBAR_LABEL_HISTORY_LIMIT },
+          SIDEBAR_LABEL_HISTORY_TIMEOUT_MS
+        )) as { success: boolean; result?: Record<string, unknown> };
+        if (!r.success || !r.result) continue;
+
+        const msgs = Array.isArray(r.result.messages) ? (r.result.messages as RawMessage[]) : [];
+        const firstUser = msgs.find((m) => m.role === 'user');
+        const lastMsg = msgs[msgs.length - 1];
+        if (!firstUser && !lastMsg?.timestamp) continue;
+
+        set((s) => {
+          const next: Partial<typeof s> = {};
+          if (firstUser && !s.sessionLabels[session.key]) {
+            const labelText = getMessageText(firstUser.content).trim();
+            if (labelText) {
+              const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+              next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+            }
+          }
+          if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
+            next.sessionLastActivity = {
+              ...s.sessionLastActivity,
+              [session.key]: toMs(lastMsg.timestamp),
+            };
+          }
+          return next;
+        });
+      } catch {
+        // Sidebar metadata is best-effort; foreground history loading handles user-visible errors.
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(SIDEBAR_LABEL_HISTORY_CONCURRENCY, candidates.length) },
+      () => worker()
+    )
+  );
+}
+
 export function createSessionActions(
   set: ChatSet,
   get: ChatGet,
@@ -110,40 +176,7 @@ export function createSessionActions(
             get().loadHistory();
           }
 
-          // Background: fetch first user message for every non-main session to populate labels upfront.
-          // Uses a small limit so it's cheap; runs in parallel and doesn't block anything.
-          const sessionsToLabel = sessionsWithCurrent.filter((s) => !s.key.endsWith(':main'));
-          if (sessionsToLabel.length > 0) {
-            void Promise.all(
-              sessionsToLabel.map(async (session) => {
-                try {
-                  const r = await invokeIpc(
-                    'gateway:rpc',
-                    'chat.history',
-                    { sessionKey: session.key, limit: 1000 },
-                  ) as { success: boolean; result?: Record<string, unknown> };
-                  if (!r.success || !r.result) return;
-                  const msgs = Array.isArray(r.result.messages) ? r.result.messages as RawMessage[] : [];
-                  const firstUser = msgs.find((m) => m.role === 'user');
-                  const lastMsg = msgs[msgs.length - 1];
-                  set((s) => {
-                    const next: Partial<typeof s> = {};
-                    if (firstUser) {
-                      const labelText = getMessageText(firstUser.content).trim();
-                      if (labelText) {
-                        const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                        next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
-                      }
-                    }
-                    if (lastMsg?.timestamp) {
-                      next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
-                    }
-                    return next;
-                  });
-                } catch { /* ignore per-session errors */ }
-              }),
-            );
-          }
+          void hydrateSidebarSessionMetadata(sessionsWithCurrent, set, get);
         }
       } catch (err) {
         console.warn('Failed to load sessions:', err);
