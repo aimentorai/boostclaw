@@ -507,7 +507,7 @@ export function Chat() {
   return (
     <div
       className={cn(
-        'relative flex min-h-0 flex-col overflow-hidden bg-white transition-colors duration-500'
+        'relative flex min-h-0 flex-col overflow-hidden bg-[#f8f9fb] transition-colors duration-500'
       )}
       style={{ height: '100%' }}
     >
@@ -632,13 +632,13 @@ function WelcomeScreen() {
   const { t } = useTranslation('chat');
 
   return (
-    <div data-testid="chat-welcome-screen" className="w-full max-w-2xl px-4 text-center mb-8">
+    <div data-testid="chat-welcome-screen" className="mb-8 w-full max-w-2xl px-4 text-center">
       {/* 主欢迎标题 */}
-      <h1 className="text-2xl font-semibold text-foreground md:text-3xl leading-snug">
+      <h1 className="text-2xl font-semibold leading-snug text-[#20242d] md:text-[30px]">
         {t('welcome.greeting')}
       </h1>
       {/* 功能标语副标题 */}
-      <p className="mt-2 text-sm text-muted-foreground/70">{t('welcome.tagline')}</p>
+      <p className="mt-2 text-sm font-medium tracking-[0.03em] text-[#a2a9b3]">{t('welcome.tagline')}</p>
     </div>
   );
 }

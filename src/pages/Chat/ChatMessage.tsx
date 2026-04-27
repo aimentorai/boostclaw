@@ -388,19 +388,19 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
       </span>
       <Button
         variant="ghost"
-        size="sm"
+        size="icon"
         className={cn(
-          'h-7 gap-1.5 rounded-full border px-2.5 text-[12px] font-medium shadow-sm transition-colors',
+          'h-7 w-7 rounded-full border shadow-sm transition-colors',
           copied
-            ? 'border-green-500/25 bg-green-500/10 text-green-600 hover:bg-green-500/15'
-            : 'border-primary/25 bg-primary/10 text-primary hover:bg-primary/15'
+            ? 'border-green-500/20 bg-green-500/8 text-green-600 hover:bg-green-500/12'
+            : 'border-[#edf0f5] bg-white/70 text-[#9aa2ae] hover:bg-white hover:text-[#5f6875]'
         )}
         onClick={copyContent}
         title={t('actions.copy')}
+        aria-label={t('actions.copy')}
         data-testid="assistant-copy-button"
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        <span>{t('actions.copy')}</span>
       </Button>
     </div>
   );

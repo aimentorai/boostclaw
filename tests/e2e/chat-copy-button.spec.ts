@@ -72,7 +72,8 @@ test.describe('BoostClaw chat copy action', () => {
 
       const copyButton = page.getByTestId('assistant-copy-button');
       await expect(copyButton).toBeVisible();
-      await expect(copyButton).toContainText(/Copy|复制|コピー/);
+      await expect(copyButton).toHaveAttribute('title', /Copy|复制|コピー/);
+      await expect(copyButton).toHaveText('');
     } finally {
       await closeElectronApp(app);
     }
