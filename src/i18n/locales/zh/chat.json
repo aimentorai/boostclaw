@@ -88,6 +88,7 @@
     },
     "message": {
         "thinking": "思考过程",
+        "thinkingHidden": "已隐藏思考过程",
         "openFile": "打开文件",
         "file": "文件",
         "loadingVideoPreview": "正在加载视频预览...",

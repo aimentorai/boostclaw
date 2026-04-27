@@ -86,6 +86,7 @@
     },
     "message": {
         "thinking": "思考プロセス",
+        "thinkingHidden": "思考を非表示にしました",
         "openFile": "ファイルを開く",
         "file": "ファイル",
         "loadingVideoPreview": "動画プレビューを読み込み中...",

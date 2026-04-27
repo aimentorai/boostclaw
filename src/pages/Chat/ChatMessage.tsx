@@ -50,6 +50,8 @@ import {
 interface ChatMessageProps {
   message: RawMessage;
   showThinking: boolean;
+  thinkingExpanded: boolean;
+  onToggleThinkingExpanded: () => void;
   suppressToolCards?: boolean;
   isStreaming?: boolean;
   streamingTools?: Array<{
@@ -78,6 +80,8 @@ function imageSrc(img: ExtractedImage): string | null {
 export const ChatMessage = memo(function ChatMessage({
   message,
   showThinking,
+  thinkingExpanded,
+  onToggleThinkingExpanded,
   suppressToolCards = false,
   isStreaming = false,
   streamingTools = [],
@@ -132,7 +136,13 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Thinking section */}
-        {visibleThinking && <ThinkingBlock content={visibleThinking} />}
+        {visibleThinking && (
+          <ThinkingBlock
+            content={visibleThinking}
+            expanded={thinkingExpanded}
+            onToggle={onToggleThinkingExpanded}
+          />
+        )}
 
         {/* Tool use cards */}
         {visibleTools.length > 0 && (
@@ -656,34 +666,47 @@ const MessageBubble = memo(function MessageBubble({
 
 // ── Thinking Block ──────────────────────────────────────────────
 
-function ThinkingBlock({ content }: { content: string }) {
+function ThinkingBlock({
+  content,
+  expanded,
+  onToggle,
+}: {
+  content: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const { t } = useTranslation('chat');
-  const [expanded, setExpanded] = useState(false);
   const displayContent = useMemo(() => formatReadableText(content), [content]);
   const taskProgress = useMemo(() => parseTaskProgressText(content), [content]);
 
   return (
-    <div className="w-full rounded-2xl border border-border/70 bg-white/[0.04] text-[14px]">
+    <div className="relative w-full border-l-2 border-primary/20 pl-3 pr-9 text-[13px]">
       <button
-        className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
-        onClick={() => setExpanded(!expanded)}
+        type="button"
+        className="absolute right-1 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
+        onClick={onToggle}
+        aria-label={expanded ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
+        title={expanded ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
       >
         {expanded ? (
           <ChevronDown className="h-3.5 w-3.5" />
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <span className="font-medium">{t('message.thinking')}</span>
       </button>
-      {expanded && (
-        <div className="px-3 pb-3 text-muted-foreground">
-          <div className="prose prose-sm dark:prose-invert max-w-none opacity-75">
+      {expanded ? (
+        <div className="py-1 text-muted-foreground">
+          <div className="prose prose-sm dark:prose-invert max-w-none opacity-70 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
             {taskProgress ? (
               <TaskProgressText progress={taskProgress} title={t('taskProgress.processing')} />
             ) : (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="py-1 text-xs text-muted-foreground/70">
+          {t('message.thinkingHidden')}
         </div>
       )}
     </div>
@@ -1023,7 +1046,10 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]">
+    <div
+      className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]"
+      data-testid="chat-tool-card"
+    >
       <button
         className="flex items-center gap-2 w-full px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
         onClick={() => setExpanded(!expanded)}

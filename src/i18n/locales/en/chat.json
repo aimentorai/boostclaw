@@ -88,6 +88,7 @@
     },
     "message": {
         "thinking": "Thinking",
+        "thinkingHidden": "Thinking hidden",
         "openFile": "Open file",
         "file": "File",
         "loadingVideoPreview": "Loading video preview...",
