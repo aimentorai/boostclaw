@@ -22,6 +22,7 @@ import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
 import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   filePathToHostedMediaSrc,
   getVideoAspectRatio,
@@ -140,6 +141,13 @@ function formatModelLabel(modelRef: string): string {
   return modelRef.slice(separatorIndex + 1);
 }
 
+function normalizeModelIdForRuntimeProvider(modelId: string, runtimeProviderKey: string): string {
+  const trimmed = modelId.trim();
+  return trimmed.startsWith(`${runtimeProviderKey}/`)
+    ? trimmed.slice(runtimeProviderKey.length + 1)
+    : trimmed;
+}
+
 function shouldOpenDropdownUpward(
   triggerEl: HTMLElement | null,
   estimatedPanelHeight = 220,
@@ -192,10 +200,6 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
-  const currentModelRef = useMemo(
-    () => (currentAgent?.overrideModelRef || currentAgent?.modelRef || defaultModelRef || '').trim(),
-    [currentAgent?.modelRef, currentAgent?.overrideModelRef, defaultModelRef],
-  );
   const selectableAgents = useMemo(
     () => (agents ?? []),
     [agents],
@@ -205,6 +209,13 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     [agents, targetAgentId],
   );
   const effectiveTargetLabel = selectedTarget?.name || currentAgentName;
+  const modelTargetAgent = selectedTarget ?? currentAgent;
+  const modelTargetAgentId = modelTargetAgent?.id ?? currentAgentId;
+  const modelTargetModelDisplay = modelTargetAgent?.modelDisplay ?? currentModelDisplay;
+  const modelTargetModelRef = useMemo(
+    () => (modelTargetAgent?.overrideModelRef || modelTargetAgent?.modelRef || defaultModelRef || '').trim(),
+    [modelTargetAgent?.modelRef, modelTargetAgent?.overrideModelRef, defaultModelRef],
+  );
 
   /** 当前输入框选择的 skill（仅用于 UI 选择，不会改变发送链路） */
   const selectedSkill: Skill | null = useMemo(
@@ -239,22 +250,35 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
       });
 
     const options = new Map<string, { modelRef: string; label: string; description: string }>();
-    for (const account of entries) {
-      const runtimeProviderKey = resolveRuntimeProviderKey(account);
-      const vendor = vendorById.get(account.vendorId);
-      const modelId = (account.model || vendor?.defaultModelId || '').trim();
-      if (!runtimeProviderKey || !modelId) continue;
-      const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
-        ? modelId.slice(runtimeProviderKey.length + 1)
-        : modelId;
-      if (!normalizedModelId) continue;
+    const addModelOption = (
+      runtimeProviderKey: string,
+      modelId: string | undefined,
+      label: string,
+      source?: string,
+    ) => {
+      if (!runtimeProviderKey || !modelId) return;
+      const normalizedModelId = normalizeModelIdForRuntimeProvider(modelId, runtimeProviderKey);
+      if (!normalizedModelId) return;
       const modelRef = `${runtimeProviderKey}/${normalizedModelId}`;
       if (!options.has(modelRef)) {
         options.set(modelRef, {
           modelRef,
           label: normalizedModelId,
-          description: account.label,
+          description: source ? `${label} · ${source}` : label,
         });
+      }
+    };
+
+    for (const account of entries) {
+      const runtimeProviderKey = resolveRuntimeProviderKey(account);
+      const vendor = vendorById.get(account.vendorId);
+      addModelOption(runtimeProviderKey, account.model, account.label);
+      addModelOption(runtimeProviderKey, vendor?.defaultModelId, account.label, 'default');
+      for (const fallbackModel of account.fallbackModels ?? []) {
+        addModelOption(runtimeProviderKey, fallbackModel, account.label, 'fallback');
+      }
+      for (const availableModel of vendor?.availableModels ?? []) {
+        addModelOption(runtimeProviderKey, availableModel, account.label);
       }
     }
 
@@ -680,7 +704,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
               </div>
 
               {/* 模型选择器 */}
-              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
+              {(modelTargetModelDisplay || modelTargetModelRef || modelOptions.length > 0) && (
                 <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
                   <Button
                     data-testid="chat-model-picker-button"
@@ -700,7 +724,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                     }}
                     title="Select model"
                   >
-                    <span className="min-w-0 flex-1 truncate text-left">{currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}</span>
+                    <span className="min-w-0 flex-1 truncate text-left">{modelTargetModelDisplay || formatModelLabel(modelTargetModelRef) || 'Model'}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                   </Button>
                   {modelPickerOpen && (
@@ -710,7 +734,7 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                     )}>
                       <div className="max-h-56 overflow-y-auto">
                         {modelOptions.map((option) => {
-                          const selected = option.modelRef === currentModelRef;
+                          const selected = option.modelRef === modelTargetModelRef;
                           return (
                             <button
                               key={option.modelRef}
@@ -729,9 +753,17 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
                                 try {
                                   const normalizedDefaultModelRef = (defaultModelRef || '').trim();
                                   await updateAgentModel(
-                                    currentAgentId,
+                                    modelTargetAgentId,
                                     normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
                                   );
+                                  toast.success(
+                                    t('composer.modelUpdated', {
+                                      agent: modelTargetAgent?.name || modelTargetAgentId,
+                                      model: option.label,
+                                    }),
+                                  );
+                                } catch (error) {
+                                  toast.error(t('composer.modelUpdateFailed', { error: String(error) }));
                                 } finally {
                                   setSwitchingModel(false);
                                   setModelPickerOpen(false);

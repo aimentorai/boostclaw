@@ -71,7 +71,9 @@
         "stop": "Stop",
         "gatewayConnected": "connected",
         "gatewayStatus": "Gateway {{state}} | port: {{port}} {{pid}}",
-        "retryFailedAttachments": "Retry failed attachments"
+        "retryFailedAttachments": "Retry failed attachments",
+        "modelUpdated": "Updated {{agent}} model to {{model}}",
+        "modelUpdateFailed": "Failed to update model: {{error}}"
     },
     "historyBuckets": {
         "today": "Today",

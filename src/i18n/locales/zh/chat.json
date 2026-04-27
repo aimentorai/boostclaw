@@ -71,7 +71,9 @@
         "stop": "停止",
         "gatewayConnected": "已连接",
         "gatewayStatus": "网关 {{state}} | 端口: {{port}} {{pid}}",
-        "retryFailedAttachments": "重试失败的附件"
+        "retryFailedAttachments": "重试失败的附件",
+        "modelUpdated": "已将 {{agent}} 的模型切换为 {{model}}",
+        "modelUpdateFailed": "切换模型失败：{{error}}"
     },
     "historyBuckets": {
         "today": "今天",

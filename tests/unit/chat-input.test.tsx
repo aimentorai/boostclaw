@@ -298,6 +298,60 @@ describe('ChatInput agent targeting', () => {
     expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'anthropic/claude-sonnet-4');
   });
 
+  it('updates the selected target agent model from the model dropdown', () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'gpt-5.4',
+        modelRef: 'openai/gpt-5.4',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace',
+        agentDir: '~/.openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+      {
+        id: 'research',
+        name: 'Research',
+        isDefault: false,
+        modelDisplay: 'gpt-5.4',
+        modelRef: 'openai/gpt-5.4',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace-research',
+        agentDir: '~/.openclaw/agents/research/agent',
+        mainSessionKey: 'agent:research:main',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'acc-anthropic',
+        vendorId: 'anthropic',
+        label: 'Anthropic Primary',
+        authMode: 'api_key',
+        model: 'claude-sonnet-4',
+        enabled: true,
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ];
+    providersState.statuses = [
+      { id: 'acc-anthropic', hasKey: true },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Choose agent'));
+    fireEvent.click(screen.getByText('Research'));
+    fireEvent.click(screen.getByTitle('Select model'));
+    fireEvent.click(screen.getByText('claude-sonnet-4'));
+
+    expect(agentsState.updateAgentModel).toHaveBeenCalledWith('research', 'anthropic/claude-sonnet-4');
+  });
+
   it('offers vendor default models when the provider account has no explicit model id', () => {
     agentsState.agents = [
       {
@@ -341,5 +395,54 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByText('gpt-5.4'));
 
     expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'openai/gpt-5.4');
+  });
+
+  it('offers fallback and vendor preset models in the model dropdown', () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'qwen-plus',
+        modelRef: 'qwen/qwen-plus',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.openclaw/workspace',
+        agentDir: '~/.openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'acc-qwen',
+        vendorId: 'qwen',
+        label: 'Qwen Primary',
+        authMode: 'api_key',
+        model: 'qwen-plus',
+        fallbackModels: ['qwen-turbo'],
+        enabled: true,
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ];
+    providersState.statuses = [
+      { id: 'acc-qwen', hasKey: true },
+    ];
+    providersState.vendors = [
+      {
+        id: 'qwen',
+        name: 'Qwen',
+        defaultModelId: 'qwen-plus',
+        availableModels: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
+      },
+    ];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Select model'));
+
+    expect(screen.getAllByText('qwen-plus').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('qwen-turbo')).toBeInTheDocument();
+    expect(screen.getByText('qwen-max')).toBeInTheDocument();
   });
 });

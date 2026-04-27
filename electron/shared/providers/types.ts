@@ -86,6 +86,7 @@ export interface ProviderTypeInfo {
   showModelIdInDevModeOnly?: boolean;
   modelIdPlaceholder?: string;
   defaultModelId?: string;
+  availableModels?: string[];
   isOAuth?: boolean;
   supportsApiKey?: boolean;
   apiKeyUrl?: string;
