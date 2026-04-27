@@ -85,7 +85,7 @@ function createDefaultSettings(): AppSettings {
 
     // Gateway
     gatewayAutoStart: true,
-    gatewayPort: 18790,
+    gatewayPort: 19790,
     gatewayToken: generateToken(),
     proxyEnabled: false,
     proxyServer: '',

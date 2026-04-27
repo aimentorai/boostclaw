@@ -830,6 +830,13 @@ function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean 
   return false;
 }
 
+/** Strip <skill_context> XML wrapper so UI displays only the user's original text. */
+function stripSkillContext(text: string): string {
+  const match = text.match(/<user_request>\n?([\s\S]*?)\n?<\/user_request>/);
+  if (match) return match[1].trim();
+  return text;
+}
+
 function extractTextFromContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -1480,9 +1487,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // Before filtering: attach images/files from tool_result messages to the next assistant message
         const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
-        const filteredMessages = messagesWithToolImages.filter(
-          (msg) => !isToolResultRole(msg.role) && !isInternalMessage(msg)
-        );
+        const filteredMessages = messagesWithToolImages
+          .filter((msg) => !isToolResultRole(msg.role) && !isInternalMessage(msg))
+          .map((msg) => {
+            if (msg.role !== 'user' || typeof msg.content !== 'string') return msg;
+            const stripped = stripSkillContext(msg.content);
+            return stripped === msg.content ? msg : { ...msg, content: stripped };
+          });
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
 
@@ -1663,7 +1674,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const nowMs = Date.now();
     const userMsg: RawMessage = {
       role: 'user',
-      content: trimmed || (attachments?.length ? '(file attached)' : ''),
+      content: stripSkillContext(trimmed) || (attachments?.length ? '(file attached)' : ''),
       timestamp: nowMs / 1000,
       id: crypto.randomUUID(),
       _attachedFiles: attachments?.map((a) => ({
@@ -1694,7 +1705,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       !sessionLabels[currentSessionKey] &&
       trimmed
     ) {
-      const truncated = trimmed.length > 50 ? `${trimmed.slice(0, 50)}…` : trimmed;
+      const displayForLabel = stripSkillContext(trimmed);
+      const truncated =
+        displayForLabel.length > 50 ? `${displayForLabel.slice(0, 50)}…` : displayForLabel;
       set((s) => ({ sessionLabels: { ...s.sessionLabels, [currentSessionKey]: truncated } }));
     }
 

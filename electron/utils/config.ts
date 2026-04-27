@@ -14,10 +14,10 @@ export const PORTS = {
   BoostClaw_GUI: 23333,
 
   /** Local host API server port */
-  BoostClaw_HOST_API: 13210,
+  BoostClaw_HOST_API: 19880,
 
   /** OpenClaw Gateway port */
-  OPENCLAW_GATEWAY: 18790,
+  OPENCLAW_GATEWAY: 19790,
 } as const;
 
 /**

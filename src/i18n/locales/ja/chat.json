@@ -73,6 +73,10 @@
         "searchExpert": "専門家を検索",
         "searchModel": "モデルを検索",
         "selectModel": "モデルを選択",
+        "selectSkill": "スキルを選択",
+        "searchSkill": "スキルを検索",
+        "skill": "スキル",
+        "noSkills": "利用可能なスキルがありません",
         "otherAgents": "その他"
     },
     "thinking": {

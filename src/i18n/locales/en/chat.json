@@ -75,6 +75,10 @@
         "searchExpert": "Search experts",
         "searchModel": "Search models",
         "selectModel": "Select model",
+        "selectSkill": "Select skill",
+        "searchSkill": "Search skills",
+        "skill": "Skill",
+        "noSkills": "No skills available",
         "otherAgents": "Other"
     },
     "thinking": {

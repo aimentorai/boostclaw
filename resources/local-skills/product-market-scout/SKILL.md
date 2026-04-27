@@ -1,6 +1,11 @@
 ---
 name: product-market-scout
-description: Analyze whether a product, category, link, title, image, 1688 item, Amazon ASIN/listing, TikTok Shop item, factory SKU, or natural-language product idea is selling well on Amazon and/or TikTok Shop. Use when the user asks in Chinese or English about Amazon/TK/TikTok Shop sales performance, product opportunity, category trend, marketplace comparison, recent 7/30/90 day demand, BSR, GMV, sales, reviews, seller competition, creator/video heat, pricing, margin, or whether a factory should enter/supply a product. Trigger on Chinese boss-style prompts like 卖得怎么样, 有没有机会, 最近30天涨还是掉, 哪个平台更适合做, 蓝牙耳机在美国亚马逊, 猫抓板在 TikTok 美区.
+description: >
+  Analyze product/category sales on Amazon and TikTok Shop.
+  Trigger: 卖得怎么样, 有没有机会, 蓝海/红海, 哪个平台适合,
+  涨还是掉, 能不能做, Amazon/TK sales/trend/BSR/GMV,
+  工厂是否适合切入, 选品分析, 市场机会, 最近30天, 利润空间,
+  值不值得做, 竞争激不激烈.
 ---
 
 # Product Market Scout
@@ -58,35 +63,24 @@ Create a compact `Product Map` before querying:
 
 For links, query the exact listing first, then broaden to category/keyword peers. For 1688/factory items, map source-title attributes to Amazon/TikTok buyer-facing terms before searching.
 
-## 3. Query proboost-mcp
+Remember the Product Map within the session. When user follows up with "换个类目" or "TK那边呢", reuse the map and only re-query the changed dimension.
 
-Use the relevant proboost-mcp tools available in the session. Prefer exact ID/link queries first, then keyword/category discovery.
+## 3. Query Data
 
-Amazon data to collect when relevant:
+Query proboost-mcp with a priority order:
 
-- Sales/revenue estimate and trend for 7/30/90 days.
-- BSR and BSR trend.
-- Price band and median price.
-- Review count, rating, review velocity.
-- Seller/listing count, top ASINs, seller concentration.
-- Variation count and key variants.
-- Category rank/category fit.
+1. **Exact match first**: product ID, ASIN, shop link, URL → direct lookup
+2. **Category/keyword second**: broaden when exact match returns nothing
 
-TikTok Shop/TK data to collect when relevant:
+Collect per-platform signals (query all that apply):
 
-- GMV, units sold/orders, and trend for 7/30/90 days.
-- Top products, shops, and price band.
-- Creator/affiliate intensity, video count, video views/engagement heat.
-- Shop growth and repeat-performing shops.
-- Content angle/use-case patterns.
+- **Amazon**: sales trend (7/30/90d), BSR, price band, reviews, seller count, variations, category rank
+- **TikTok Shop**: GMV trend, top shops/products, creator intensity, video heat, content patterns
+- **Category**: keyword trend, rising/declining products, price movement, competition movement
 
-Category/trend data to collect when relevant:
+If user asks "哪个平台更适合做", query both Amazon and TikTok Shop unless one platform is clearly outside scope.
 
-- Category or keyword trend for 7/30/90 days.
-- Top rising products and declining products.
-- Price movement, review/competition movement, and creator/video movement.
-
-If the user asks "哪个平台更适合做", query both Amazon and TikTok Shop unless one platform is clearly outside scope.
+**Degradation rule**: If a platform returns partial data, proceed with available signals and label gaps explicitly (`proboost暂未返回`). Only stop when ALL platforms return zero data.
 
 ## 4. Judge
 
@@ -102,13 +96,18 @@ Prefer balanced judgment over hype. A product with high demand and high competit
 
 ## 5. Output Format
 
-Default response shape:
+**Quick answer** (default — single product, simple question):
 
 1. `一句话结论`: 1-2 sentences, direct enough for a boss.
 2. `简表卡片`: compact Markdown table comparing Amazon and TikTok Shop/TK.
-3. `为什么`: 3-5 short bullets with the strongest data-backed reasons.
-4. `下一步`: one practical action, e.g. `先测 TK 20-50 单`, `找 3 个差异化卖点`, `补工厂成本再算毛利`.
-5. `缺口/风险`: only include when data is missing or confidence is limited.
+3. `下一步`: one practical action, e.g. `先测 TK 20-50 单`, `找 3 个差异化卖点`.
+
+**Deep answer** (user asks for depth, multi-product, or comparison):
+
+Add after the quick answer:
+
+4. `为什么`: 3-5 short bullets with the strongest data-backed reasons.
+5. `缺口/风险`: only when data is missing or confidence is limited.
 
 Example tone:
 

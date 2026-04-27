@@ -138,8 +138,50 @@ export async function readPluginToolsMd(pluginId: string): Promise<string | null
 export function generateUserMd(): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'zh-CN';
-  return `- 时区: ${tz}\n- 语言: ${locale}\n- 业务场景: TikTok 跨境电商营销\n`;
+  return `- 时区: ${tz}\n- 语言: ${locale}\n- 业务: TikTok 跨境电商\n- 核心需求: 视频营销自动化、选品分析、卖家建联\n- 沟通偏好: 简洁中文、数据驱动\n`;
 }
+
+const AGENTS_MD = `# AGENTS.md
+
+## 启动
+
+如果 BOOTSTRAP.md 存在，按其指示操作后删除。使用运行时提供的上下文（AGENTS.md、SOUL.md、USER.md），除非上下文缺失或用户要求，不手动重新读取。
+
+## 记忆
+
+每次会话全新。通过文件保持连续性：
+- 日志: memory/YYYY-MM-DD.md — 当天事件
+- 长期: MEMORY.md — 精炼的重要记忆
+
+想记住就写到文件。"心理笔记"不跨会话保留。
+
+## 安全边界
+
+- 私人数据不外泄
+- 破坏性命令先确认
+- trash > rm
+- 不确定就问
+
+## 操作权限
+
+自由执行：读文件、搜索、整理、学习
+需先确认：发邮件、发帖、任何离开本机的操作
+`;
+
+const HEARTBEAT_MD = `# BoostClaw 心跳检查
+
+## 定期检查（每天 2-4 次）
+- [ ] TikTok 账号状态是否正常
+- [ ] 有无待处理的发布任务
+- [ ] AI 视频生成任务是否完成
+- [ ] 最近发布是否有失败需关注
+
+## 触达用户
+账号异常 | 发布连续失败 | 用户 >8h 未互动且有重要变化
+
+## 静默
+无新变化 | 距上次 <30min | 深夜 23:00-08:00
+`;
 
 /**
  * Write custom bootstrap files (SOUL.md, IDENTITY.md, TOOLS.md, USER.md) to an agent's workspace.
@@ -164,6 +206,10 @@ async function writeExpertBootstrapFiles(
   }
   // USER.md — all experts
   await writeFile(join(workspace, 'USER.md'), generateUserMd(), 'utf-8');
+  // AGENTS.md — workspace guide
+  await writeFile(join(workspace, 'AGENTS.md'), AGENTS_MD, 'utf-8');
+  // HEARTBEAT.md — periodic checks
+  await writeFile(join(workspace, 'HEARTBEAT.md'), HEARTBEAT_MD, 'utf-8');
 }
 
 /**

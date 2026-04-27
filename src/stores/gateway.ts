@@ -18,23 +18,26 @@ const gatewayEventDedupe = new Map<string, number>();
 // streaming event (the hot path) — after the first resolve the call is synchronous.
 type ChatStoreModule = typeof import('./chat');
 let _chatStore: ChatStoreModule['useChatStore'] | null = null;
-let _chatStoreLoading = false;
+let _chatStoreQueue: Array<(store: ChatStoreModule['useChatStore']) => void> = [];
 
 function withChatStore(fn: (store: ChatStoreModule['useChatStore']) => void): void {
   if (_chatStore) {
     fn(_chatStore);
     return;
   }
-  if (!_chatStoreLoading) {
-    _chatStoreLoading = true;
+  _chatStoreQueue.push(fn);
+  if (_chatStoreQueue.length === 1) {
     import('./chat')
       .then((mod) => {
         _chatStore = mod.useChatStore;
-        _chatStoreLoading = false;
-        fn(_chatStore);
+        const pending = _chatStoreQueue;
+        _chatStoreQueue = [];
+        for (const cb of pending) {
+          cb(_chatStore);
+        }
       })
       .catch(() => {
-        _chatStoreLoading = false;
+        _chatStoreQueue = [];
       });
   }
 }
@@ -265,7 +268,7 @@ function mapChannelStatus(status: string): 'connected' | 'connecting' | 'disconn
 export const useGatewayStore = create<GatewayState>((set, get) => ({
   status: {
     state: 'stopped',
-    port: 18790,
+    port: 19790,
   },
   health: null,
   isInitialized: false,

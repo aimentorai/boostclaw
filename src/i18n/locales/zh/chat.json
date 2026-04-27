@@ -75,6 +75,10 @@
         "searchExpert": "搜索专家",
         "searchModel": "搜索模型",
         "selectModel": "选择模型",
+        "selectSkill": "选择技能",
+        "searchSkill": "搜索技能",
+        "skill": "技能",
+        "noSkills": "暂无可用技能",
         "otherAgents": "其他"
     },
     "thinking": {

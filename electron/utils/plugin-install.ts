@@ -701,7 +701,8 @@ export async function ensureSparkBoostPluginEnabled(): Promise<void> {
     try {
       const { execFile } = await import('node:child_process');
       await new Promise<void>((resolve, reject) => {
-        execFile('npm', ['install', '--omit=dev'], { cwd: extDir, timeout: 120_000 }, (err) => {
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      execFile(npmCmd, ['install', '--omit=dev'], { cwd: extDir, timeout: 120_000 }, (err) => {
           if (err) reject(err);
           else resolve();
         });

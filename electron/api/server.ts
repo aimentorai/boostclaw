@@ -49,7 +49,7 @@ const routeHandlers: RouteHandler[] = [
  * Per-session secret token used to authenticate Host API requests.
  * Generated once at server start and shared with the renderer via IPC.
  * This prevents cross-origin attackers from reading sensitive data even
- * if they can reach 127.0.0.1:13210 (the CORS wildcard alone is not
+ * if they can reach 127.0.0.1:19880 (the CORS wildcard alone is not
  * sufficient because browsers attach the Origin header but not a secret).
  */
 let hostApiToken: string = '';
