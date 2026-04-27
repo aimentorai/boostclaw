@@ -3,7 +3,7 @@
  * Handles routing and global providers
  */
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Component, Suspense, useEffect, lazy } from 'react';
+import { Component, Suspense, useEffect, lazy, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { toast, Toaster } from 'sonner';
 import i18n from './i18n';
