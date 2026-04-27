@@ -36,13 +36,22 @@ import {
   extractImages,
   extractToolUse,
   formatTimestamp,
+  type TimestampFormatter,
 } from './message-utils';
 import { TaskProgressText } from './TaskProgressText';
 import { formatReadableText, parseTaskProgressText } from './text-formatting';
+import {
+  filePathToHostedMediaSrc,
+  getVideoAspectRatio,
+  mediaLabel,
+  revealVideoPreviewFrame,
+} from './media-preview';
 
 interface ChatMessageProps {
   message: RawMessage;
   showThinking: boolean;
+  thinkingExpanded: boolean;
+  onToggleThinkingExpanded: () => void;
   suppressToolCards?: boolean;
   isStreaming?: boolean;
   streamingTools?: Array<{
@@ -71,6 +80,8 @@ function imageSrc(img: ExtractedImage): string | null {
 export const ChatMessage = memo(function ChatMessage({
   message,
   showThinking,
+  thinkingExpanded,
+  onToggleThinkingExpanded,
   suppressToolCards = false,
   isStreaming = false,
   streamingTools = [],
@@ -125,7 +136,13 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Thinking section */}
-        {visibleThinking && <ThinkingBlock content={visibleThinking} />}
+        {visibleThinking && (
+          <ThinkingBlock
+            content={visibleThinking}
+            expanded={thinkingExpanded}
+            onToggle={onToggleThinkingExpanded}
+          />
+        )}
 
         {/* Tool use cards */}
         {visibleTools.length > 0 && (
@@ -169,6 +186,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
+              const isVideo = file.mimeType.startsWith('video/');
               // Skip image attachments if we already have images from content blocks
               if (isImage && images.length > 0) return null;
               if (isImage) {
@@ -196,6 +214,9 @@ export const ChatMessage = memo(function ChatMessage({
                     <File className="h-8 w-8" />
                   </div>
                 );
+              }
+              if (isVideo) {
+                return <VideoPreviewCard key={`local-${i}`} file={file} compact />;
               }
               // Non-image files → file card
               return <FileCard key={`local-${i}`} file={file} />;
@@ -238,6 +259,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
+              const isVideo = file.mimeType.startsWith('video/');
               if (isImage && images.length > 0) return null;
               if (isImage && file.preview) {
                 return (
@@ -268,20 +290,23 @@ export const ChatMessage = memo(function ChatMessage({
                   </div>
                 );
               }
+              if (isVideo) {
+                return <VideoPreviewCard key={`local-${i}`} file={file} />;
+              }
               return <FileCard key={`local-${i}`} file={file} />;
             })}
           </div>
         )}
 
-        {/* Hover row for user messages — timestamp only */}
-        {isUser && message.timestamp && (
-          <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-            {formatTimestamp(message.timestamp)}
-          </span>
+        {/* Hover row for user messages */}
+        {isUser && hasText && (
+          <MessageHoverBar text={text} timestamp={message.timestamp} role="user" />
         )}
 
         {/* Hover row for assistant messages — only when there is real text content */}
-        {!isUser && hasText && <AssistantHoverBar text={text} timestamp={message.timestamp} />}
+        {!isUser && hasText && (
+          <MessageHoverBar text={text} timestamp={message.timestamp} role="assistant" />
+        )}
       </div>
 
       {/* Image lightbox portal */}
@@ -355,9 +380,19 @@ function ToolStatusBar({
   );
 }
 
-// ── Assistant hover bar (timestamp + copy, shown on group hover) ─
+// ── Message hover bar (timestamp + copy) ─
 
-function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
+function MessageHoverBar({
+  text,
+  timestamp,
+  role,
+}: {
+  text: string;
+  timestamp?: number;
+  role: 'user' | 'assistant';
+}) {
+  const { t: tCommon } = useTranslation('common');
+  const { t } = useTranslation('chat');
   const [copied, setCopied] = useState(false);
 
   const copyContent = useCallback(() => {
@@ -367,17 +402,25 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   }, [text]);
 
   return (
-    <div className="flex w-full select-none items-center justify-between px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <div className="flex w-full select-none items-center justify-between px-1 opacity-100">
       <span className="text-xs text-muted-foreground">
-        {timestamp ? formatTimestamp(timestamp) : ''}
+        {timestamp ? formatTimestamp(timestamp, t as TimestampFormatter) : ''}
       </span>
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 rounded-lg hover:bg-white/[0.06]"
+        className={cn(
+          'h-7 w-7 rounded-full border shadow-sm transition-colors',
+          copied
+            ? 'border-green-500/20 bg-green-500/8 text-green-600 hover:bg-green-500/12'
+            : 'border-[#edf0f5] bg-white/70 text-[#9aa2ae] hover:bg-white hover:text-[#5f6875]'
+        )}
         onClick={copyContent}
+        title={tCommon('actions.copy')}
+        aria-label={tCommon('actions.copy')}
+        data-testid={`${role}-copy-button`}
       >
-        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
     </div>
   );
@@ -597,7 +640,12 @@ const MessageBubble = memo(function MessageBubble({
       )}
     >
       {isUser ? (
-        <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
+        <p
+          className="whitespace-pre-wrap break-words break-all text-sm selection:bg-white/35 selection:text-primary-foreground"
+          data-testid="user-message-text"
+        >
+          {text}
+        </p>
       ) : (
         <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
           {taskProgress ? (
@@ -618,34 +666,47 @@ const MessageBubble = memo(function MessageBubble({
 
 // ── Thinking Block ──────────────────────────────────────────────
 
-function ThinkingBlock({ content }: { content: string }) {
+function ThinkingBlock({
+  content,
+  expanded,
+  onToggle,
+}: {
+  content: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const { t } = useTranslation('chat');
-  const [expanded, setExpanded] = useState(false);
   const displayContent = useMemo(() => formatReadableText(content), [content]);
   const taskProgress = useMemo(() => parseTaskProgressText(content), [content]);
 
   return (
-    <div className="w-full rounded-2xl border border-border/70 bg-white/[0.04] text-[14px]">
+    <div className="relative w-full border-l-2 border-primary/20 pl-3 pr-9 text-[13px]">
       <button
-        className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
-        onClick={() => setExpanded(!expanded)}
+        type="button"
+        className="absolute right-1 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
+        onClick={onToggle}
+        aria-label={expanded ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
+        title={expanded ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
       >
         {expanded ? (
           <ChevronDown className="h-3.5 w-3.5" />
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <span className="font-medium">Thinking</span>
       </button>
-      {expanded && (
-        <div className="px-3 pb-3 text-muted-foreground">
-          <div className="prose prose-sm dark:prose-invert max-w-none opacity-75">
+      {expanded ? (
+        <div className="py-1 text-muted-foreground">
+          <div className="prose prose-sm dark:prose-invert max-w-none opacity-70 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
             {taskProgress ? (
               <TaskProgressText progress={taskProgress} title={t('taskProgress.processing')} />
             ) : (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="py-1 text-xs text-muted-foreground/70">
+          {t('message.thinkingHidden')}
         </div>
       )}
     </div>
@@ -684,6 +745,7 @@ function FileIcon({ mimeType, className }: { mimeType: string; className?: strin
 }
 
 function FileCard({ file }: { file: AttachedFileMeta }) {
+  const { t } = useTranslation('chat');
   const handleOpen = useCallback(() => {
     if (file.filePath) {
       invokeIpc('shell:openPath', file.filePath);
@@ -697,15 +759,138 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
         file.filePath && 'cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors'
       )}
       onClick={handleOpen}
-      title={file.filePath ? 'Open file' : undefined}
+      title={file.filePath ? t('message.openFile') : undefined}
     >
       <FileIcon mimeType={file.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 overflow-hidden">
         <p className="text-xs font-medium truncate">{file.fileName}</p>
         <p className="text-[10px] text-muted-foreground">
-          {file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
+          {file.fileSize > 0 ? formatFileSize(file.fileSize) : t('message.file')}
         </p>
       </div>
+    </div>
+  );
+}
+
+function VideoPreviewCard({
+  file,
+  compact = false,
+}: {
+  file: AttachedFileMeta;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation('chat');
+  const [src, setSrc] = useState<string | null>(file.preview);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
+    file.preview ? 'ready' : 'loading'
+  );
+  const [aspectRatio, setAspectRatio] = useState<string>('16 / 9');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (file.preview) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void filePathToHostedMediaSrc(file.filePath, file.mimeType).then((nextSrc) => {
+      if (cancelled) return;
+      setSrc(nextSrc);
+      setLoadState(nextSrc ? 'loading' : 'error');
+    }).catch((error) => {
+      console.warn('[VideoPreviewCard] Failed to build video src', {
+        fileName: file.fileName,
+        filePath: file.filePath,
+        mimeType: file.mimeType,
+        error,
+      });
+      if (!cancelled) {
+        setSrc(null);
+        setLoadState('error');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file.fileName, file.filePath, file.mimeType, file.preview]);
+
+  const handleOpen = useCallback(() => {
+    if (file.filePath) {
+      invokeIpc('shell:openPath', file.filePath);
+    }
+  }, [file.filePath]);
+
+  if (!src) {
+    return <FileCard file={file} />;
+  }
+
+  return (
+    <div
+      data-testid="chat-video-preview"
+      className={cn(
+        'relative overflow-hidden rounded-xl border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5',
+        compact ? 'w-64 max-w-full' : 'w-[min(28rem,100%)]'
+      )}
+    >
+      <video
+        src={src}
+        controls
+        preload="auto"
+        onLoadedMetadata={(event) => {
+          setAspectRatio(getVideoAspectRatio(event.currentTarget) || '16 / 9');
+          setLoadState('ready');
+          console.info('[VideoPreviewCard] loaded video metadata', {
+            fileName: file.fileName,
+            filePath: file.filePath,
+            mimeType: file.mimeType,
+            duration: event.currentTarget.duration,
+            videoWidth: event.currentTarget.videoWidth,
+            videoHeight: event.currentTarget.videoHeight,
+            src: event.currentTarget.currentSrc || event.currentTarget.src,
+          });
+          revealVideoPreviewFrame(event.currentTarget);
+        }}
+        onError={(event) => {
+          setLoadState('error');
+          const mediaError = event.currentTarget.error;
+          console.warn('[VideoPreviewCard] video failed to load', {
+            fileName: file.fileName,
+            filePath: file.filePath,
+            mimeType: file.mimeType,
+            code: mediaError?.code,
+            message: mediaError?.message,
+            networkState: event.currentTarget.networkState,
+            readyState: event.currentTarget.readyState,
+            src: event.currentTarget.currentSrc || event.currentTarget.src,
+          });
+        }}
+        style={{ aspectRatio }}
+        className="block w-full min-h-32 max-h-[70vh] bg-black object-contain"
+        title={file.fileName}
+      />
+      {loadState !== 'ready' && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 flex min-h-32 items-center justify-center bg-black/70 px-3 text-center text-[11px] text-white/70"
+          style={{ aspectRatio }}
+        >
+          {loadState === 'error' ? t('message.videoPreviewUnavailable') : t('message.loadingVideoPreview')}
+        </div>
+      )}
+      <button
+        type="button"
+        className={cn(
+          'flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors',
+          file.filePath && 'hover:bg-black/10 dark:hover:bg-white/10'
+        )}
+        onClick={handleOpen}
+        disabled={!file.filePath}
+        title={file.filePath ? t('message.openFile') : undefined}
+      >
+        <Film className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 truncate">{mediaLabel(file.fileName, file.fileSize, formatFileSize)}</span>
+      </button>
     </div>
   );
 }
@@ -861,7 +1046,10 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]">
+    <div
+      className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]"
+      data-testid="chat-tool-card"
+    >
       <button
         className="flex items-center gap-2 w-full px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
         onClick={() => setExpanded(!expanded)}

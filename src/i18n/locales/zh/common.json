@@ -68,8 +68,11 @@
         "startLogin": "开始登录",
         "redirecting": "正在跳转...",
         "lastLoginAccount": "上次登录账号：{{email}}",
+        "loginSucceeded": "登录成功",
         "loginFailed": "登录失败",
         "loggingIn": "登录中",
-        "loggingInDesc": "正在完成登录，请稍候..."
+        "loggingInDesc": "正在完成登录，请稍候...",
+        "loginSucceededTitle": "登录成功",
+        "loginSucceededDesc": "正在进入应用，请稍候..."
     }
 }

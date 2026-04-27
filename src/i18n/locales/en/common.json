@@ -68,8 +68,11 @@
         "startLogin": "Start Sign In",
         "redirecting": "Redirecting...",
         "lastLoginAccount": "Last signed-in account: {{email}}",
+        "loginSucceeded": "Signed in successfully",
         "loginFailed": "Login failed",
         "loggingIn": "Signing in",
-        "loggingInDesc": "Completing sign-in, please wait..."
+        "loggingInDesc": "Completing sign-in, please wait...",
+        "loginSucceededTitle": "Signed in",
+        "loginSucceededDesc": "Entering the app, please wait..."
     }
 }

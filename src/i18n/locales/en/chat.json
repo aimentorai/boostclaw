@@ -71,7 +71,9 @@
         "stop": "Stop",
         "gatewayConnected": "connected",
         "gatewayStatus": "Gateway {{state}} | port: {{port}} {{pid}}",
-        "retryFailedAttachments": "Retry failed attachments"
+        "retryFailedAttachments": "Retry failed attachments",
+        "modelUpdated": "Updated {{agent}} model to {{model}}",
+        "modelUpdateFailed": "Failed to update model: {{error}}"
     },
     "historyBuckets": {
         "today": "Today",
@@ -83,6 +85,19 @@
     },
     "taskProgress": {
         "processing": "Processing"
+    },
+    "message": {
+        "thinking": "Thinking",
+        "thinkingHidden": "Thinking hidden",
+        "openFile": "Open file",
+        "file": "File",
+        "loadingVideoPreview": "Loading video preview...",
+        "videoPreviewUnavailable": "Video preview unavailable"
+    },
+    "timestamp": {
+        "justNow": "just now",
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago"
     },
     "experts": {
         "navLabel": "Experts",

@@ -86,6 +86,7 @@ export interface ProviderTypeInfo {
   showModelIdInDevModeOnly?: boolean;
   modelIdPlaceholder?: string;
   defaultModelId?: string;
+  availableModels?: string[];
   isOAuth?: boolean;
   supportsApiKey?: boolean;
   apiKeyUrl?: string;
@@ -154,6 +155,8 @@ export type ProviderSecret =
     scopes?: string[];
     email?: string;
     subject?: string;
+    portalUserId?: string;
+    modelUserId?: string;
   }
   | {
     type: 'local';
