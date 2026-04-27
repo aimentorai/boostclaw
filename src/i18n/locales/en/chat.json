@@ -84,6 +84,18 @@
     "taskProgress": {
         "processing": "Processing"
     },
+    "message": {
+        "thinking": "Thinking",
+        "openFile": "Open file",
+        "file": "File",
+        "loadingVideoPreview": "Loading video preview...",
+        "videoPreviewUnavailable": "Video preview unavailable"
+    },
+    "timestamp": {
+        "justNow": "just now",
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago"
+    },
     "experts": {
         "navLabel": "Experts",
         "pageTitle": "AI Experts",

@@ -36,6 +36,7 @@ import {
   extractImages,
   extractToolUse,
   formatTimestamp,
+  type TimestampFormatter,
 } from './message-utils';
 import { TaskProgressText } from './TaskProgressText';
 import { formatReadableText, parseTaskProgressText } from './text-formatting';
@@ -84,6 +85,7 @@ export const ChatMessage = memo(function ChatMessage({
   const isUser = message.role === 'user';
   const role = typeof message.role === 'string' ? message.role.toLowerCase() : '';
   const isToolResult = role === 'toolresult' || role === 'tool_result';
+  const { t } = useTranslation('chat');
   const text = extractText(message);
   const hasText = text.trim().length > 0;
   const thinking = extractThinking(message);
@@ -290,7 +292,7 @@ export const ChatMessage = memo(function ChatMessage({
         {/* Hover row for user messages — timestamp only */}
         {isUser && message.timestamp && (
           <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-            {formatTimestamp(message.timestamp)}
+            {formatTimestamp(message.timestamp, t as TimestampFormatter)}
           </span>
         )}
 
@@ -372,7 +374,8 @@ function ToolStatusBar({
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
 function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
-  const { t } = useTranslation('common');
+  const { t: tCommon } = useTranslation('common');
+  const { t } = useTranslation('chat');
   const [copied, setCopied] = useState(false);
 
   const copyContent = useCallback(() => {
@@ -384,7 +387,7 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   return (
     <div className="flex w-full select-none items-center justify-between px-1 opacity-100">
       <span className="text-xs text-muted-foreground">
-        {timestamp ? formatTimestamp(timestamp) : ''}
+        {timestamp ? formatTimestamp(timestamp, t as TimestampFormatter) : ''}
       </span>
       <Button
         variant="ghost"
@@ -396,8 +399,8 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
             : 'border-[#edf0f5] bg-white/70 text-[#9aa2ae] hover:bg-white hover:text-[#5f6875]'
         )}
         onClick={copyContent}
-        title={t('actions.copy')}
-        aria-label={t('actions.copy')}
+        title={tCommon('actions.copy')}
+        aria-label={tCommon('actions.copy')}
         data-testid="assistant-copy-button"
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -658,7 +661,7 @@ function ThinkingBlock({ content }: { content: string }) {
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <span className="font-medium">Thinking</span>
+        <span className="font-medium">{t('message.thinking')}</span>
       </button>
       {expanded && (
         <div className="px-3 pb-3 text-muted-foreground">
@@ -707,6 +710,7 @@ function FileIcon({ mimeType, className }: { mimeType: string; className?: strin
 }
 
 function FileCard({ file }: { file: AttachedFileMeta }) {
+  const { t } = useTranslation('chat');
   const handleOpen = useCallback(() => {
     if (file.filePath) {
       invokeIpc('shell:openPath', file.filePath);
@@ -720,13 +724,13 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
         file.filePath && 'cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors'
       )}
       onClick={handleOpen}
-      title={file.filePath ? 'Open file' : undefined}
+      title={file.filePath ? t('message.openFile') : undefined}
     >
       <FileIcon mimeType={file.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 overflow-hidden">
         <p className="text-xs font-medium truncate">{file.fileName}</p>
         <p className="text-[10px] text-muted-foreground">
-          {file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
+          {file.fileSize > 0 ? formatFileSize(file.fileSize) : t('message.file')}
         </p>
       </div>
     </div>
@@ -740,6 +744,7 @@ function VideoPreviewCard({
   file: AttachedFileMeta;
   compact?: boolean;
 }) {
+  const { t } = useTranslation('chat');
   const [src, setSrc] = useState<string | null>(file.preview);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
     file.preview ? 'ready' : 'loading'
@@ -835,7 +840,7 @@ function VideoPreviewCard({
           className="pointer-events-none absolute inset-x-0 top-0 flex min-h-32 items-center justify-center bg-black/70 px-3 text-center text-[11px] text-white/70"
           style={{ aspectRatio }}
         >
-          {loadState === 'error' ? 'Video preview unavailable' : 'Loading video preview...'}
+          {loadState === 'error' ? t('message.videoPreviewUnavailable') : t('message.loadingVideoPreview')}
         </div>
       )}
       <button
@@ -846,7 +851,7 @@ function VideoPreviewCard({
         )}
         onClick={handleOpen}
         disabled={!file.filePath}
-        title={file.filePath ? 'Open file' : undefined}
+        title={file.filePath ? t('message.openFile') : undefined}
       >
         <Film className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 truncate">{mediaLabel(file.fileName, file.fileSize, formatFileSize)}</span>

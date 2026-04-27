@@ -82,6 +82,18 @@
     "taskProgress": {
         "processing": "処理中"
     },
+    "message": {
+        "thinking": "思考プロセス",
+        "openFile": "ファイルを開く",
+        "file": "ファイル",
+        "loadingVideoPreview": "動画プレビューを読み込み中...",
+        "videoPreviewUnavailable": "動画をプレビューできません"
+    },
+    "timestamp": {
+        "justNow": "たった今",
+        "minutesAgo": "{{count}}分前",
+        "hoursAgo": "{{count}}時間前"
+    },
     "experts": {
         "navLabel": "エキスパート",
         "pageTitle": "AI エキスパート",
