@@ -789,6 +789,182 @@ function patchBundledRuntime(outputDir) {
   if (ptyCount > 0) {
     echo`   🩹 Patched ${ptyCount} bundled PTY site(s)`;
   }
+
+  const jsonFilesTargets = findFilesByName(
+    path.join(outputDir, 'dist'),
+    /^json-files-.*\.js$/,
+  );
+  const renameHelper = [
+    'async function renameWithRetry(srcPath, destPath) {',
+    '\tif (process.platform !== "win32") {',
+    '\t\tawait fs.rename(srcPath, destPath);',
+    '\t\treturn;',
+    '\t}',
+    '\tconst retryableCodes = new Set(["EPERM", "EBUSY", "EACCES"]);',
+    '\tconst maxAttempts = 8;',
+    '\tlet delayMs = 25;',
+    '\tfor (let attempt = 1; attempt <= maxAttempts; attempt++) {',
+    '\t\ttry {',
+    '\t\t\tawait fs.rename(srcPath, destPath);',
+    '\t\t\treturn;',
+    '\t\t} catch (error) {',
+    '\t\t\tconst code = typeof error?.code === "string" ? error.code : "";',
+    '\t\t\tif (!retryableCodes.has(code) || attempt === maxAttempts) throw error;',
+    '\t\t\tawait new Promise((resolve) => setTimeout(resolve, delayMs));',
+    '\t\t\tdelayMs = Math.min(delayMs * 2, 400);',
+    '\t\t}',
+    '\t}',
+    '}',
+    '',
+  ].join('\n');
+
+  let jsonAtomicPatchCount = 0;
+  for (const target of jsonFilesTargets) {
+    const current = fs.readFileSync(target, 'utf8');
+    if (!current.includes('await fs.rename(tmp, filePath);')) continue;
+
+    let next = current;
+    if (!next.includes('async function renameWithRetry(srcPath, destPath)')) {
+      const importAnchor = 'import { randomUUID } from "node:crypto";';
+      if (!next.includes(importAnchor)) {
+        echo`   ⚠️  Skipped patch for json-files rename retry: import anchor not found in ${path.basename(target)}`;
+        continue;
+      }
+      next = next.replace(importAnchor, `${importAnchor}\n${renameHelper}`);
+    }
+    next = next.replace('await fs.rename(tmp, filePath);', 'await renameWithRetry(tmp, filePath);');
+
+    if (next !== current) {
+      fs.writeFileSync(target, next, 'utf8');
+      jsonAtomicPatchCount++;
+    }
+  }
+  if (jsonAtomicPatchCount > 0) {
+    echo`   🩹 Patched ${jsonAtomicPatchCount} bundled json atomic write site(s) for Windows rename retries`;
+  }
+
+  const usageFormatTarget = findFirstFileByName(
+    path.join(outputDir, 'dist'),
+    /^usage-format-.*\.js$/,
+  );
+  if (usageFormatTarget && fs.existsSync(usageFormatTarget)) {
+    const current = fs.readFileSync(usageFormatTarget, 'utf8');
+    const timeoutConstSearch = 'const FETCH_TIMEOUT_MS = 15e3;';
+    const timeoutConstReplace = [
+      'const FETCH_TIMEOUT_MS = 25e3;',
+      'const FETCH_RETRY_ATTEMPTS = 3;',
+      'const FETCH_RETRY_BASE_DELAY_MS = 500;',
+    ].join('\n');
+    const fetchFunctionSearch = `async function fetchOpenRouterPricingCatalog(fetchImpl) {
+\tconst response = await fetchImpl(OPENROUTER_MODELS_URL, {
+\t\theaders: { Accept: "application/json" },
+\t\tsignal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+\t});
+\tif (!response.ok) throw new Error(\`OpenRouter /models failed: HTTP \${response.status}\`);
+\tconst payload = await response.json();
+\tconst entries = Array.isArray(payload.data) ? payload.data : [];
+\tconst catalog = /* @__PURE__ */ new Map();
+\tfor (const entry of entries) {
+\t\tconst obj = entry;
+\t\tconst id = typeof obj.id === "string" ? obj.id.trim() : "";
+\t\tconst pricing = parseOpenRouterPricing(obj.pricing);
+\t\tif (!id || !pricing) continue;
+\t\tcatalog.set(id, {
+\t\t\tid,
+\t\t\tpricing
+\t\t});
+\t}
+\treturn catalog;
+}`;
+    const fetchFunctionReplace = `async function fetchOpenRouterPricingCatalog(fetchImpl) {
+\tlet lastError = null;
+\tfor (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt++) {
+\t\ttry {
+\t\t\tconst response = await fetchImpl(OPENROUTER_MODELS_URL, {
+\t\t\t\theaders: { Accept: "application/json" },
+\t\t\t\tsignal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+\t\t\t});
+\t\t\tif (!response.ok) throw new Error(\`OpenRouter /models failed: HTTP \${response.status}\`);
+\t\t\tconst payload = await response.json();
+\t\t\tconst entries = Array.isArray(payload.data) ? payload.data : [];
+\t\t\tconst catalog = /* @__PURE__ */ new Map();
+\t\t\tfor (const entry of entries) {
+\t\t\t\tconst obj = entry;
+\t\t\t\tconst id = typeof obj.id === "string" ? obj.id.trim() : "";
+\t\t\t\tconst pricing = parseOpenRouterPricing(obj.pricing);
+\t\t\t\tif (!id || !pricing) continue;
+\t\t\t\tcatalog.set(id, {
+\t\t\t\t\tid,
+\t\t\t\t\tpricing
+\t\t\t\t});
+\t\t\t}
+\t\t\treturn catalog;
+\t\t} catch (error) {
+\t\t\tlastError = error;
+\t\t\tconst errorName = typeof error?.name === "string" ? error.name : "";
+\t\t\tconst errorMessage = String(error).toLowerCase();
+\t\t\tconst isRetryable = errorName === "TimeoutError" || errorName === "AbortError" || errorMessage.includes("timeout");
+\t\t\tif (!isRetryable || attempt === FETCH_RETRY_ATTEMPTS) throw error;
+\t\t\tawait new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_BASE_DELAY_MS * attempt));
+\t\t}
+\t}
+\tthrow lastError ?? new Error("OpenRouter /models failed: unknown error");
+}`;
+    let next = current;
+    if (next.includes(timeoutConstSearch)) {
+      next = next.replace(timeoutConstSearch, timeoutConstReplace);
+    } else {
+      echo`   ⚠️  Skipped patch for model-pricing timeout constants: expected snippet not found`;
+    }
+    if (next.includes(fetchFunctionSearch)) {
+      next = next.replace(fetchFunctionSearch, fetchFunctionReplace);
+    } else {
+      echo`   ⚠️  Skipped patch for model-pricing fetch retry: expected function snippet not found`;
+    }
+    if (next !== current) {
+      fs.writeFileSync(usageFormatTarget, next, 'utf8');
+      echo`   🩹 Patched model-pricing bootstrap fetch with retry/backoff`;
+    }
+  } else {
+    echo`   ⚠️  Skipped model-pricing patch: usage-format bundle not found`;
+  }
+
+  const configIoTarget = findFirstFileByName(
+    path.join(outputDir, 'dist'),
+    /^io-.*\.js$/,
+  );
+  if (configIoTarget && fs.existsSync(configIoTarget)) {
+    const current = fs.readFileSync(configIoTarget, 'utf8');
+    const overwriteLoggerSearch = `\t\tconst logConfigOverwrite = () => {
+\t\t\tif (!snapshot.exists) return;
+\t\t\tconst isVitest = deps.env.VITEST === "true";
+\t\t\tconst shouldLogInVitest = deps.env.OPENCLAW_TEST_CONFIG_OVERWRITE_LOG === "1";
+\t\t\tif (isVitest && !shouldLogInVitest) return;
+\t\t\tconst changeSummary = typeof changedPathCount === "number" ? \`, changedPaths=\${changedPathCount}\` : "";
+\t\t\tdeps.logger.warn(\`Config overwrite: \${configPath} (sha256 \${previousHash ?? "unknown"} -> \${nextHash}, backup=\${configPath}.bak\${changeSummary})\`);
+\t\t};`;
+    const overwriteLoggerReplace = `\t\tconst logConfigOverwrite = () => {
+\t\t\tif (!snapshot.exists) return;
+\t\t\tconst isVitest = deps.env.VITEST === "true";
+\t\t\tconst shouldLogInVitest = deps.env.OPENCLAW_TEST_CONFIG_OVERWRITE_LOG === "1";
+\t\t\tif (isVitest && !shouldLogInVitest) return;
+\t\t\tconst changeSummary = typeof changedPathCount === "number" ? \`, changedPaths=\${changedPathCount}\` : "";
+\t\t\tconst isSuspiciousOverwrite = suspiciousReasons.length > 0;
+\t\t\tconst logFn = isSuspiciousOverwrite ? deps.logger.warn : (deps.logger.info ?? deps.logger.warn);
+\t\t\tlogFn(\`Config overwrite: \${configPath} (sha256 \${previousHash ?? "unknown"} -> \${nextHash}, backup=\${configPath}.bak\${changeSummary})\`);
+\t\t};`;
+    if (current.includes(overwriteLoggerSearch)) {
+      const next = current.replace(overwriteLoggerSearch, overwriteLoggerReplace);
+      if (next !== current) {
+        fs.writeFileSync(configIoTarget, next, 'utf8');
+        echo`   🩹 Patched config overwrite logging severity (warn only when suspicious)`;
+      }
+    } else {
+      echo`   ⚠️  Skipped patch for config overwrite log severity: expected snippet not found`;
+    }
+  } else {
+    echo`   ⚠️  Skipped config overwrite patch: io bundle not found`;
+  }
 }
 
 patchBrokenModules(outputNodeModules);

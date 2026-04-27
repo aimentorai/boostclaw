@@ -24,6 +24,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   useProviderStore,
   type ProviderAccount,
   type ProviderConfig,
@@ -45,6 +52,8 @@ import {
   buildProviderAccountId,
   buildProviderListItems,
   hasConfiguredCredentials,
+  SYSTEM_DEFAULT_PROVIDER_ACCOUNT_ID,
+  type SystemDefaultModelProviderInfo,
   type ProviderListItem,
 } from '@/lib/provider-accounts';
 import { cn } from '@/lib/utils';
@@ -59,6 +68,15 @@ const inputClasses =
   'h-[44px] rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
 const labelClasses = 'text-[14px] text-foreground/80 font-bold';
 type ArkMode = 'apikey' | 'codeplan';
+const MODEL_ID_QUICK_LIST = [
+  'deepseek-r1',
+  'deepseek-v3.2',
+  'MiniMax-M2.5',
+  'qwen-max',
+  'qwen-plus',
+  'qwen-turbo',
+  'siliconflow/deepseek-v3.2',
+].join(' / ');
 
 function normalizeFallbackProviderIds(ids?: string[]): string[] {
   return Array.from(new Set((ids ?? []).filter(Boolean)));
@@ -174,6 +192,7 @@ export function ProvidersSettings() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
+  const [systemDefaultProviderInfo, setSystemDefaultProviderInfo] = useState<SystemDefaultModelProviderInfo | null>(null);
   const safeStatuses = ensureArray<ProviderWithKeyInfo>(statuses);
   const safeAccounts = ensureArray<ProviderAccount>(accounts);
   const safeVendors = ensureArray<ProviderVendorInfo>(vendors);
@@ -187,6 +206,24 @@ export function ProvidersSettings() {
   // Fetch providers on mount
   useEffect(() => {
     refreshProviderSnapshot();
+  }, [refreshProviderSnapshot]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hostApiFetch<SystemDefaultModelProviderInfo>('/api/auth/system-default-model-provider')
+      .then((result) => {
+        if (!cancelled) {
+          setSystemDefaultProviderInfo(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSystemDefaultProviderInfo(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshProviderSnapshot]);
 
   const handleAddProvider = async (
@@ -258,6 +295,17 @@ export function ProvidersSettings() {
 
   return (
     <div data-testid="providers-settings" className="space-y-6">
+      {systemDefaultProviderInfo && !systemDefaultProviderInfo.available && (
+        <div
+          data-testid="providers-system-default-status"
+          className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
+        >
+          <p className="font-medium">{t('aiProviders.systemDefaultUnavailableTitle')}</p>
+          <p className="mt-1 break-all text-amber-900/80 dark:text-amber-100/80">
+            {systemDefaultProviderInfo.error || t('aiProviders.systemDefaultUnavailableDesc')}
+          </p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h2
           data-testid="providers-settings-title"
@@ -421,6 +469,11 @@ function ProviderCard({
       : providerDocsUrl;
   const canEditModelConfig = Boolean(typeInfo?.showBaseUrl || showModelIdField);
   const showUserAgentField = shouldShowUserAgentField(account);
+  const isSystemDefaultProvider = account.id === SYSTEM_DEFAULT_PROVIDER_ACCOUNT_ID;
+  const showSystemDefaultModelIdOnly = isSystemDefaultProvider;
+  const accountVendorLabel = isSystemDefaultProvider
+    ? account.label
+    : (vendor?.name || account.vendorId);
 
   useEffect(() => {
     if (isEditing) {
@@ -557,10 +610,19 @@ function ProviderCard({
     ? 'h-[40px] rounded-xl font-mono text-[13px] bg-white dark:bg-card border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm'
     : inputClasses;
 
-  const currentLabelClasses = isDefault ? 'text-[13px] text-muted-foreground' : labelClasses;
-  const currentSectionLabelClasses = isDefault
-    ? 'text-[14px] font-bold text-foreground/80'
-    : labelClasses;
+  const currentLabelClasses = isDefault ? "text-[13px] text-muted-foreground" : labelClasses;
+  const currentSectionLabelClasses = isDefault ? "text-[14px] font-bold text-foreground/80" : labelClasses;
+  const isSaveDisabled = validating
+    || saving
+    || (
+      !newKey.trim()
+      && (baseUrl.trim() || undefined) === (account.baseUrl || undefined)
+      && userAgent.trim() === getUserAgentHeader(account.headers).trim()
+      && (modelId.trim() || undefined) === (account.model || undefined)
+      && fallbackModelsEqual(normalizeFallbackModels(fallbackModelsText.split('\n')), account.fallbackModels)
+      && fallbackProviderIdsEqual(fallbackProviderIds, account.fallbackAccountIds)
+    )
+    || Boolean(showModelIdField && !modelId.trim());
 
   return (
     <div
@@ -596,7 +658,7 @@ function ProviderCard({
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[13px] text-muted-foreground">
-              <span className="capitalize">{vendor?.name || account.vendorId}</span>
+              <span className="capitalize">{accountVendorLabel}</span>
               <span className="w-1 h-1 rounded-full bg-black/20 dark:bg-white/20" />
               <span>{getAuthModeLabel(account.authMode, t)}</span>
               {account.model && (
@@ -659,26 +721,32 @@ function ProviderCard({
                 <Check className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              data-testid={`provider-edit-${account.id}`}
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white dark:hover:bg-card shadow-sm"
-              onClick={onEdit}
-              title={t('aiProviders.card.editKey')}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              data-testid={`provider-delete-${account.id}`}
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-white dark:hover:bg-card shadow-sm"
-              onClick={onDelete}
-              title={t('aiProviders.card.delete')}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <>
+              <Button
+                data-testid={`provider-edit-${account.id}`}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white dark:hover:bg-card shadow-sm"
+                onClick={onEdit}
+                title={t('aiProviders.card.editKey')}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              {!isSystemDefaultProvider && (
+              <>
+                <Button
+                  data-testid={`provider-delete-${account.id}`}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-white dark:hover:bg-card shadow-sm"
+                  onClick={onDelete}
+                  title={t('aiProviders.card.delete')}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+              )}
+            </>
           </div>
         )}
       </div>
@@ -701,7 +769,7 @@ function ProviderCard({
           {canEditModelConfig && (
             <div className="space-y-3">
               <p className={currentSectionLabelClasses}>{t('aiProviders.sections.model')}</p>
-              {typeInfo?.showBaseUrl && (
+              {!showSystemDefaultModelIdOnly && typeInfo?.showBaseUrl && (
                 <div className="space-y-1.5">
                   <Label className={currentLabelClasses}>{t('aiProviders.dialog.baseUrl')}</Label>
                   <Input
@@ -715,12 +783,32 @@ function ProviderCard({
               {showModelIdField && (
                 <div className="space-y-1.5 pt-2">
                   <Label className={currentLabelClasses}>{t('aiProviders.dialog.modelId')}</Label>
-                  <Input
-                    value={modelId}
-                    onChange={(e) => setModelId(e.target.value)}
-                    placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
-                    className={currentInputClasses}
-                  />
+                  {typeInfo?.availableModels && typeInfo.availableModels.length > 0 ? (
+                    <Select value={modelId} onValueChange={setModelId}>
+                      <SelectTrigger className={cn(currentInputClasses, 'h-[44px]')}>
+                        <SelectValue placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {typeInfo.availableModels.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={modelId}
+                      onChange={(e) => setModelId(e.target.value)}
+                      placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
+                      className={currentInputClasses}
+                    />
+                  )}
+                  {showSystemDefaultModelIdOnly && (
+                    <p className="text-[12px] text-muted-foreground">
+                      {t('aiProviders.dialog.modelList')}: {MODEL_ID_QUICK_LIST}
+                    </p>
+                  )}
                 </div>
               )}
               {account.vendorId === 'ark' && codePlanPreset && (
@@ -784,7 +872,7 @@ function ProviderCard({
                   )}
                 </div>
               )}
-              {account.vendorId === 'custom' && (
+              {!showSystemDefaultModelIdOnly && account.vendorId === 'custom' && (
                 <div className="space-y-1.5 pt-2">
                   <Label className={currentLabelClasses}>
                     {t('aiProviders.dialog.protocol', 'Protocol')}
@@ -829,7 +917,7 @@ function ProviderCard({
                   </div>
                 </div>
               )}
-              {showUserAgentField && (
+              {!showSystemDefaultModelIdOnly && showUserAgentField && (
                 <div className="space-y-1.5 pt-2">
                   <Label className={currentLabelClasses}>{t('aiProviders.dialog.userAgent')}</Label>
                   <Input
@@ -840,8 +928,42 @@ function ProviderCard({
                   />
                 </div>
               )}
+              {showSystemDefaultModelIdOnly && (
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleSaveEdits}
+                    className={cn(
+                      "rounded-xl px-4 border-black/10 dark:border-white/10",
+                      isDefault
+                        ? "h-[40px] bg-white dark:bg-card hover:bg-black/5 dark:hover:bg-white/10"
+                        : "h-[44px] bg-[#eeece3] dark:bg-muted hover:bg-black/5 dark:hover:bg-white/10 shadow-sm"
+                    )}
+                    disabled={isSaveDisabled}
+                  >
+                    {validating || saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={onCancelEdit}
+                    className={cn(
+                      "p-0 rounded-xl",
+                      isDefault
+                        ? "h-[40px] w-[40px] hover:bg-black/5 dark:hover:bg-white/10"
+                        : "h-[44px] w-[44px] bg-[#eeece3] dark:bg-muted border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 shadow-sm text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
+          {!showSystemDefaultModelIdOnly && (
           <div className="space-y-3">
             <button
               onClick={() => setShowFallback(!showFallback)}
@@ -914,6 +1036,8 @@ function ProviderCard({
               </div>
             )}
           </div>
+          )}
+          {!showSystemDefaultModelIdOnly && (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
@@ -980,20 +1104,7 @@ function ProviderCard({
                       ? 'h-[40px] bg-white dark:bg-card hover:bg-black/5 dark:hover:bg-white/10'
                       : 'h-[44px] bg-[#eeece3] dark:bg-muted hover:bg-black/5 dark:hover:bg-white/10 shadow-sm'
                   )}
-                  disabled={
-                    validating ||
-                    saving ||
-                    (!newKey.trim() &&
-                      (baseUrl.trim() || undefined) === (account.baseUrl || undefined) &&
-                      userAgent.trim() === getUserAgentHeader(account.headers).trim() &&
-                      (modelId.trim() || undefined) === (account.model || undefined) &&
-                      fallbackModelsEqual(
-                        normalizeFallbackModels(fallbackModelsText.split('\n')),
-                        account.fallbackModels
-                      ) &&
-                      fallbackProviderIdsEqual(fallbackProviderIds, account.fallbackAccountIds)) ||
-                    Boolean(showModelIdField && !modelId.trim())
-                  }
+                  disabled={isSaveDisabled}
                 >
                   {validating || saving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1019,6 +1130,7 @@ function ProviderCard({
               </p>
             </div>
           </div>
+          )}
         </div>
       )}
     </div>

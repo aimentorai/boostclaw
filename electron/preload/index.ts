@@ -24,6 +24,7 @@ const electronAPI = {
         'gateway:httpProxy',
         'hostapi:fetch',
         'hostapi:token',
+        'hostapi:baseUrl',
         'gateway:health',
         'gateway:getControlUiUrl',
         // OpenClaw
@@ -45,6 +46,9 @@ const electronAPI = {
         'app:quit',
         'app:relaunch',
         'app:request',
+        // Auth mask (debug toggle)
+        'auth:mask:get',
+        'auth:mask:set',
         // Window controls
         'window:minimize',
         'window:maximize',

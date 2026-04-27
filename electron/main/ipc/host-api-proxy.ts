@@ -16,6 +16,7 @@ export function registerHostApiProxyHandlers(): void {
   // Expose the per-session auth token to the renderer so the browser-fallback
   // path in host-api.ts can authenticate against the Host API server.
   ipcMain.handle('hostapi:token', () => getHostApiToken());
+  ipcMain.handle('hostapi:baseUrl', () => `http://127.0.0.1:${hostApiPort}`);
 
   ipcMain.handle('hostapi:fetch', async (_, request: HostApiFetchRequest) => {
     try {

@@ -39,6 +39,73 @@ type ControlUiInfo = {
   port: number;
 };
 
+type AuthDebugInfo = {
+  enabled: boolean;
+  authenticated: boolean;
+  source: 'electron_session_cookie' | 'stored_secret' | 'none';
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiresAt?: number;
+  email?: string;
+  subject?: string;
+  portalUserId?: string;
+  scope?: string;
+};
+
+type SubscriptionQuotaSnapshot = {
+  provider: 'tt' | 'amz';
+  ok: boolean;
+  status: number;
+  code?: string;
+  message?: string;
+  totalQuota?: number;
+  usedQuota?: number;
+  remainingQuota?: number;
+  error?: string;
+};
+
+type SubscriptionQuotaSummary = {
+  portalUserId: string | null;
+  snapshots: SubscriptionQuotaSnapshot[];
+};
+
+type SubscriptionAutoTrialResponse = {
+  provider: 'tt' | 'amz';
+  ok: boolean;
+  status: number;
+  code?: string;
+  message?: string;
+  error?: string;
+};
+
+type PostLoginSessionCookieInfo = {
+  found: boolean;
+  url: string;
+  name: string;
+  domain?: string;
+  value?: string;
+  userId?: string;
+};
+
+// Summary of a single MCP server, returned from /api/auth/subscription-mcp-config.
+// Sensitive headers are intentionally excluded on the main-process side.
+type SubscriptionMcpServerSummary = {
+  name: string;
+  type?: string;
+  url?: string;
+};
+
+type SubscriptionMcpConfigResponse = {
+  ok: boolean;
+  status: number;
+  code?: string;
+  message?: string;
+  portalUserId: string | null;
+  serverNames: string[];
+  servers: SubscriptionMcpServerSummary[];
+  error?: string;
+};
+
 const DISPLAY_VERSION = '0.1.0';
 
 export function Settings() {
@@ -107,11 +174,158 @@ export function Settings() {
   const authEnabled = useAuthStore((state) => state.enabled);
   const authProfile = useAuthStore((state) => state.profile);
   const logout = useAuthStore((state) => state.logout);
+  const [authDebugInfo, setAuthDebugInfo] = useState<AuthDebugInfo | null>(null);
+  const [subscriptionQuotaSummary, setSubscriptionQuotaSummary] = useState<SubscriptionQuotaSummary | null>(null);
+  const [postLoginSessionCookieInfo, setPostLoginSessionCookieInfo] = useState<PostLoginSessionCookieInfo | null>(null);
+  const [subscriptionTrialLoading, setSubscriptionTrialLoading] = useState<Record<'tt' | 'amz', boolean>>({
+    tt: false,
+    amz: false,
+  });
+  // MCP configuration pulled from the subscription service. We keep it in the
+  // account panel so the user can verify which services are wired up after login.
+  const [subscriptionMcpConfig, setSubscriptionMcpConfig] = useState<SubscriptionMcpConfigResponse | null>(null);
+  const [subscriptionMcpConfigLoading, setSubscriptionMcpConfigLoading] = useState(false);
+
+  const refreshSubscriptionQuotaSummary = async (): Promise<SubscriptionQuotaSummary> => {
+    const result = await hostApiFetch<SubscriptionQuotaSummary>('/api/auth/subscription-quotas');
+    setSubscriptionQuotaSummary(result);
+    return result;
+  };
+
+  // Fetches the MCP subscription config via the main process. Shows a toast on
+  // explicit user refresh so network/code failures are surfaced immediately.
+  const refreshSubscriptionMcpConfig = async (options?: { silent?: boolean }): Promise<SubscriptionMcpConfigResponse | null> => {
+    setSubscriptionMcpConfigLoading(true);
+    try {
+      const result = await hostApiFetch<SubscriptionMcpConfigResponse>('/api/auth/subscription-mcp-config');
+      setSubscriptionMcpConfig(result);
+      if (!options?.silent) {
+        if (result.ok) {
+          toast.success(t('account.mcpConfigRefreshSucceeded'));
+        } else {
+          toast.error(result.message || result.error || t('account.mcpConfigRefreshFailed'));
+        }
+      }
+      return result;
+    } catch (error) {
+      setSubscriptionMcpConfig(null);
+      if (!options?.silent) {
+        toast.error(toUserMessage(error) || t('account.mcpConfigRefreshFailed'));
+      }
+      return null;
+    } finally {
+      setSubscriptionMcpConfigLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authEnabled) {
+      setAuthDebugInfo(null);
+      return;
+    }
+    let cancelled = false;
+    void hostApiFetch<AuthDebugInfo>('/api/auth/debug')
+      .then((result) => {
+        if (!cancelled) {
+          setAuthDebugInfo(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAuthDebugInfo(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authEnabled, authProfile?.email, authProfile?.subject, authProfile?.expiresAt]);
+
+  useEffect(() => {
+    if (!authEnabled) {
+      setSubscriptionQuotaSummary(null);
+      setPostLoginSessionCookieInfo(null);
+      return;
+    }
+    let cancelled = false;
+    void refreshSubscriptionQuotaSummary()
+      .then((result) => {
+        if (!cancelled) {
+          setSubscriptionQuotaSummary(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSubscriptionQuotaSummary(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authEnabled, authDebugInfo?.portalUserId, authProfile?.expiresAt]);
+
+  useEffect(() => {
+    if (!authEnabled) {
+      setSubscriptionMcpConfig(null);
+      return;
+    }
+    // Silent first-load; the manual refresh button handles user-facing errors.
+    void refreshSubscriptionMcpConfig({ silent: true });
+    // refreshSubscriptionMcpConfig is stable for this component's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authEnabled, authDebugInfo?.portalUserId]);
+
+  useEffect(() => {
+    if (!authEnabled) {
+      setPostLoginSessionCookieInfo(null);
+      return;
+    }
+    let cancelled = false;
+    void hostApiFetch<PostLoginSessionCookieInfo>('/api/auth/post-login-session')
+      .then((result) => {
+        if (!cancelled) {
+          setPostLoginSessionCookieInfo(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPostLoginSessionCookieInfo(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authEnabled, authDebugInfo?.portalUserId, authProfile?.expiresAt]);
 
   const handleLogout = async () => {
     await logout();
     toast.success(t('account.logoutSucceeded'));
     navigate('/login');
+  };
+
+  const handleSubscriptionAutoTrial = async (provider: 'tt' | 'amz') => {
+    setSubscriptionTrialLoading((prev) => ({ ...prev, [provider]: true }));
+    try {
+      const result = await hostApiFetch<SubscriptionAutoTrialResponse>('/api/auth/subscription-auto-trial', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ provider }),
+      });
+      if (!result.ok) {
+        throw new Error(result.message || result.error || t('account.subscriptionTrialFailed'));
+      }
+      toast.success(
+        provider === 'tt'
+          ? t('account.subscriptionTrialTtSucceeded')
+          : t('account.subscriptionTrialAmzSucceeded'),
+      );
+      await refreshSubscriptionQuotaSummary();
+    } catch (error) {
+      toast.error(toUserMessage(error) || t('account.subscriptionTrialFailed'));
+    } finally {
+      setSubscriptionTrialLoading((prev) => ({ ...prev, [provider]: false }));
+    }
   };
 
   const handleShowLogs = async () => {
@@ -499,6 +713,27 @@ export function Settings() {
     );
   };
 
+  // Settings account panel should render two fixed provider cards only.
+  const accountProviders: Array<'tt' | 'amz'> = ['tt', 'amz'];
+  const quotaSnapshotByProvider = new Map(
+    (subscriptionQuotaSummary?.snapshots || []).map((snapshot) => [snapshot.provider, snapshot]),
+  );
+  const mcpServerByProvider: Record<'tt' | 'amz', SubscriptionMcpServerSummary | null> = {
+    tt: null,
+    amz: null,
+  };
+  if (subscriptionMcpConfig?.ok) {
+    for (const server of subscriptionMcpConfig.servers) {
+      const name = server.name.toLowerCase();
+      if (!mcpServerByProvider.tt && (name.includes('tiktok') || name.includes('-tt-'))) {
+        mcpServerByProvider.tt = server;
+      }
+      if (!mcpServerByProvider.amz && (name.includes('amazon') || name.includes('-amz-'))) {
+        mcpServerByProvider.amz = server;
+      }
+    }
+  }
+
   return (
     <div
       data-testid="settings-page"
@@ -631,6 +866,119 @@ export function Settings() {
                     {t('account.logout')}
                   </Button>
                 </div>
+                {authDebugInfo?.authenticated && (
+                  <div className="mt-4 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.03] p-4 space-y-3">
+                    {subscriptionQuotaSummary && (
+                      <div data-testid="settings-auth-subscription-quotas" className="pt-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <Label className="text-[13px] font-medium text-foreground/80">{t('account.subscriptionQuota')}</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid="settings-auth-recharge-button"
+                            className="shrink-0 rounded-full border-red-500/30 text-red-600 hover:text-red-700 bg-transparent hover:bg-red-500/10 dark:hover:bg-red-500/10"
+                            onClick={() => window.electron.openExternal('https://open.microdata-inc.com/pricing')}
+                          >
+                            {t('account.recharge')}
+                          </Button>
+                        </div>
+                        <div data-testid="settings-auth-mcp-config" className="mt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <Label className="text-[13px] font-medium text-foreground/80">
+                              {t('account.mcpConfig')}
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              data-testid="settings-auth-mcp-config-refresh"
+                              className="shrink-0 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                              onClick={() => void refreshSubscriptionMcpConfig()}
+                              disabled={subscriptionMcpConfigLoading}
+                            >
+                              <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', subscriptionMcpConfigLoading && 'animate-spin')} />
+                              {subscriptionMcpConfigLoading
+                                ? t('account.mcpConfigRefreshing')
+                                : t('account.mcpConfigRefresh')}
+                            </Button>
+                          </div>
+                          {subscriptionMcpConfig && !subscriptionMcpConfig.ok && (
+                            <p
+                              data-testid="settings-auth-mcp-config-error"
+                              className="mt-2 text-[12px] text-red-600 dark:text-red-400"
+                            >
+                              {subscriptionMcpConfig.message
+                                || subscriptionMcpConfig.error
+                                || t('account.mcpConfigRefreshFailed')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {accountProviders.map((provider) => {
+                            const snapshot = quotaSnapshotByProvider.get(provider);
+                            const mcpServer = mcpServerByProvider[provider];
+                            return (
+                              <div
+                                key={provider}
+                                data-testid={`settings-auth-subscription-quota-${provider}`}
+                                className="rounded-xl border border-black/10 dark:border-white/10 px-3 py-2"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[12px] font-medium text-foreground/80">
+                                      {provider === 'tt' ? t('account.subscriptionQuotaTt') : t('account.subscriptionQuotaAmz')}
+                                    </p>
+                                    <p className="mt-1 text-[12px] text-muted-foreground">
+                                      {snapshot?.totalQuota != null && snapshot.usedQuota != null && snapshot.remainingQuota != null
+                                        ? t('account.subscriptionQuotaValue', {
+                                          total: snapshot.totalQuota,
+                                          used: snapshot.usedQuota,
+                                          remaining: snapshot.remainingQuota,
+                                        })
+                                        : (snapshot?.message || snapshot?.error || t('account.subscriptionQuotaUnavailable'))}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    data-testid={`settings-auth-subscription-auto-trial-${provider}`}
+                                    className="shrink-0 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                                    onClick={() => void handleSubscriptionAutoTrial(provider)}
+                                    disabled={subscriptionTrialLoading[provider]}
+                                  >
+                                    {subscriptionTrialLoading[provider]
+                                      ? t('account.subscriptionTrialRunning')
+                                      : t('account.subscriptionTrialUse')}
+                                  </Button>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 border-t border-black/10 dark:border-white/10 pt-2">
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {t('account.mcpConfig')}
+                                  </p>
+                                  {mcpServer ? (
+                                    <span
+                                      data-testid={`settings-auth-mcp-server-${mcpServer.name}`}
+                                      className="flex shrink-0 items-center gap-1.5 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-600 dark:text-green-500"
+                                    >
+                                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                      {t('account.mcpConfigReady')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {subscriptionMcpConfigLoading ? t('account.mcpConfigLoading') : t('account.mcpConfigEmpty')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

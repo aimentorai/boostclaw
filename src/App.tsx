@@ -5,7 +5,7 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Component, Suspense, useEffect, lazy } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
-import { Toaster } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import i18n from './i18n';
 import { MainLayout } from './components/layout/MainLayout';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -114,6 +114,19 @@ function App() {
   const authenticated = useAuthStore((state) => state.authenticated);
   const pendingLogin = useAuthStore((state) => state.pendingLogin);
 
+  // loginFlowActive: latches to true when auth:success fires (OAuth completed
+  // in external browser/auth window). The /login page itself stays clean while
+  // the user is doing OAuth. Overlay only appears for post-login operations
+  // (fetching session, quotas, MCP config, etc.) until navigation to main page.
+  const [loginFlowActive, setLoginFlowActive] = useState(false);
+
+  // Clear overlay when the user lands on any page other than /login.
+  useEffect(() => {
+    if (!location.pathname.startsWith('/login')) {
+      setLoginFlowActive(false);
+    }
+  }, [location.pathname]);
+
   useEffect(() => {
     rendererTimer.mark('renderer_mount');
   }, []);
@@ -153,7 +166,7 @@ function App() {
       return;
     }
     if (authenticated && onLoginPage) {
-      navigate('/');
+      // Temporary: keep the renderer on /login after sign-in for debugging.
     }
   }, [authLoading, authEnabled, authenticated, location.pathname, navigate]);
 
@@ -216,9 +229,11 @@ function App() {
         error: null,
         profile: payload?.profile ?? state.profile,
       }));
-      if (location.pathname.startsWith('/login')) {
-        navigate('/', { replace: true });
-      }
+      // OAuth completed in the external browser/auth window. Start the
+      // post-login overlay now: it covers session fetching, quota loading,
+      // MCP config sync, and the final navigation to the main page.
+      setLoginFlowActive(true);
+      toast.success(i18n.t('auth.loginSucceeded', { ns: 'common' }));
       void refreshAuthStatus();
     });
 
@@ -234,7 +249,7 @@ function App() {
       offSuccess();
       offError();
     };
-  }, [location.pathname, navigate, refreshAuthStatus]);
+  }, [refreshAuthStatus]);
 
   useEffect(() => {
     const offAuthDebug = subscribeHostEvent<{
@@ -283,14 +298,23 @@ function App() {
         {/* Global toast notifications */}
         <Toaster position="bottom-right" richColors closeButton style={{ zIndex: 99999 }} />
 
-        {authEnabled && pendingLogin && !authenticated && (
-          <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-white/88 backdrop-blur-sm">
-            <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl text-center">
-              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+        {/* Full-screen login overlay.
+            loginFlowActive latches true when the login button is pressed and
+            stays true until the user leaves /login — covering the full window:
+            OAuth wait → auth:success → post-login operations → redirect. */}
+        {/* Post-login overlay: shown after auth:success fires (OAuth done in
+            external browser) and stays until the user lands on the main page.
+            Covers session/quota/MCP fetching and the navigate transition. */}
+        {authEnabled && loginFlowActive && (
+          <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl text-center min-w-[220px]">
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-green-300 border-t-green-600" />
               <p className="text-base font-semibold text-slate-900">
-                {i18n.t('common:auth.loggingIn')}
+                {i18n.t('common:auth.loginSucceededTitle')}
               </p>
-              <p className="mt-2 text-sm text-slate-600">{i18n.t('common:auth.loggingInDesc')}</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {i18n.t('common:auth.loginSucceededDesc')}
+              </p>
             </div>
           </div>
         )}

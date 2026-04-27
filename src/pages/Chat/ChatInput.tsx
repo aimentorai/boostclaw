@@ -35,8 +35,15 @@ import { useTemplatesStore } from '@/stores/templates';
 import { useExpertsStore } from '@/stores/experts';
 import type { ExpertStatus } from '@/types/expert';
 import { useProviderStore } from '@/stores/providers';
-import type { ProviderAccount, ProviderWithKeyInfo } from '@/lib/providers';
+import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import {
+  filePathToHostedMediaSrc,
+  getVideoAspectRatio,
+  mediaLabel,
+  revealVideoPreviewFrame,
+} from './media-preview';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -162,6 +169,13 @@ function formatModelLabel(modelRef: string): string {
   return modelRef.slice(separatorIndex + 1);
 }
 
+function normalizeModelIdForRuntimeProvider(modelId: string, runtimeProviderKey: string): string {
+  const trimmed = modelId.trim();
+  return trimmed.startsWith(`${runtimeProviderKey}/`)
+    ? trimmed.slice(runtimeProviderKey.length + 1)
+    : trimmed;
+}
+
 function shouldOpenDropdownUpward(
   triggerEl: HTMLElement | null,
   estimatedPanelHeight = 220
@@ -204,6 +218,7 @@ export function ChatInput({
   const defaultModelRef = useAgentsStore((s) => s.defaultModelRef);
   const providerAccounts = useProviderStore((s) => s.accounts);
   const providerStatuses = useProviderStore((s) => s.statuses);
+  const providerVendors = useProviderStore((s) => s.vendors);
   const providerDefaultAccountId = useProviderStore((s) => s.defaultAccountId);
   const refreshProviderSnapshot = useProviderStore((s) => s.refreshProviderSnapshot);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
@@ -215,17 +230,30 @@ export function ChatInput({
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
-  const currentModelRef = useMemo(
-    () =>
-      (currentAgent?.overrideModelRef || currentAgent?.modelRef || defaultModelRef || '').trim(),
-    [currentAgent?.modelRef, currentAgent?.overrideModelRef, defaultModelRef]
+  const selectableAgents = useMemo(
+    () => (agents ?? []),
+    [agents],
   );
 
-  // Expert-centric data
-  const expertRuntimes = useExpertsStore((s) => s.runtimes);
-  const templates = useTemplatesStore((s) => s.templates);
-  const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
-  const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
+  const TEMPLATE_AGENT_PREFIX = 'tpl:';
+
+  const templateVirtualAgents = useMemo<AgentSummary[]>(() => {
+    if (!marketingStaffRuntime?.agentId) return [];
+    return templates.map((t) => ({
+      id: `${TEMPLATE_AGENT_PREFIX}${t.id}`,
+      name: t.name,
+      description: t.description,
+      isDefault: false,
+      modelDisplay: t.category,
+      modelRef: null,
+      overrideModelRef: null,
+      inheritedModel: false,
+      workspace: '',
+      agentDir: '',
+      mainSessionKey: `agent:${marketingStaffRuntime.agentId}:tpl-${t.id}`,
+      channelTypes: [],
+    }));
+  }, [templates, marketingStaffRuntime?.agentId]);
 
   const currentTemplateId = useMemo(() => {
     if (!currentSessionKey.includes(':tpl-')) return null;
@@ -233,42 +261,30 @@ export function ChatInput({
     return match?.[1] ?? null;
   }, [currentSessionKey]);
 
-  const currentExpertRuntime = useMemo(() => {
-    if (currentTemplateId) return null;
-    return Object.values(expertRuntimes).find((r) => r.agentId === currentAgentId) ?? null;
-  }, [expertRuntimes, currentAgentId, currentTemplateId]);
-
-  const effectiveTargetLabel = useMemo(() => {
-    if (currentTemplateId) {
-      const tpl = templates.find((t) => t.id === currentTemplateId);
-      if (tpl) return tpl.name;
-    }
-    if (currentExpertRuntime) return currentExpertRuntime.config.name;
-    return currentAgentName;
-  }, [currentTemplateId, templates, currentExpertRuntime, currentAgentName]);
-
-  // Unified picker items: experts → their templates → non-expert agents
-  const pickerItems = useMemo<PickerItem[]>(() => {
-    const items: PickerItem[] = [];
-    const allAgents = agents ?? [];
-
-    // 1. Expert-backed items
-    for (const runtime of Object.values(expertRuntimes)) {
-      if (!runtime.agentId || !runtime.mainSessionKey) continue;
-      const cfg = runtime.config;
-      items.push({
-        id: `expert:${cfg.id}`,
-        label: cfg.name,
-        description: cfg.description,
-        icon: cfg.icon || cfg.name.charAt(0).toUpperCase(),
-        status: runtime.status,
-        category: cfg.category,
-        sessionKey: runtime.mainSessionKey,
-        agentId: runtime.agentId,
-        isExpert: true,
-        isTemplate: false,
-        expertId: cfg.id,
-      });
+  const selectableAgents = useMemo(() => {
+    const result = [...(agents ?? []), ...templateVirtualAgents];
+    console.log(
+      '[AgentPicker] selectableAgents:',
+      result.length,
+      'expert-backed:',
+      result.filter((a) => a.expertId).map((a) => a.name),
+      'regular:',
+      result.filter((a) => !a.expertId && !a.id.startsWith('tpl:')).map((a) => a.name)
+    );
+    return result;
+  }, [agents, templateVirtualAgents]);
+  const selectedTarget = useMemo(
+    () => (agents ?? []).find((agent) => agent.id === targetAgentId) ?? null,
+    [agents, targetAgentId]
+  );
+  const effectiveTargetLabel = selectedTarget?.name || currentAgentName;
+  const modelTargetAgent = selectedTarget ?? currentAgent;
+  const modelTargetAgentId = modelTargetAgent?.id ?? currentAgentId;
+  const modelTargetModelDisplay = modelTargetAgent?.modelDisplay ?? currentModelDisplay;
+  const modelTargetModelRef = useMemo(
+    () => (modelTargetAgent?.overrideModelRef || modelTargetAgent?.modelRef || defaultModelRef || '').trim(),
+    [modelTargetAgent?.modelRef, modelTargetAgent?.overrideModelRef, defaultModelRef],
+  );
 
       // 2. Templates under this expert
       const expertAgent = allAgents.find((a) => a.expertId === cfg.id);
@@ -321,9 +337,8 @@ export function ChatInput({
     });
   }, [expertSearchQuery, pickerItems]);
   const modelOptions = useMemo(() => {
-    const statusById = new Map<string, ProviderWithKeyInfo>(
-      providerStatuses.map((status) => [status.id, status])
-    );
+    const vendorById = new Map<string, ProviderVendorInfo>(providerVendors.map((vendor) => [vendor.id, vendor]));
+    const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
     const entries = providerAccounts
       .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
       .sort((left, right) => {
@@ -333,37 +348,40 @@ export function ChatInput({
       });
 
     const options = new Map<string, { modelRef: string; label: string; description: string }>();
-    for (const account of entries) {
-      const runtimeProviderKey = resolveRuntimeProviderKey(account);
-      const modelId = (account.model || '').trim();
-      if (!runtimeProviderKey || !modelId) continue;
-      const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
-        ? modelId.slice(runtimeProviderKey.length + 1)
-        : modelId;
-      if (!normalizedModelId) continue;
+    const addModelOption = (
+      runtimeProviderKey: string,
+      modelId: string | undefined,
+      label: string,
+      source?: string,
+    ) => {
+      if (!runtimeProviderKey || !modelId) return;
+      const normalizedModelId = normalizeModelIdForRuntimeProvider(modelId, runtimeProviderKey);
+      if (!normalizedModelId) return;
       const modelRef = `${runtimeProviderKey}/${normalizedModelId}`;
       if (!options.has(modelRef)) {
         options.set(modelRef, {
           modelRef,
           label: normalizedModelId,
-          description: account.label,
+          description: source ? `${label} · ${source}` : label,
         });
+      }
+    };
+
+    for (const account of entries) {
+      const runtimeProviderKey = resolveRuntimeProviderKey(account);
+      const vendor = vendorById.get(account.vendorId);
+      addModelOption(runtimeProviderKey, account.model, account.label);
+      addModelOption(runtimeProviderKey, vendor?.defaultModelId, account.label, 'default');
+      for (const fallbackModel of account.fallbackModels ?? []) {
+        addModelOption(runtimeProviderKey, fallbackModel, account.label, 'fallback');
+      }
+      for (const availableModel of vendor?.availableModels ?? []) {
+        addModelOption(runtimeProviderKey, availableModel, account.label);
       }
     }
 
     return [...options.values()];
-  }, [providerStatuses, providerAccounts, providerDefaultAccountId]);
-  const filteredModelOptions = useMemo(() => {
-    const query = modelSearchQuery.trim().toLowerCase();
-    if (!query) return modelOptions;
-    return modelOptions.filter((option) => {
-      const searchable = [option.label, option.modelRef, option.description]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return searchable.includes(query);
-    });
-  }, [modelSearchQuery, modelOptions]);
+  }, [providerStatuses, providerAccounts, providerDefaultAccountId, providerVendors]);
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -676,12 +694,40 @@ export function ChatInput({
         <div
           data-testid="chat-composer-shell"
           className={cn(
-            'panel-elevated tech-border relative rounded-[20px] border-border transition-all',
-            dragOver && 'border-primary ring-1 ring-primary shadow-[0_0_14px_hsl(var(--glow)/0.12)]'
+            'relative rounded-[20px] border border-[#dfe5ee] bg-white shadow-[0_16px_42px_rgba(80,92,120,0.08)] transition-all',
+            dragOver && 'border-[#aeb8c8] ring-1 ring-[#c6cfdb]'
           )}
         >
-          {/* 顶部光效装饰线 */}
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          {/* 顶部状态标签：目标 Agent / Skill */}
+          {(selectedTarget || selectedSkills.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-0">
+              {selectedTarget && (
+                <button
+                  type="button"
+                  onClick={() => setTargetAgentId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#dfe5ee] bg-[#eef3ff] px-3 py-1 text-[13px] font-medium text-[#20242d] transition-colors hover:bg-[#e6edf9]"
+                  title={t('composer.clearTarget')}
+                >
+                  <span>{t('composer.targetChip', { agent: selectedTarget.name })}</span>
+                  <X className="h-3.5 w-3.5 text-[#6b7480]" />
+                </button>
+              )}
+              {selectedSkills.map((skill) => (
+                <button
+                  key={skill.id}
+                  type="button"
+                  data-testid="chat-skill-chip"
+                  onClick={() => setSelectedSkillId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#dfe5ee] bg-[#eef3ff] px-3 py-1 text-[13px] font-medium text-[#20242d] transition-colors hover:bg-[#e6edf9]"
+                  title={`Clear skill: ${selectedSkill.name}`}
+                >
+                  <Wand2 className="h-3.5 w-3.5 text-[#6b7480]" />
+                  <span>{selectedSkill.name}</span>
+                  <X className="h-3.5 w-3.5 text-[#6b7480]" />
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* 文本输入区：rounded-none 消除 textarea 自带圆角对文字的裁切 */}
           <div className="px-4 pt-4 pb-1">
@@ -701,7 +747,7 @@ export function ChatInput({
                 disabled ? t('composer.gatewayDisconnectedPlaceholder') : t('composer.placeholder')
               }
               disabled={disabled}
-              className="min-h-[48px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+              className="min-h-[48px] max-h-[200px] w-full resize-none rounded-none border-0 bg-transparent p-0 text-[14px] leading-relaxed text-[#20242d] shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-[#8b94a1]"
               rows={1}
             />
           </div>
@@ -716,10 +762,9 @@ export function ChatInput({
                   data-testid="chat-agent-picker-button"
                   variant="ghost"
                   className={cn(
-                    'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground transition-colors',
-                    'border border-border/70 bg-muted shadow-sm hover:bg-muted/80',
-                    expertPickerOpen &&
-                      'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+                    'h-8 w-full gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#4f5966] transition-colors',
+                    'border border-[#edf0f5] bg-[#f7f8fa] shadow-sm hover:bg-[#f0f2f5]',
+                    (pickerOpen || selectedTarget) && 'border-[#dfe5ee] bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff]'
                   )}
                   onClick={() => {
                     if (!expertPickerOpen) {
@@ -731,126 +776,74 @@ export function ChatInput({
                   disabled={disabled || sending}
                   title={t('composer.pickAgent')}
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px]">
-                    {currentExpertRuntime?.config.icon || <Bot className="h-3.5 w-3.5" />}
+                  {/* 左侧圆形“头像”位 */}
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7480]">
+                    <Bot className="h-3.5 w-3.5" />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-left">{effectiveTargetLabel}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                 </Button>
-                {/* 专家下拉面板 */}
-                {expertPickerOpen && (
-                  <div
-                    className={cn(
-                      'absolute left-0 z-20 w-full min-w-[200px] overflow-hidden rounded-xl panel-elevated border border-border/70 p-1 shadow-xl',
-                      expertPickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
-                    )}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setExpertPickerOpen(false);
-                        textareaRef.current?.focus();
-                      }
-                    }}
-                  >
-                    <div className="relative mb-1">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        value={expertSearchQuery}
-                        onChange={(e) => setExpertSearchQuery(e.target.value)}
-                        placeholder={t('composer.searchExpert')}
-                        className="h-8 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
-                        autoFocus
-                      />
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {(() => {
-                        const expertItems = filteredPickerItems.filter(
-                          (i) => i.isExpert && !i.isTemplate
-                        );
-                        const templateItems = filteredPickerItems.filter((i) => i.isTemplate);
-                        const otherItems = filteredPickerItems.filter((i) => !i.isExpert);
-
-                        return (
-                          <>
-                            {expertItems.map((item) => (
-                              <ExpertPickerItem
-                                key={item.id}
-                                item={item}
-                                selected={!currentTemplateId && currentAgentId === item.agentId}
-                                onSelect={() => {
-                                  if (activeTemplate) setActiveTemplate(null);
-                                  if (item.sessionKey && item.agentId !== currentAgentId) {
-                                    switchSession(item.sessionKey);
-                                  }
-                                  setExpertPickerOpen(false);
-                                  textareaRef.current?.focus();
-                                }}
-                              />
-                            ))}
-                            {templateItems.length > 0 && (
-                              <div className="ml-3 mt-0.5 border-l border-border/50 pl-1">
-                                {templateItems.map((item) => (
-                                  <ExpertPickerItem
-                                    key={item.id}
-                                    item={item}
-                                    selected={currentTemplateId === item.templateId}
-                                    onSelect={() => {
-                                      const tpl = templates.find((t) => t.id === item.templateId);
-                                      if (tpl && item.sessionKey) {
-                                        setActiveTemplate(tpl);
-                                        switchSession(item.sessionKey);
-                                      }
-                                      setExpertPickerOpen(false);
-                                      textareaRef.current?.focus();
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                            {otherItems.length > 0 &&
-                              (expertItems.length > 0 || templateItems.length > 0) && (
-                                <div className="my-1 border-t border-border/50" />
-                              )}
-                            {otherItems.length > 0 && (
-                              <>
-                                <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                                  {t('composer.otherAgents')}
-                                </div>
-                                {otherItems.map((item) => (
-                                  <ExpertPickerItem
-                                    key={item.id}
-                                    item={item}
-                                    selected={!currentTemplateId && currentAgentId === item.agentId}
-                                    onSelect={() => {
-                                      if (activeTemplate) setActiveTemplate(null);
-                                      if (item.sessionKey && item.agentId !== currentAgentId) {
-                                        switchSession(item.sessionKey);
-                                      }
-                                      setExpertPickerOpen(false);
-                                      textareaRef.current?.focus();
-                                    }}
-                                  />
-                                ))}
-                              </>
-                            )}
-                          </>
-                        );
-                      })()}
+                {/* Agent 下拉面板 */}
+                {pickerOpen && (
+                  <div className={cn(
+                    "absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-md border border-[#edf0f5] bg-white p-1 shadow-xl",
+                    pickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                  )}>
+                    <div className="max-h-56 overflow-y-auto">
+                      {selectableAgents.map((agent) => (
+                        <AgentPickerItem
+                          key={agent.id}
+                          agent={agent}
+                          selected={
+                            agent.id.startsWith(TEMPLATE_AGENT_PREFIX)
+                              ? currentTemplateId === agent.id.slice(TEMPLATE_AGENT_PREFIX.length)
+                              : !currentTemplateId && (targetAgentId ?? currentAgentId) === agent.id
+                          }
+                          onSelect={() => {
+                            console.log(
+                              '[AgentPicker] selected:',
+                              agent.name,
+                              'expertId:',
+                              agent.expertId ?? 'none',
+                              'id:',
+                              agent.id
+                            );
+                            if (agent.id.startsWith(TEMPLATE_AGENT_PREFIX)) {
+                              // Template: switch to template session + set active template
+                              const templateId = agent.id.slice(TEMPLATE_AGENT_PREFIX.length);
+                              const template = templates.find((t) => t.id === templateId);
+                              if (template && agent.mainSessionKey) {
+                                setActiveTemplate(template);
+                                switchSession(agent.mainSessionKey);
+                                setTargetAgentId(null);
+                              }
+                            } else {
+                              // Regular agent: clear template and skill when switching
+                              if (activeTemplate) setActiveTemplate(null);
+                              setSelectedSkillIds([]);
+                              setTargetAgentId(agent.id === currentAgentId ? null : agent.id);
+                            }
+                            setPickerOpen(false);
+                            textareaRef.current?.focus();
+                          }}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
 
               {/* 模型选择器 */}
-              {(currentModelDisplay || currentModelRef || modelOptions.length > 0) && (
+              {(modelTargetModelDisplay || modelTargetModelRef || modelOptions.length > 0) && (
                 <div ref={modelPickerRef} className="relative w-[150px] shrink-0">
                   <Button
+                    data-testid="chat-model-picker-button"
                     type="button"
                     variant="ghost"
                     className={cn(
-                      'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground',
-                      'border border-border/70 bg-muted shadow-sm hover:bg-muted/80',
-                      modelPickerOpen &&
-                        'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+                      'h-8 w-full gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#4f5966]',
+                      'border border-[#edf0f5] bg-[#f7f8fa] shadow-sm hover:bg-[#f0f2f5]',
+                      modelPickerOpen && 'border-[#dfe5ee] bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff]',
                     )}
                     disabled={disabled || sending || switchingModel || modelOptions.length === 0}
                     onClick={() => {
@@ -862,48 +855,25 @@ export function ChatInput({
                     }}
                     title={t('composer.selectModel')}
                   >
-                    <span className="min-w-0 flex-1 truncate text-left">
-                      {currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}
-                    </span>
-                    {switchingModel ? (
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin opacity-60" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
-                    )}
+                    <span className="min-w-0 flex-1 truncate text-left">{modelTargetModelDisplay || formatModelLabel(modelTargetModelRef) || 'Model'}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
                   </Button>
                   {modelPickerOpen && (
-                    <div
-                      className={cn(
-                        'absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-xl panel-elevated border border-border/70 p-1 shadow-xl',
-                        modelPickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
-                      )}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                          setModelPickerOpen(false);
-                          textareaRef.current?.focus();
-                        }
-                      }}
-                    >
-                      <div className="relative mb-1">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          value={modelSearchQuery}
-                          onChange={(e) => setModelSearchQuery(e.target.value)}
-                          placeholder={t('composer.searchModel')}
-                          className="h-8 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
-                          autoFocus
-                        />
-                      </div>
+                    <div className={cn(
+                      "absolute left-0 z-20 w-full min-w-full overflow-hidden rounded-md border border-[#edf0f5] bg-white p-1 shadow-xl",
+                      modelPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                    )}>
                       <div className="max-h-56 overflow-y-auto">
-                        {filteredModelOptions.map((option) => {
-                          const selected = option.modelRef === currentModelRef;
+                        {modelOptions.map((option) => {
+                          const selected = option.modelRef === modelTargetModelRef;
                           return (
                             <button
                               key={option.modelRef}
+                              data-testid={`chat-model-option-${option.modelRef.replaceAll('/', '-')}`}
                               type="button"
                               className={cn(
                                 'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                                selected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                                selected ? 'bg-[#eef3ff] text-[#20242d]' : 'hover:bg-[#f6f7f9]',
                               )}
                               onClick={async () => {
                                 if (switchingModel || selected) {
@@ -914,12 +884,17 @@ export function ChatInput({
                                 try {
                                   const normalizedDefaultModelRef = (defaultModelRef || '').trim();
                                   await updateAgentModel(
-                                    currentAgentId,
-                                    normalizedDefaultModelRef &&
-                                      option.modelRef === normalizedDefaultModelRef
-                                      ? null
-                                      : option.modelRef
+                                    modelTargetAgentId,
+                                    normalizedDefaultModelRef && option.modelRef === normalizedDefaultModelRef ? null : option.modelRef,
                                   );
+                                  toast.success(
+                                    t('composer.modelUpdated', {
+                                      agent: modelTargetAgent?.name || modelTargetAgentId,
+                                      model: option.label,
+                                    }),
+                                  );
+                                } catch (error) {
+                                  toast.error(t('composer.modelUpdateFailed', { error: String(error) }));
                                 } finally {
                                   setSwitchingModel(false);
                                   setModelPickerOpen(false);
@@ -927,31 +902,10 @@ export function ChatInput({
                               }}
                             >
                               <span className="min-w-0">
-                                <span
-                                  className={cn(
-                                    'block truncate text-[11px] font-medium',
-                                    selected ? 'text-primary-foreground' : 'text-foreground'
-                                  )}
-                                >
-                                  {option.label}
-                                </span>
-                                <span
-                                  className={cn(
-                                    'block truncate text-[11px]',
-                                    selected
-                                      ? 'text-primary-foreground/75'
-                                      : 'text-muted-foreground'
-                                  )}
-                                >
-                                  {option.description}
-                                </span>
+                                <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-[#20242d]' : 'text-[#4f5966]')}>{option.label}</span>
+                                <span className={cn('block truncate text-[9px]', selected ? 'text-[#6b7480]' : 'text-muted-foreground')}>{option.description}</span>
                               </span>
-                              <Check
-                                className={cn(
-                                  'h-4 w-4 shrink-0',
-                                  selected ? 'opacity-100 text-primary-foreground' : 'opacity-0'
-                                )}
-                              />
+                              <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-[#6b7480]' : 'opacity-0')} />
                             </button>
                           );
                         })}
@@ -961,11 +915,141 @@ export function ChatInput({
                 </div>
               )}
 
+              {/* 技能选择：下拉框选择（不跳转） */}
+              <div ref={skillPickerRef} className="relative shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-9 w-9 rounded-full transition-colors",
+                    "border border-[#edf0f5] bg-[#f7f8fa] text-[#5f6875] shadow-sm hover:bg-[#f0f2f5] hover:text-[#20242d]",
+                    (skillPickerOpen || selectedSkill) && "border-[#dfe5ee] bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff]"
+                  )}
+                  disabled={disabled || sending}
+                  title={
+                    selectedSkills.length > 0
+                      ? `Skills: ${selectedSkills.map((s) => s.name).join(', ')}`
+                      : 'Skills'
+                  }
+                  onClick={() => {
+                    if (!skillPickerOpen) {
+                      setSkillPickerUpward(shouldOpenDropdownUpward(skillPickerRef.current, 240));
+                      setSkillSearchQuery('');
+                    }
+                    setSkillPickerOpen((open) => !open);
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+
+                {skillPickerOpen && (
+                  <div className={cn(
+                    "absolute left-0 z-20 w-48 overflow-hidden rounded-xl border border-[#edf0f5] bg-white p-1 shadow-xl",
+                    skillPickerUpward ? "bottom-full mb-2" : "top-full mt-2",
+                  )}>
+                    <div className="relative mb-1">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        value={skillSearchQuery}
+                        onChange={(event) => setSkillSearchQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            setSkillPickerOpen(false);
+                            textareaRef.current?.focus();
+                          }
+                        }}
+                        placeholder="搜索 Skill"
+                        className="h-8 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+                          !selectedSkillId ? "bg-[#eef3ff] text-[#20242d]" : "hover:bg-[#f6f7f9]"
+                        )}
+                        onClick={() => {
+                          setSelectedSkillIds([]);
+                          setSkillSearchQuery('');
+                          setSkillPickerOpen(false);
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        <span className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-full",
+                          !selectedSkillId ? "bg-white" : "bg-black/5 dark:bg-white/10",
+                        )}>
+                          <Wand2 className={cn("h-3.5 w-3.5", !selectedSkillId ? "text-[#6b7480]" : "text-muted-foreground")} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn("text-[12px] font-medium", !selectedSkillId ? "text-[#20242d]" : "text-foreground")}>不使用 Skill</div>
+                          <div className={cn("text-[10px]", !selectedSkillId ? "text-[#6b7480]" : "text-muted-foreground")}>按当前 Agent 配置运行</div>
+                        </div>
+                      </button>
+
+                      {filteredSkills.length === 0 && (
+                        <div className="px-2 py-3 text-center text-[11px] text-muted-foreground">
+                          没有匹配的 Skill
+                        </div>
+                      )}
+
+                      {filteredSkills.map((skill) => {
+                        const selected = selectedSkillIds.includes(skill.id);
+                        return (
+                          <button
+                            key={skill.id}
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+                              selected ? "bg-[#eef3ff] text-[#20242d]" : "hover:bg-[#f6f7f9]"
+                            )}
+                            onClick={() => {
+                              setSelectedSkillIds((prev) =>
+                                prev.includes(skill.id)
+                                  ? prev.filter((id) => id !== skill.id)
+                                  : [...prev, skill.id]
+                              );
+                            }}
+                            title={skill.description}
+                          >
+                            <span className={cn(
+                              "flex h-6 w-6 items-center justify-center rounded-full text-[13px]",
+                              selected ? "bg-white" : "bg-black/5 dark:bg-white/10",
+                            )}>
+                              {skill.icon || "✨"}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={cn("truncate text-[12px] font-medium", selected ? "text-[#20242d]" : "text-foreground")}>{skill.name}</span>
+                                {!skill.enabled && (
+                                  <span className={cn(
+                                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px]",
+                                    selected ? "border-[#dfe5ee] bg-white text-[#6b7480]" : "border-border/70 bg-background/60 text-muted-foreground",
+                                  )}>
+                                    disabled
+                                  </span>
+                                )}
+                              </div>
+                              {skill.description && (
+                                <div className={cn("truncate text-[10px]", selected ? "text-[#6b7480]" : "text-muted-foreground")}>{skill.description}</div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* 附件按钮 */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 h-8 w-8 rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
+                className="h-8 w-8 shrink-0 rounded-full text-[#6b7480] transition-colors hover:bg-[#f0f2f5] hover:text-[#20242d]"
                 onClick={pickFiles}
                 disabled={disabled || sending}
                 title={t('composer.attachFiles')}
@@ -982,9 +1066,9 @@ export function ChatInput({
                 disabled={sending ? !canStop : !canSend}
                 size="icon"
                 className={cn(
-                  'shrink-0 h-9 w-9 rounded-full transition-all bg-primary text-primary-foreground',
-                  sending || canSend
-                    ? 'shadow-[0_0_10px_hsl(var(--glow)/0.20)] hover:brightness-110'
+                  'h-8 w-8 shrink-0 rounded-full bg-[#8f949c] text-white transition-all',
+                  (sending || canSend)
+                    ? 'shadow-[0_8px_18px_rgba(80,92,120,0.18)] hover:bg-[#777d86]'
                     : 'opacity-40'
                 )}
                 variant="ghost"
@@ -1044,6 +1128,34 @@ function AttachmentPreview({
   onRemove: () => void;
 }) {
   const isImage = attachment.mimeType.startsWith('image/') && attachment.preview;
+  const isVideo = attachment.mimeType.startsWith('video/');
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<string>('16 / 9');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isVideo || attachment.status !== 'ready') {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void filePathToHostedMediaSrc(attachment.stagedPath, attachment.mimeType).then((src) => {
+      if (!cancelled) setVideoSrc(src);
+    }).catch((error) => {
+      console.warn('[AttachmentPreview] Failed to build video src', {
+        fileName: attachment.fileName,
+        stagedPath: attachment.stagedPath,
+        mimeType: attachment.mimeType,
+        error,
+      });
+      if (!cancelled) setVideoSrc(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachment.fileName, attachment.mimeType, attachment.stagedPath, attachment.status, isVideo]);
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border/70 bg-background/60">
@@ -1055,6 +1167,49 @@ function AttachmentPreview({
             alt={attachment.fileName}
             className="w-full h-full object-cover"
           />
+        </div>
+      ) : videoSrc ? (
+        <div data-testid="chat-attachment-video-preview" className="w-48 max-w-[70vw] bg-black">
+          <video
+            src={videoSrc}
+            controls
+            preload="auto"
+            onLoadedMetadata={(event) => {
+              setVideoAspectRatio(getVideoAspectRatio(event.currentTarget) || '16 / 9');
+              console.info('[AttachmentPreview] loaded video metadata', {
+                fileName: attachment.fileName,
+                stagedPath: attachment.stagedPath,
+                mimeType: attachment.mimeType,
+                duration: event.currentTarget.duration,
+                videoWidth: event.currentTarget.videoWidth,
+                videoHeight: event.currentTarget.videoHeight,
+                src: event.currentTarget.currentSrc || event.currentTarget.src,
+              });
+              revealVideoPreviewFrame(event.currentTarget);
+            }}
+            onError={(event) => {
+              const mediaError = event.currentTarget.error;
+              console.warn('[AttachmentPreview] video failed to load', {
+                fileName: attachment.fileName,
+                stagedPath: attachment.stagedPath,
+                mimeType: attachment.mimeType,
+                code: mediaError?.code,
+                message: mediaError?.message,
+                networkState: event.currentTarget.networkState,
+                readyState: event.currentTarget.readyState,
+                src: event.currentTarget.currentSrc || event.currentTarget.src,
+              });
+            }}
+            style={{ aspectRatio: videoAspectRatio }}
+            className="block w-full max-h-48 object-contain"
+            title={attachment.fileName}
+          />
+          <div className="flex items-center gap-2 bg-background/95 px-2.5 py-1.5 text-xs">
+            <Film className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 truncate">
+              {mediaLabel(attachment.fileName, attachment.fileSize, formatFileSize)}
+            </span>
+          </div>
         </div>
       ) : (
         // Generic file card
@@ -1120,53 +1275,24 @@ function ExpertPickerItem({
       onClick={onSelect}
       className={cn(
         'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-        selected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+        selected ? 'bg-[#eef3ff] text-[#20242d]' : 'hover:bg-[#f6f7f9]'
       )}
     >
       <div className="min-w-0 flex items-center gap-2">
-        <span
-          className={cn(
-            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
-            selected
-              ? 'bg-white/20 text-primary-foreground'
-              : 'bg-black/5 text-foreground dark:bg-white/10'
-          )}
-        >
-          {item.icon}
+        <span className={cn(
+          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+          selected ? 'bg-white text-[#6b7480]' : 'bg-black/5 text-foreground dark:bg-white/10',
+        )}>
+          {agent.name?.trim()?.charAt(0)?.toUpperCase() || 'A'}
         </span>
         <span className="min-w-0">
-          <span
-            className={cn(
-              'flex items-center gap-1.5 truncate text-[11px] font-medium',
-              selected ? 'text-primary-foreground' : 'text-foreground'
-            )}
-          >
-            {item.label}
-            {item.isExpert && item.status && (
-              <span
-                className={cn(
-                  'h-1.5 w-1.5 shrink-0 rounded-full',
-                  statusColor[item.status] ?? statusColor.ready
-                )}
-              />
-            )}
-          </span>
-          <span
-            className={cn(
-              'block truncate text-[11px]',
-              selected ? 'text-primary-foreground/75' : 'text-muted-foreground'
-            )}
-          >
-            {item.description}
+          <span className={cn('block truncate text-[11px] font-medium', selected ? 'text-[#20242d]' : 'text-foreground')}>{agent.name}</span>
+          <span className={cn('block truncate text-[9px]', selected ? 'text-[#6b7480]' : 'text-muted-foreground')}>
+            {agent.modelDisplay || 'Agent'}
           </span>
         </span>
       </div>
-      <Check
-        className={cn(
-          'h-4 w-4 shrink-0',
-          selected ? 'opacity-100 text-primary-foreground' : 'opacity-0'
-        )}
-      />
+      <Check className={cn('h-4 w-4 shrink-0', selected ? 'opacity-100 text-[#6b7480]' : 'opacity-0')} />
     </button>
   );
 }

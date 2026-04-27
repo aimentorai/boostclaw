@@ -94,6 +94,19 @@
     "taskProgress": {
         "processing": "正在处理"
     },
+    "message": {
+        "thinking": "思考过程",
+        "thinkingHidden": "已隐藏思考过程",
+        "openFile": "打开文件",
+        "file": "文件",
+        "loadingVideoPreview": "正在加载视频预览...",
+        "videoPreviewUnavailable": "无法预览视频"
+    },
+    "timestamp": {
+        "justNow": "刚刚",
+        "minutesAgo": "{{count}} 分钟前",
+        "hoursAgo": "{{count}} 小时前"
+    },
     "experts": {
         "navLabel": "专家",
         "pageTitle": "AI 专家",

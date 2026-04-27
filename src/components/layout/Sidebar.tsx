@@ -57,11 +57,9 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
       aria-label={hideLabel ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all duration-200',
-          'text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14',
-          isActive
-            ? 'bg-[hsl(var(--sidebar-active-bg))] text-[hsl(var(--sidebar-active-text))] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
-            : '',
+          'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all duration-200',
+          'text-[#535d6c] hover:bg-white/70 hover:text-[#20242d]',
+          isActive ? 'bg-white text-[#20242d] shadow-[0_8px_22px_rgba(80,92,120,0.10)]' : '',
           collapsed && 'px-0'
         )
       }
@@ -71,9 +69,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
           <div
             className={cn(
               'flex shrink-0 items-center justify-center transition-colors',
-              isActive
-                ? 'text-[hsl(var(--sidebar-active-text))]'
-                : 'text-[hsl(var(--sidebar-text))] group-hover:text-[hsl(var(--sidebar-text))]'
+              isActive ? 'text-[#20242d]' : 'text-[#5d6675] group-hover:text-[#20242d]'
             )}
           >
             {icon}
@@ -86,7 +82,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
               {badge && (
                 <Badge
                   variant="secondary"
-                  className="shrink-0 rounded-full border border-[hsl(var(--sidebar-history-badge-border))] bg-[hsl(var(--sidebar-history-badge-bg))] text-[11px] text-[hsl(var(--sidebar-history-badge-text))]"
+                  className="shrink-0 rounded-full border border-[#dce3ef] bg-white text-[9px] text-[#5f6b7a]"
                 >
                   {badge}
                 </Badge>
@@ -249,7 +245,7 @@ export function Sidebar() {
     <aside
       data-testid="sidebar"
       className={cn(
-        'flex min-h-0 shrink-0 overflow-hidden border-r border-border bg-[hsl(var(--sidebar-bg))] transition-all duration-300',
+        'flex min-h-0 shrink-0 overflow-hidden border-r border-[#e8edf5] bg-[#eef3ff] transition-all duration-300',
         sidebarCollapsed || !isOnChat ? 'w-[72px]' : 'w-[286px]'
       )}
     >
@@ -257,15 +253,15 @@ export function Sidebar() {
         {/* Left icon rail */}
         <div
           className={cn(
-            'flex min-h-0 shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-bg))]',
+            'flex min-h-0 shrink-0 flex-col border-r border-[#e2e8f2] bg-[#eef3ff]',
             sidebarCollapsed ? 'w-[72px]' : 'w-[76px]'
           )}
         >
-          <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-[hsl(var(--sidebar-border))]">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--sidebar-text))]/25 bg-[hsl(var(--sidebar-active-bg))] shadow-sm">
+          <div className="flex h-[72px] flex-col items-center justify-center gap-1 border-b border-[#e2e8f2]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white bg-white shadow-sm">
               <img src={logoSvg} alt="BoostClaw" className="h-4.5 w-auto shrink-0" />
             </div>
-            <span className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-bold leading-none text-[hsl(var(--sidebar-text))]">
+            <span className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-bold leading-none text-[#20242d]">
               BoostClaw
             </span>
           </div>
@@ -276,7 +272,7 @@ export function Sidebar() {
             ))}
           </nav>
 
-          <div className="mt-auto flex flex-col gap-4 border-t border-[hsl(var(--sidebar-border))] px-2 py-4">
+          <div className="mt-auto flex flex-col gap-4 border-t border-[#e2e8f2] px-2 py-4">
             {bottomNavItems.map((item) => (
               <NavItem key={item.to} {...item} collapsed={false} hideLabel />
             ))}
@@ -286,10 +282,9 @@ export function Sidebar() {
               aria-label={t('common:sidebar.settings')}
               className={({ isActive }) =>
                 cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all',
-                  'text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14',
-                  isActive &&
-                    'bg-[hsl(var(--sidebar-active-bg))] text-[hsl(var(--sidebar-active-text))] shadow-[0_4px_14px_rgba(0,0,0,0.10)]'
+                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all',
+                  'text-[#535d6c] hover:bg-white/70 hover:text-[#20242d]',
+                  isActive && 'bg-white text-[#20242d] shadow-[0_8px_22px_rgba(80,92,120,0.10)]'
                 )
               }
             >
@@ -299,7 +294,7 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="mx-auto h-8 w-8 rounded-lg text-[hsl(var(--sidebar-text))] hover:bg-[hsl(var(--sidebar-text))]/14"
+                className="mx-auto h-7 w-7 rounded-lg text-[#535d6c] hover:bg-white/70 hover:text-[#20242d]"
                 onClick={() => setSidebarCollapsed(false)}
               >
                 <PanelLeft className="h-[16px] w-[16px]" />
@@ -310,7 +305,7 @@ export function Sidebar() {
 
         {/* Right history pane */}
         {!sidebarCollapsed && isOnChat && (
-          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-[hsl(var(--sidebar-history-bg))]">
+          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-white">
             <div className="px-2.5 py-2">
               <button
                 data-testid="sidebar-new-chat"
@@ -319,9 +314,9 @@ export function Sidebar() {
                   if (messages.length > 0) newSession();
                   navigate('/');
                 }}
-                className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5 text-[12px] font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
+                className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[#edf0f5] bg-white px-2 py-1.5 text-[12px] font-medium text-[#20242d] shadow-sm transition-colors hover:bg-[#f7f8fa]"
               >
-                <Plus className="h-4 w-4 shrink-0 text-primary" strokeWidth={2} />
+                <Plus className="h-4 w-4 shrink-0 text-[#20242d]" strokeWidth={2} />
                 <span className="min-w-0 truncate text-center">{t('sidebar.newChat')}</span>
               </button>
             </div>
@@ -331,7 +326,7 @@ export function Sidebar() {
                 {sessionBuckets.map((bucket) =>
                   bucket.sessions.length > 0 ? (
                     <div key={bucket.key} className="pt-1">
-                      <div className="px-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-history-muted))]">
+                      <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-[#a8afb9]">
                         {bucket.label}
                       </div>
                       {bucket.sessions.map((s) => {
@@ -347,10 +342,10 @@ export function Sidebar() {
                               }}
                               className={cn(
                                 'w-full min-w-0 rounded-sm px-2 py-1.5 pr-6 text-left text-[12px] transition-all',
-                                'hover:bg-[hsl(var(--sidebar-history-hover))]',
+                                'hover:bg-[#f6f7f9]',
                                 isActiveSession
-                                  ? 'bg-[hsl(var(--sidebar-history-active))] text-[hsl(var(--sidebar-history-active-text))] hover:bg-[hsl(var(--sidebar-history-active))]'
-                                  : 'text-[hsl(var(--sidebar-history-text))]'
+                                  ? 'bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff]'
+                                  : 'text-[#68717f]'
                               )}
                             >
                               <div className="flex min-w-0 items-center gap-1">
@@ -358,8 +353,8 @@ export function Sidebar() {
                                   className={cn(
                                     'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[11px] font-medium',
                                     isActiveSession
-                                      ? 'border-[hsl(var(--sidebar-history-active-text))]/35 bg-[hsl(var(--sidebar-history-active-text))]/15 text-[hsl(var(--sidebar-history-active-text))]'
-                                      : 'border-border bg-background text-muted-foreground'
+                                      ? 'border-[#d9e2f3] bg-white text-[#20242d]'
+                                      : 'border-[#e4e8ef] bg-white text-[#77808d]'
                                   )}
                                 >
                                   {agentName}
@@ -380,8 +375,8 @@ export function Sidebar() {
                               }}
                               className={cn(
                                 'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
-                                'opacity-30 group-hover:opacity-100',
-                                'text-muted-foreground hover:text-primary hover:bg-accent'
+                                'opacity-0 group-hover:opacity-100',
+                                'text-[#a0a7b2] hover:text-[#20242d] hover:bg-[#eef3ff]'
                               )}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -394,11 +389,11 @@ export function Sidebar() {
                 )}
               </div>
             )}
-            <div className="mt-auto border-t border-border px-2 py-2">
+            <div className="mt-auto border-t border-[#eef1f5] px-2 py-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="ml-auto h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-primary"
+                className="ml-auto h-7 w-7 rounded-lg text-[#8b94a1] hover:bg-[#f6f7f9] hover:text-[#20242d]"
                 onClick={() => setSidebarCollapsed(true)}
               >
                 <PanelLeftClose className="h-[16px] w-[16px]" />
