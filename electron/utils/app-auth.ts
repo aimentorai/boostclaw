@@ -459,7 +459,8 @@ export class AppAuthManager extends EventEmitter {
   // When true, auth mask must stay visible until restore flow explicitly ends.
   private keepAuthMaskVisible = false;
   // Runtime mask toggle for debugging auth pages.
-  private authMaskEnabled = process.env.BoostClaw_APP_AUTH_MASK_ENABLED !== '0';
+  // Full-screen "logging in" overlay is off by default; set BoostClaw_APP_AUTH_MASK_ENABLED=1 to enable (debug).
+  private authMaskEnabled = process.env.BoostClaw_APP_AUTH_MASK_ENABLED === '1';
   private postLoginModelUserId: string | null = null;
   private postLoginSessionCookieValue: string | null = null;
   private systemDefaultModelProviderInfoCache: SystemDefaultModelProviderInfo | null = null;
