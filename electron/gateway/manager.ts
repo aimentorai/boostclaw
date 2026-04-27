@@ -99,6 +99,8 @@ export class GatewayManager extends EventEmitter {
   private readonly restartController = new GatewayRestartController();
   private readonly restartGovernor = new GatewayRestartGovernor();
   private reloadDebounceTimer: NodeJS.Timeout | null = null;
+  private reloadGate: Promise<void> | null = null;
+  private resolveReloadGate: (() => void) | null = null;
   private reloadPolicy: GatewayReloadPolicy = { ...DEFAULT_GATEWAY_RELOAD_POLICY };
   private reloadPolicyLoadedAt = 0;
   private reloadPolicyRefreshPromise: Promise<void> | null = null;
@@ -384,6 +386,7 @@ export class GatewayManager extends EventEmitter {
 
     clearPendingGatewayRequests(this.pendingRequests, new Error('Gateway stopped'));
 
+    this.clearReloadGate();
     this.restartController.resetDeferredRestart();
     this.isAutoReconnectStart = false;
     this.setStatus({
@@ -574,6 +577,7 @@ export class GatewayManager extends EventEmitter {
       return;
     }
 
+    this.setReloadGate();
     try {
       process.kill(this.process.pid, 'SIGUSR1');
       logger.info(`Sent SIGUSR1 to Gateway for config reload (pid=${this.process.pid})`);
@@ -591,11 +595,17 @@ export class GatewayManager extends EventEmitter {
         logger.info(
           `[gateway-refresh] mode=reload result=applied_in_place pidBefore=${pidBefore} pidAfter=${pidAfter}`
         );
+        // The gateway may internally decide to restart after processing the
+        // config change (e.g. new model provider).  Wait briefly to catch
+        // draining → WebSocket close (1012) before releasing the gate.
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     } catch (error) {
       logger.warn('[gateway-refresh] mode=reload result=fallback_restart cause=signal_error');
       logger.warn('Gateway reload signal failed, falling back to restart:', error);
       await this.restart();
+    } finally {
+      this.clearReloadGate();
     }
   }
 
@@ -617,6 +627,7 @@ export class GatewayManager extends EventEmitter {
     if (this.reloadDebounceTimer) {
       clearTimeout(this.reloadDebounceTimer);
     }
+    this.setReloadGate();
     logger.debug(`Gateway reload debounced (will fire in ${effectiveDelay}ms)`);
     this.reloadDebounceTimer = setTimeout(() => {
       this.reloadDebounceTimer = null;
@@ -624,6 +635,21 @@ export class GatewayManager extends EventEmitter {
         logger.warn('Debounced Gateway reload failed:', err);
       });
     }, effectiveDelay);
+  }
+
+  private setReloadGate(): void {
+    if (this.reloadGate) return;
+    this.reloadGate = new Promise<void>((resolve) => {
+      this.resolveReloadGate = resolve;
+    });
+  }
+
+  private clearReloadGate(): void {
+    if (this.resolveReloadGate) {
+      this.resolveReloadGate();
+    }
+    this.reloadGate = null;
+    this.resolveReloadGate = null;
   }
 
   private async refreshReloadPolicy(force = false): Promise<void> {
@@ -671,6 +697,20 @@ export class GatewayManager extends EventEmitter {
    * Uses OpenClaw protocol format: { type: "req", id: "...", method: "...", params: {...} }
    */
   async rpc<T>(method: string, params?: unknown, timeoutMs = 30000): Promise<T> {
+    const trace = method === 'chat.send' || method === 'chat.sendWithMedia';
+    const t0 = trace ? Date.now() : 0;
+
+    // Gate chat requests during gateway reload to prevent model fallback.
+    // SIGUSR1 reload can trigger gateway draining/restart; requests sent
+    // during this window get routed to fallback models instead of the
+    // user's configured provider.
+    if (this.reloadGate && (method === 'chat.send' || method === 'chat.sendWithMedia')) {
+      await Promise.race([
+        this.reloadGate,
+        new Promise<void>((resolve) => setTimeout(resolve, 10_000)),
+      ]);
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         reject(new Error('Gateway not connected'));
@@ -686,7 +726,12 @@ export class GatewayManager extends EventEmitter {
 
       // Store pending request
       this.pendingRequests.set(id, {
-        resolve: resolve as (value: unknown) => void,
+        resolve: (value: unknown) => {
+          if (trace) {
+            logger.info(`[e2e] WS ${method} round-trip: ${Date.now() - t0}ms`);
+          }
+          (resolve as (value: unknown) => void)(value);
+        },
         reject,
         timeout,
       });
@@ -856,7 +901,14 @@ export class GatewayManager extends EventEmitter {
       onCloseAfterHandshake: (closeCode) => {
         this.connectionMonitor.clear();
         if (this.status.state === 'running') {
-          this.setStatus({ state: 'stopped' });
+          const isPlannedReload = this.reloadGate != null && closeCode === 1012;
+          if (isPlannedReload) {
+            logger.debug(
+              'Gateway WS closed during planned reload, reconnecting without stopped state'
+            );
+          } else {
+            this.setStatus({ state: 'stopped' });
+          }
           // On Windows, skip reconnect from WS close.  The Gateway is a local
           // child process; actual crashes are already caught by the process exit
           // handler (`onExit`) which calls scheduleReconnect().  Triggering
@@ -902,6 +954,11 @@ export class GatewayManager extends EventEmitter {
 
     // Handle OpenClaw protocol event format: { type: "event", event: "...", payload: {...} }
     if (msg.type === 'event' && typeof msg.event === 'string') {
+      if (msg.event === 'chat' || msg.event === 'agent') {
+        const state = (msg.payload as Record<string, unknown>)?.state ?? '';
+        const phase = (msg.payload as Record<string, unknown>)?.phase ?? '';
+        logger.info(`[e2e] WS event: ${msg.event} state=${state} phase=${phase}`);
+      }
       dispatchProtocolEvent(this, msg.event, msg.payload);
       return;
     }

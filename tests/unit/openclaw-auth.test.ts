@@ -31,23 +31,29 @@ vi.mock('electron', () => ({
 }));
 
 async function writeOpenClawJson(config: unknown): Promise<void> {
-  const openclawDir = join(testHome, '.openclaw');
+  const openclawDir = join(testHome, '.boostclaw', 'openclaw');
   await mkdir(openclawDir, { recursive: true });
   await writeFile(join(openclawDir, 'openclaw.json'), JSON.stringify(config, null, 2), 'utf8');
 }
 
 async function readOpenClawJson(): Promise<Record<string, unknown>> {
-  const content = await readFile(join(testHome, '.openclaw', 'openclaw.json'), 'utf8');
+  const content = await readFile(join(testHome, '.boostclaw', 'openclaw', 'openclaw.json'), 'utf8');
   return JSON.parse(content) as Record<string, unknown>;
 }
 
 async function readAuthProfiles(agentId: string): Promise<Record<string, unknown>> {
-  const content = await readFile(join(testHome, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), 'utf8');
+  const content = await readFile(
+    join(testHome, '.boostclaw', 'openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'),
+    'utf8'
+  );
   return JSON.parse(content) as Record<string, unknown>;
 }
 
-async function writeAgentAuthProfiles(agentId: string, store: Record<string, unknown>): Promise<void> {
-  const agentDir = join(testHome, '.openclaw', 'agents', agentId, 'agent');
+async function writeAgentAuthProfiles(
+  agentId: string,
+  store: Record<string, unknown>
+): Promise<void> {
+  const agentDir = join(testHome, '.boostclaw', 'openclaw', 'agents', agentId, 'agent');
   await mkdir(agentDir, { recursive: true });
   await writeFile(join(agentDir, 'auth-profiles.json'), JSON.stringify(store, null, 2), 'utf8');
 }
@@ -68,33 +74,39 @@ describe('saveProviderKeyToOpenClaw', () => {
             id: 'main',
             name: 'Main',
             default: true,
-            workspace: '~/.openclaw/workspace',
-            agentDir: '~/.openclaw/agents/main/agent',
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
           },
           {
             id: 'test3',
             name: 'test3',
-            workspace: '~/.openclaw/workspace-test3',
-            agentDir: '~/.openclaw/agents/test3/agent',
+            workspace: '~/.boostclaw/openclaw/workspace-test3',
+            agentDir: '~/.boostclaw/openclaw/agents/test3/agent',
           },
         ],
       },
     });
 
-    await mkdir(join(testHome, '.openclaw', 'agents', 'test2', 'agent'), { recursive: true });
+    await mkdir(join(testHome, '.boostclaw', 'openclaw', 'agents', 'test2', 'agent'), {
+      recursive: true,
+    });
     await writeFile(
-      join(testHome, '.openclaw', 'agents', 'test2', 'agent', 'auth-profiles.json'),
-      JSON.stringify({
-        version: 1,
-        profiles: {
-          'legacy:default': {
-            type: 'api_key',
-            provider: 'legacy',
-            key: 'legacy-key',
+      join(testHome, '.boostclaw', 'openclaw', 'agents', 'test2', 'agent', 'auth-profiles.json'),
+      JSON.stringify(
+        {
+          version: 1,
+          profiles: {
+            'legacy:default': {
+              type: 'api_key',
+              provider: 'legacy',
+              key: 'legacy-key',
+            },
           },
         },
-      }, null, 2),
-      'utf8',
+        null,
+        2
+      ),
+      'utf8'
     );
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -106,8 +118,12 @@ describe('saveProviderKeyToOpenClaw', () => {
     const test3Profiles = await readAuthProfiles('test3');
     const staleProfiles = await readAuthProfiles('test2');
 
-    expect((mainProfiles.profiles as Record<string, { key: string }>)['openrouter:default'].key).toBe('sk-test');
-    expect((test3Profiles.profiles as Record<string, { key: string }>)['openrouter:default'].key).toBe('sk-test');
+    expect(
+      (mainProfiles.profiles as Record<string, { key: string }>)['openrouter:default'].key
+    ).toBe('sk-test');
+    expect(
+      (test3Profiles.profiles as Record<string, { key: string }>)['openrouter:default'].key
+    ).toBe('sk-test');
     expect(staleProfiles.profiles).toEqual({
       'legacy:default': {
         type: 'api_key',
@@ -116,7 +132,7 @@ describe('saveProviderKeyToOpenClaw', () => {
       },
     });
     expect(logSpy).toHaveBeenCalledWith(
-      'Saved API key for provider "openrouter" to OpenClaw auth-profiles (agents: main, test3)',
+      'Saved API key for provider "openrouter" to OpenClaw auth-profiles (agents: main, test3)'
     );
 
     logSpy.mockRestore();
@@ -147,10 +163,7 @@ describe('removeProviderKeyFromOpenClaw', () => {
         },
       },
       order: {
-        'custom-abc12345': [
-          'custom-abc12345:default',
-          'custom-abc12345:backup',
-        ],
+        'custom-abc12345': ['custom-abc12345:default', 'custom-abc12345:backup'],
       },
       lastGood: {
         'custom-abc12345': 'custom-abc12345:default',
@@ -186,10 +199,7 @@ describe('removeProviderKeyFromOpenClaw', () => {
         },
       },
       order: {
-        'custom-abc12345': [
-          'custom-abc12345:default',
-          'custom-abc12345:backup',
-        ],
+        'custom-abc12345': ['custom-abc12345:default', 'custom-abc12345:backup'],
       },
       lastGood: {
         'custom-abc12345': 'custom-abc12345:default',
@@ -274,10 +284,7 @@ describe('removeProviderKeyFromOpenClaw', () => {
         },
       },
       order: {
-        'minimax-portal': [
-          'minimax-portal:default',
-          'minimax-portal:oauth-backup',
-        ],
+        'minimax-portal': ['minimax-portal:default', 'minimax-portal:oauth-backup'],
       },
       lastGood: {
         'minimax-portal': 'minimax-portal:default',
@@ -314,14 +321,14 @@ describe('sanitizeOpenClawConfig', () => {
   });
 
   it('skips sanitization when openclaw.json does not exist', async () => {
-    // Ensure the .openclaw dir doesn't exist at all
+    // Ensure the .boostclaw/openclaw dir doesn't exist at all
     const { sanitizeOpenClawConfig } = await import('@electron/utils/openclaw-auth');
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     // Should not throw and should not create the file
     await expect(sanitizeOpenClawConfig()).resolves.toBeUndefined();
 
-    const configPath = join(testHome, '.openclaw', 'openclaw.json');
+    const configPath = join(testHome, '.boostclaw', 'openclaw', 'openclaw.json');
     await expect(readFile(configPath, 'utf8')).rejects.toThrow();
 
     logSpy.mockRestore();
@@ -329,7 +336,7 @@ describe('sanitizeOpenClawConfig', () => {
 
   it('skips sanitization when openclaw.json contains invalid JSON', async () => {
     // Simulate a corrupted file: readJsonFile returns null, sanitize must bail out
-    const openclawDir = join(testHome, '.openclaw');
+    const openclawDir = join(testHome, '.boostclaw', 'openclaw');
     await mkdir(openclawDir, { recursive: true });
     const configPath = join(openclawDir, 'openclaw.json');
     await writeFile(configPath, 'NOT VALID JSON {{{', 'utf8');
@@ -357,7 +364,7 @@ describe('sanitizeOpenClawConfig', () => {
 
     await sanitizeOpenClawConfig();
 
-    const configPath = join(testHome, '.openclaw', 'openclaw.json');
+    const configPath = join(testHome, '.boostclaw', 'openclaw', 'openclaw.json');
     const result = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>;
     // Fresh install should get tools settings enforced
     const tools = result.tools as Record<string, unknown>;
@@ -378,7 +385,7 @@ describe('sanitizeOpenClawConfig', () => {
 
     await sanitizeOpenClawConfig();
 
-    const configPath = join(testHome, '.openclaw', 'openclaw.json');
+    const configPath = join(testHome, '.boostclaw', 'openclaw', 'openclaw.json');
     const result = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>;
 
     // User-owned sections must survive the sanitize pass
@@ -420,7 +427,12 @@ describe('sanitizeOpenClawConfig', () => {
     const tools = (result.tools as Record<string, unknown> | undefined) || {};
     const web = (tools.web as Record<string, unknown> | undefined) || {};
     const search = (web.search as Record<string, unknown> | undefined) || {};
-    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    const moonshot = (
+      (
+        ((result.plugins as Record<string, unknown>).entries as Record<string, unknown>)
+          .moonshot as Record<string, unknown>
+      ).config as Record<string, unknown>
+    ).webSearch as Record<string, unknown>;
 
     expect(search).not.toHaveProperty('kimi');
     expect(moonshot).not.toHaveProperty('apiKey');
@@ -454,7 +466,12 @@ describe('syncProviderConfigToOpenClaw', () => {
     const tools = (result.tools as Record<string, unknown> | undefined) || {};
     const web = (tools.web as Record<string, unknown> | undefined) || {};
     const search = (web.search as Record<string, unknown> | undefined) || {};
-    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    const moonshot = (
+      (
+        ((result.plugins as Record<string, unknown>).entries as Record<string, unknown>)
+          .moonshot as Record<string, unknown>
+      ).config as Record<string, unknown>
+    ).webSearch as Record<string, unknown>;
 
     expect(search).not.toHaveProperty('kimi');
     expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
@@ -478,7 +495,10 @@ describe('syncProviderConfigToOpenClaw', () => {
     const result = await readOpenClawJson();
     const plugins = result.plugins as Record<string, unknown>;
     const load = plugins.load as string[];
-    const moonshot = (((plugins.entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    const moonshot = (
+      ((plugins.entries as Record<string, unknown>).moonshot as Record<string, unknown>)
+        .config as Record<string, unknown>
+    ).webSearch as Record<string, unknown>;
 
     expect(load).toEqual(['/tmp/custom-plugin.js']);
     expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
@@ -497,13 +517,30 @@ describe('auth-backed provider discovery', () => {
     await writeOpenClawJson({
       agents: {
         list: [
-          { id: 'main', name: 'Main', default: true, workspace: '~/.openclaw/workspace', agentDir: '~/.openclaw/agents/main/agent' },
-          { id: 'work', name: 'Work', workspace: '~/.openclaw/workspace-work', agentDir: '~/.openclaw/agents/work/agent' },
+          {
+            id: 'main',
+            name: 'Main',
+            default: true,
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
+          },
+          {
+            id: 'work',
+            name: 'Work',
+            workspace: '~/.boostclaw/openclaw/workspace-work',
+            agentDir: '~/.boostclaw/openclaw/agents/work/agent',
+          },
         ],
       },
       auth: {
         profiles: {
-          'openai-codex:default': { type: 'oauth', provider: 'openai-codex', access: 'acc', refresh: 'ref', expires: 1 },
+          'openai-codex:default': {
+            type: 'oauth',
+            provider: 'openai-codex',
+            access: 'acc',
+            refresh: 'ref',
+            expires: 1,
+          },
           'anthropic:default': { type: 'api_key', provider: 'anthropic', key: 'sk-ant' },
         },
       },
@@ -525,7 +562,7 @@ describe('auth-backed provider discovery', () => {
     const { getActiveOpenClawProviders } = await import('@electron/utils/openclaw-auth');
 
     await expect(getActiveOpenClawProviders()).resolves.toEqual(
-      new Set(['openai', 'anthropic', 'google']),
+      new Set(['openai', 'anthropic', 'google'])
     );
   });
 
@@ -533,8 +570,19 @@ describe('auth-backed provider discovery', () => {
     await writeOpenClawJson({
       agents: {
         list: [
-          { id: 'main', name: 'Main', default: true, workspace: '~/.openclaw/workspace', agentDir: '~/.openclaw/agents/main/agent' },
-          { id: 'work', name: 'Work', workspace: '~/.openclaw/workspace-work', agentDir: '~/.openclaw/agents/work/agent' },
+          {
+            id: 'main',
+            name: 'Main',
+            default: true,
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
+          },
+          {
+            id: 'work',
+            name: 'Work',
+            workspace: '~/.boostclaw/openclaw/workspace-work',
+            agentDir: '~/.boostclaw/openclaw/agents/work/agent',
+          },
         ],
         defaults: {
           model: {
@@ -544,7 +592,13 @@ describe('auth-backed provider discovery', () => {
       },
       auth: {
         profiles: {
-          'openai-codex:default': { type: 'oauth', provider: 'openai-codex', access: 'acc', refresh: 'ref', expires: 1 },
+          'openai-codex:default': {
+            type: 'oauth',
+            provider: 'openai-codex',
+            access: 'acc',
+            refresh: 'ref',
+            expires: 1,
+          },
         },
       },
     });
@@ -574,8 +628,19 @@ describe('auth-backed provider discovery', () => {
     await writeOpenClawJson({
       agents: {
         list: [
-          { id: 'main', name: 'Main', default: true, workspace: '~/.openclaw/workspace', agentDir: '~/.openclaw/agents/main/agent' },
-          { id: 'work', name: 'Work', workspace: '~/.openclaw/workspace-work', agentDir: '~/.openclaw/agents/work/agent' },
+          {
+            id: 'main',
+            name: 'Main',
+            default: true,
+            workspace: '~/.boostclaw/openclaw/workspace',
+            agentDir: '~/.boostclaw/openclaw/agents/main/agent',
+          },
+          {
+            id: 'work',
+            name: 'Work',
+            workspace: '~/.boostclaw/openclaw/workspace-work',
+            agentDir: '~/.boostclaw/openclaw/agents/work/agent',
+          },
         ],
       },
       models: {
@@ -619,21 +684,15 @@ describe('auth-backed provider discovery', () => {
         },
       },
       order: {
-        'custom-abc12345': [
-          'custom-abc12345:default',
-          'custom-abc12345:backup',
-        ],
+        'custom-abc12345': ['custom-abc12345:default', 'custom-abc12345:backup'],
       },
       lastGood: {
         'custom-abc12345': 'custom-abc12345:backup',
       },
     });
 
-    const {
-      getActiveOpenClawProviders,
-      getOpenClawProvidersConfig,
-      removeProviderFromOpenClaw,
-    } = await import('@electron/utils/openclaw-auth');
+    const { getActiveOpenClawProviders, getOpenClawProvidersConfig, removeProviderFromOpenClaw } =
+      await import('@electron/utils/openclaw-auth');
 
     await expect(getActiveOpenClawProviders()).resolves.toEqual(new Set(['custom-abc12345']));
 
@@ -650,5 +709,210 @@ describe('auth-backed provider discovery', () => {
     expect((config.models as { providers?: Record<string, unknown> }).providers).toEqual({});
     expect(result.providers).toEqual({});
     await expect(getActiveOpenClawProviders()).resolves.toEqual(new Set());
+  });
+});
+
+describe('syncPerformanceDefaultsToOpenClaw', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    await rm(testHome, { recursive: true, force: true });
+    await rm(testUserData, { recursive: true, force: true });
+  });
+
+  function getDefaults(config: Record<string, unknown>): Record<string, unknown> {
+    const agents = config.agents as Record<string, unknown> | undefined;
+    return (agents?.defaults ?? {}) as Record<string, unknown>;
+  }
+
+  it('injects model-agnostic defaults when no keys are set', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {},
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    const pruning = defaults.contextPruning as Record<string, unknown>;
+    expect(pruning.mode).toBe('cache-ttl');
+    expect(pruning.ttl).toBe('5m');
+    expect(defaults.contextInjection).toBe('continuation-skip');
+
+    const limits = defaults.contextLimits as Record<string, unknown>;
+    expect(limits.toolResultMaxChars).toBe(16000);
+    expect(defaults.bootstrapTotalMaxChars).toBe(60000);
+  });
+
+  it('sets cacheRetention=long and heartbeat for Anthropic provider', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'anthropic/claude-opus-4-6',
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    const params = defaults.params as Record<string, unknown>;
+    expect(params.cacheRetention).toBe('long');
+
+    const heartbeat = defaults.heartbeat as Record<string, unknown>;
+    expect(heartbeat.every).toBe('55m');
+  });
+
+  it('sets cacheRetention=short for OpenAI provider without heartbeat', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'openai/gpt-5.4',
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    const params = defaults.params as Record<string, unknown>;
+    expect(params.cacheRetention).toBe('short');
+    expect(defaults.heartbeat).toBeUndefined();
+  });
+
+  it('sets cacheRetention=long for OpenRouter with Anthropic model', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'openrouter/anthropic/claude-sonnet-4-6',
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    const params = defaults.params as Record<string, unknown>;
+    expect(params.cacheRetention).toBe('long');
+  });
+
+  it('handles model as object with primary', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: { primary: 'anthropic/claude-sonnet-4-6' },
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    const params = defaults.params as Record<string, unknown>;
+    expect(params.cacheRetention).toBe('long');
+  });
+
+  it('does not override user-configured values', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'anthropic/claude-opus-4-6',
+          contextInjection: 'always',
+          contextPruning: { mode: 'off' },
+          params: { cacheRetention: 'short' },
+          heartbeat: { every: '30m' },
+          contextLimits: { toolResultMaxChars: 8000 },
+          bootstrapTotalMaxChars: 30000,
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    expect(defaults.contextInjection).toBe('always');
+
+    const pruning = defaults.contextPruning as Record<string, unknown>;
+    expect(pruning.mode).toBe('off');
+
+    const params = defaults.params as Record<string, unknown>;
+    expect(params.cacheRetention).toBe('short');
+
+    const heartbeat = defaults.heartbeat as Record<string, unknown>;
+    expect(heartbeat.every).toBe('30m');
+
+    const limits = defaults.contextLimits as Record<string, unknown>;
+    expect(limits.toolResultMaxChars).toBe(8000);
+    expect(defaults.bootstrapTotalMaxChars).toBe(30000);
+  });
+
+  it('does not write when all keys are already configured', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'openai/gpt-5.4',
+          contextInjection: 'continuation-skip',
+          contextPruning: { mode: 'cache-ttl', ttl: '5m' },
+          params: { cacheRetention: 'short' },
+          contextLimits: { toolResultMaxChars: 16000 },
+          bootstrapTotalMaxChars: 60000,
+        },
+      },
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    expect(logSpy).not.toHaveBeenCalledWith('Synced performance defaults to openclaw.json');
+    logSpy.mockRestore();
+  });
+
+  it('skips when agents.defaults is missing', async () => {
+    await writeOpenClawJson({});
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    expect(logSpy).not.toHaveBeenCalledWith('Synced performance defaults to openclaw.json');
+    logSpy.mockRestore();
+  });
+
+  it('skips cacheRetention for unknown providers', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: 'ollama/llama3.1:8b',
+        },
+      },
+    });
+
+    const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await syncPerformanceDefaultsToOpenClaw();
+
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    expect(defaults.params).toBeUndefined();
   });
 });

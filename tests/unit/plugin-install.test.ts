@@ -132,13 +132,20 @@ describe('plugin installer diagnostics', () => {
     mockHomedir.mockReturnValue('C:\\Users\\test');
 
     const sourceDir = 'C:\\Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom';
-    const sourceManifestSuffix = 'Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
+    const sourceManifestSuffix =
+      'Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
 
-    mockExistsSync.mockImplementation((input: string) => String(input).includes(sourceManifestSuffix));
+    mockExistsSync.mockImplementation((input: string) =>
+      String(input).includes(sourceManifestSuffix)
+    );
     // On win32, cpSyncSafe uses _copyDirSyncRecursive (readdirSync) instead of cpSync.
     // Simulate copy failure by making readdirSync throw during directory traversal.
     mockReaddirSync.mockImplementation((_path: string, opts?: unknown) => {
-      if (opts && typeof opts === 'object' && 'withFileTypes' in (opts as Record<string, unknown>)) {
+      if (
+        opts &&
+        typeof opts === 'object' &&
+        'withFileTypes' in (opts as Record<string, unknown>)
+      ) {
         const error = new Error('path too long') as NodeJS.ErrnoException;
         error.code = 'ENAMETOOLONG';
         throw error;
@@ -155,12 +162,12 @@ describe('plugin installer diagnostics', () => {
     });
 
     // On win32, cpSyncSafe walks the directory via readdirSync (with withFileTypes)
-    const copyAttempts = mockReaddirSync.mock.calls.filter(
-      (call: unknown[]) => {
-        const opts = call[1];
-        return opts && typeof opts === 'object' && 'withFileTypes' in (opts as Record<string, unknown>);
-      },
-    );
+    const copyAttempts = mockReaddirSync.mock.calls.filter((call: unknown[]) => {
+      const opts = call[1];
+      return (
+        opts && typeof opts === 'object' && 'withFileTypes' in (opts as Record<string, unknown>)
+      );
+    });
     expect(copyAttempts).toHaveLength(2); // initial + 1 retry
     const firstSrcPath = String(copyAttempts[0][0]);
     expect(firstSrcPath.startsWith('\\\\?\\')).toBe(true);
@@ -176,7 +183,7 @@ describe('plugin installer diagnostics', () => {
           expect.objectContaining({ attempt: 1, code: 'ENAMETOOLONG' }),
           expect.objectContaining({ attempt: 2, code: 'ENAMETOOLONG' }),
         ],
-      }),
+      })
     );
   });
 
@@ -185,12 +192,19 @@ describe('plugin installer diagnostics', () => {
     mockHomedir.mockReturnValue('C:\\Users\\test');
 
     const sourceDir = 'C:\\Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom';
-    const sourceManifestSuffix = 'Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
+    const sourceManifestSuffix =
+      'Program Files\\BoostClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
 
-    mockExistsSync.mockImplementation((input: string) => String(input).includes(sourceManifestSuffix));
+    mockExistsSync.mockImplementation((input: string) =>
+      String(input).includes(sourceManifestSuffix)
+    );
     // On win32, cpSyncSafe uses _copyDirSyncRecursive (readdirSync) instead of cpSync.
     mockReaddirSync.mockImplementation((_path: string, opts?: unknown) => {
-      if (opts && typeof opts === 'object' && 'withFileTypes' in (opts as Record<string, unknown>)) {
+      if (
+        opts &&
+        typeof opts === 'object' &&
+        'withFileTypes' in (opts as Record<string, unknown>)
+      ) {
         const error = new Error('access denied') as NodeJS.ErrnoException;
         error.code = 'EPERM';
         throw error;
@@ -208,13 +222,13 @@ describe('plugin installer diagnostics', () => {
       '[plugin] Bundled mirror install failed for WeCom',
       expect.objectContaining({
         sourceDir,
-        targetDir: expect.stringContaining('.openclaw/extensions/wecom'),
+        targetDir: expect.stringContaining('.boostclaw/openclaw/extensions/wecom'),
         platform: 'win32',
         attempts: [
           expect.objectContaining({ attempt: 1, code: 'EPERM' }),
           expect.objectContaining({ attempt: 2, code: 'EPERM' }),
         ],
-      }),
+      })
     );
   });
 });

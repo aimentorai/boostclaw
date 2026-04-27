@@ -10,7 +10,7 @@ const GATEWAY_INJECTED_SESSION_ID = 'agent-session-gateway-injected';
 const DELIVERY_MIRROR_SESSION_ID = 'agent-session-delivery-mirror';
 
 async function seedTokenUsageTranscripts(homeDir: string): Promise<void> {
-  const sessionDir = join(homeDir, '.openclaw', 'agents', TEST_AGENT_ID, 'sessions');
+  const sessionDir = join(homeDir, '.boostclaw', 'openclaw', 'agents', TEST_AGENT_ID, 'sessions');
   const now = new Date();
   const zeroTimestamp = new Date(now.getTime() - 20_000).toISOString();
   const nonzeroTimestamp = now.toISOString();
@@ -34,7 +34,7 @@ async function seedTokenUsageTranscripts(homeDir: string): Promise<void> {
       }),
       '',
     ].join('\n'),
-    'utf8',
+    'utf8'
   );
   await writeFile(
     join(sessionDir, `${NONZERO_TOKEN_SESSION_ID}.jsonl`),
@@ -55,7 +55,7 @@ async function seedTokenUsageTranscripts(homeDir: string): Promise<void> {
       }),
       '',
     ].join('\n'),
-    'utf8',
+    'utf8'
   );
   await writeFile(
     join(sessionDir, `${GATEWAY_INJECTED_SESSION_ID}.jsonl`),
@@ -75,7 +75,7 @@ async function seedTokenUsageTranscripts(homeDir: string): Promise<void> {
       }),
       '',
     ].join('\n'),
-    'utf8',
+    'utf8'
   );
   await writeFile(
     join(sessionDir, `${DELIVERY_MIRROR_SESSION_ID}.jsonl`),
@@ -95,35 +95,40 @@ async function seedTokenUsageTranscripts(homeDir: string): Promise<void> {
       }),
       '',
     ].join('\n'),
-    'utf8',
+    'utf8'
   );
 }
 
 test.describe('BoostClaw token usage history', () => {
   async function waitForGatewayRunning(page: Page): Promise<void> {
-    await expect.poll(async () => {
-      const status = await page.evaluate(async () => {
-        return window.electron.ipcRenderer.invoke('gateway:status');
-      });
+    await expect
+      .poll(
+        async () => {
+          const status = await page.evaluate(async () => {
+            return window.electron.ipcRenderer.invoke('gateway:status');
+          });
 
-      if (status?.state === 'running') {
-        return 'running';
-      }
-
-      await page.evaluate(async () => {
-        try {
-          await window.electron.ipcRenderer.invoke('gateway:start');
-        } catch {
-          try {
-            await window.electron.ipcRenderer.invoke('gateway:restart');
-          } catch {
-            // Ignore transient e2e startup failures and let the poll retry.
+          if (status?.state === 'running') {
+            return 'running';
           }
-        }
-      });
 
-      return status?.state ?? 'unknown';
-    }, { timeout: 45_000, intervals: [500, 1000, 1500, 2000] }).toBe('running');
+          await page.evaluate(async () => {
+            try {
+              await window.electron.ipcRenderer.invoke('gateway:start');
+            } catch {
+              try {
+                await window.electron.ipcRenderer.invoke('gateway:restart');
+              } catch {
+                // Ignore transient e2e startup failures and let the poll retry.
+              }
+            }
+          });
+
+          return status?.state ?? 'unknown';
+        },
+        { timeout: 45_000, intervals: [500, 1000, 1500, 2000] }
+      )
+      .toBe('running');
   }
 
   async function validateUsageHistory(page: Page): Promise<void> {
@@ -134,18 +139,20 @@ test.describe('BoostClaw token usage history', () => {
       throw new Error('No usage history found in IPC usage:recentTokenHistory');
     }
 
-    const hasSeededEntries = usageHistory.some((entry) =>
-      typeof entry?.sessionId === 'string' && (
-        entry.sessionId === ZERO_TOKEN_SESSION_ID
-        || entry.sessionId === NONZERO_TOKEN_SESSION_ID
-      ),
+    const hasSeededEntries = usageHistory.some(
+      (entry) =>
+        typeof entry?.sessionId === 'string' &&
+        (entry.sessionId === ZERO_TOKEN_SESSION_ID || entry.sessionId === NONZERO_TOKEN_SESSION_ID)
     );
     if (!hasSeededEntries) {
       throw new Error('Seeded transcript session IDs were not found in IPC usage history');
     }
   }
 
-  test('displays assistant usage for agent directory with zero and non-zero tokens', async ({ page, homeDir }) => {
+  test('displays assistant usage for agent directory with zero and non-zero tokens', async ({
+    page,
+    homeDir,
+  }) => {
     await seedTokenUsageTranscripts(homeDir);
     await completeSetup(page);
     await validateUsageHistory(page);
@@ -155,7 +162,9 @@ test.describe('BoostClaw token usage history', () => {
     });
 
     const zeroEntry = usageHistory.find((entry) => entry?.sessionId === ZERO_TOKEN_SESSION_ID);
-    const nonzeroEntry = usageHistory.find((entry) => entry?.sessionId === NONZERO_TOKEN_SESSION_ID);
+    const nonzeroEntry = usageHistory.find(
+      (entry) => entry?.sessionId === NONZERO_TOKEN_SESSION_ID
+    );
     expect(zeroEntry).toBeTruthy();
     expect(nonzeroEntry).toBeTruthy();
     expect(nonzeroEntry?.totalTokens).toBe(27);
@@ -166,7 +175,10 @@ test.describe('BoostClaw token usage history', () => {
     expect(nonzeroEntry?.provider).toBe('kimi');
   });
 
-  test('hides gateway internal usage rows from the usage list overview', async ({ page, homeDir }) => {
+  test('hides gateway internal usage rows from the usage list overview', async ({
+    page,
+    homeDir,
+  }) => {
     await seedTokenUsageTranscripts(homeDir);
     await completeSetup(page);
     await waitForGatewayRunning(page);
@@ -192,7 +204,11 @@ test.describe('BoostClaw token usage history', () => {
       }
     }
 
-    await expect(page.locator('[data-testid="token-usage-entry"]', { hasText: GATEWAY_INJECTED_SESSION_ID })).toHaveCount(0);
-    await expect(page.locator('[data-testid="token-usage-entry"]', { hasText: DELIVERY_MIRROR_SESSION_ID })).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="token-usage-entry"]', { hasText: GATEWAY_INJECTED_SESSION_ID })
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="token-usage-entry"]', { hasText: DELIVERY_MIRROR_SESSION_ID })
+    ).toHaveCount(0);
   });
 });

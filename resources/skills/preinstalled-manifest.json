@@ -75,6 +75,18 @@
       "localPath": "resources/local-skills/product-chart-get 2",
       "version": "0.1.0",
       "autoEnable": true
+    },
+    {
+      "slug": "product-market-scout",
+      "localPath": "resources/local-skills/product-market-scout",
+      "version": "0.1.0",
+      "autoEnable": true
+    },
+    {
+      "slug": "rising-seller-leads",
+      "localPath": "resources/local-skills/rising-seller-leads",
+      "version": "0.1.0",
+      "autoEnable": true
     }
   ]
 }

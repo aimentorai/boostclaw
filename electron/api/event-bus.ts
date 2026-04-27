@@ -13,6 +13,7 @@ export class HostEventBus {
   }
 
   emit(eventName: string, payload: EventPayload): void {
+    if (this.clients.size === 0) return;
     const message = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
     for (const client of this.clients) {
       try {

@@ -36,9 +36,6 @@ import type { Skill } from '@/types/skill';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
-
-
-
 // Skill detail dialog component
 interface SkillDetailDialogProps {
   skill: Skill | null;
@@ -57,14 +54,24 @@ function resolveSkillSourceLabel(skill: Skill, t: TFunction<'skills'>): string {
   }
   if (source === 'openclaw-bundled') return t('source.badge.bundled', { defaultValue: 'Bundled' });
   if (source === 'openclaw-managed') return t('source.badge.managed', { defaultValue: 'Managed' });
-  if (source === 'openclaw-workspace') return t('source.badge.workspace', { defaultValue: 'Workspace' });
+  if (source === 'openclaw-workspace')
+    return t('source.badge.workspace', { defaultValue: 'Workspace' });
   if (source === 'openclaw-extra') return t('source.badge.extra', { defaultValue: 'Extra dirs' });
-  if (source === 'agents-skills-personal') return t('source.badge.agentsPersonal', { defaultValue: 'Personal .agents' });
-  if (source === 'agents-skills-project') return t('source.badge.agentsProject', { defaultValue: 'Project .agents' });
+  if (source === 'agents-skills-personal')
+    return t('source.badge.agentsPersonal', { defaultValue: 'Personal .agents' });
+  if (source === 'agents-skills-project')
+    return t('source.badge.agentsProject', { defaultValue: 'Project .agents' });
   return source;
 }
 
-function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOpenFolder }: SkillDetailDialogProps) {
+function SkillDetailDialog({
+  skill,
+  isOpen,
+  onClose,
+  onToggle,
+  onUninstall,
+  onOpenFolder,
+}: SkillDetailDialogProps) {
   const { t } = useTranslation('skills');
   const { fetchSkills } = useSkillsStore();
   const [envVars, setEnvVars] = useState<Array<{ key: string; value: string }>>([]);
@@ -102,10 +109,13 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
   const handleOpenEditor = async () => {
     if (!skill?.id) return;
     try {
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/clawhub/open-readme', {
-        method: 'POST',
-        body: JSON.stringify({ skillKey: skill.id, slug: skill.slug, baseDir: skill.baseDir }),
-      });
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        '/api/clawhub/open-readme',
+        {
+          method: 'POST',
+          body: JSON.stringify({ skillKey: skill.id, slug: skill.slug, baseDir: skill.baseDir }),
+        }
+      );
       if (result.success) {
         toast.success(t('toast.openedEditor'));
       } else {
@@ -147,24 +157,24 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
     setIsSaving(true);
     try {
       // Build env object, filtering out empty keys
-      const envObj = envVars.reduce((acc, curr) => {
-        const key = curr.key.trim();
-        const value = curr.value.trim();
-        if (key) {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, string>);
+      const envObj = envVars.reduce(
+        (acc, curr) => {
+          const key = curr.key.trim();
+          const value = curr.value.trim();
+          if (key) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, string>
+      );
 
       // Use direct file access instead of Gateway RPC for reliability
-      const result = await invokeIpc<{ success: boolean; error?: string }>(
-        'skill:updateConfig',
-        {
-          skillKey: skill.id,
-          apiKey: apiKey || '', // Empty string will delete the key
-          env: envObj // Empty object will clear all env vars
-        }
-      ) as { success: boolean; error?: string };
+      const result = (await invokeIpc<{ success: boolean; error?: string }>('skill:updateConfig', {
+        skillKey: skill.id,
+        apiKey: apiKey || '', // Empty string will delete the key
+        env: envObj, // Empty object will clear all env vars
+      })) as { success: boolean; error?: string };
 
       if (!result.success) {
         throw new Error(result.error || 'Unknown error');
@@ -204,11 +214,21 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
               {skill.name}
             </h2>
             <div className="flex items-center justify-center gap-2.5 mb-6 opacity-80">
-              <Badge variant="secondary" className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border-0 shadow-none text-foreground/70 transition-colors">
+              <Badge
+                variant="secondary"
+                className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border-0 shadow-none text-foreground/70 transition-colors"
+              >
                 v{skill.version}
               </Badge>
-              <Badge variant="secondary" className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border-0 shadow-none text-foreground/70 transition-colors">
-                {skill.isCore ? t('detail.coreSystem') : skill.isBundled ? t('detail.bundled') : t('detail.userInstalled')}
+              <Badge
+                variant="secondary"
+                className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border-0 shadow-none text-foreground/70 transition-colors"
+              >
+                {skill.isCore
+                  ? t('detail.coreSystem')
+                  : skill.isBundled
+                    ? t('detail.bundled')
+                    : t('detail.userInstalled')}
               </Badge>
             </div>
 
@@ -223,7 +243,10 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
             <div className="space-y-2">
               <h3 className="text-[13px] font-bold text-foreground/80">{t('detail.source')}</h3>
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70">
+                <Badge
+                  variant="secondary"
+                  className="font-mono text-[11px] font-medium px-3 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
+                >
                   {resolveSkillSourceLabel(skill, t)}
                 </Badge>
               </div>
@@ -271,7 +294,10 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
                   className="h-[44px] font-mono text-[13px] bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 rounded-xl focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40"
                 />
                 <p className="text-[12px] text-foreground/50 mt-2 font-medium">
-                  {t('detail.apiKeyDesc', 'The primary API key for this skill. Leave blank if not required or configured elsewhere.')}
+                  {t(
+                    'detail.apiKeyDesc',
+                    'The primary API key for this skill. Leave blank if not required or configured elsewhere.'
+                  )}
                 </p>
               </div>
             )}
@@ -284,7 +310,10 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
                     <h3 className="text-[13px] font-bold text-foreground/80">
                       {t('detail.envVars')}
                       {envVars.length > 0 && (
-                        <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px] h-5 bg-black/10 dark:bg-white/10 text-foreground">
+                        <Badge
+                          variant="secondary"
+                          className="ml-2 px-1.5 py-0 text-[10px] h-5 bg-black/10 dark:bg-white/10 text-foreground"
+                        >
                           {envVars.length}
                         </Badge>
                       )}
@@ -339,11 +368,21 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
             {/* External Links */}
             {skill.slug && !skill.isBundled && !skill.isCore && (
               <div className="flex gap-2 justify-center pt-8">
-                <Button variant="outline" size="sm" className="h-[28px] text-[11px] font-medium px-3 gap-1.5 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/70" onClick={handleOpenClawhub}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-[28px] text-[11px] font-medium px-3 gap-1.5 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/70"
+                  onClick={handleOpenClawhub}
+                >
                   <Globe className="h-[12px] w-[12px]" />
                   ClawHub
                 </Button>
-                <Button variant="outline" size="sm" className="h-[28px] text-[11px] font-medium px-3 gap-1.5 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/70" onClick={handleOpenEditor}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-[28px] text-[11px] font-medium px-3 gap-1.5 rounded-full border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/70"
+                  onClick={handleOpenEditor}
+                >
                   <FileCode className="h-[12px] w-[12px]" />
                   {t('detail.openManual')}
                 </Button>
@@ -357,8 +396,8 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
               <Button
                 onClick={handleSaveConfig}
                 className={cn(
-                  "flex-1 h-[42px] text-[13px] rounded-full font-semibold shadow-sm border border-transparent transition-all",
-                  "bg-[#0a84ff] hover:bg-[#007aff] text-white"
+                  'flex-1 h-[42px] text-[13px] rounded-full font-semibold shadow-sm border border-transparent transition-all',
+                  'bg-[#0a84ff] hover:bg-[#007aff] text-white'
                 )}
                 disabled={isSaving}
               >
@@ -381,7 +420,9 @@ function SkillDetailDialog({ skill, isOpen, onClose, onToggle, onUninstall, onOp
               >
                 {!skill.isBundled && onUninstall
                   ? t('detail.uninstall')
-                  : (skill.enabled ? t('detail.disable') : t('detail.enable'))}
+                  : skill.enabled
+                    ? t('detail.disable')
+                    : t('detail.enable')}
               </Button>
             )}
           </div>
@@ -405,7 +446,7 @@ export function Skills() {
     uninstallSkill,
     searching,
     searchError,
-    installing
+    installing,
   } = useSkillsStore();
   const { t } = useTranslation('skills');
   const gatewayStatus = useGatewayStore((state) => state.status);
@@ -443,85 +484,99 @@ export function Skills() {
     ['development-sheet-factory', 0],
     ['product-chart-get', 1],
   ]);
-  const filteredSkills = safeSkills.filter((skill) => {
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      q.length === 0 ||
-      skill.name.toLowerCase().includes(q) ||
-      skill.description.toLowerCase().includes(q) ||
-      skill.id.toLowerCase().includes(q) ||
-      (skill.slug || '').toLowerCase().includes(q) ||
-      (skill.author || '').toLowerCase().includes(q);
+  const filteredSkills = safeSkills
+    .filter((skill) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        q.length === 0 ||
+        skill.name.toLowerCase().includes(q) ||
+        skill.description.toLowerCase().includes(q) ||
+        skill.id.toLowerCase().includes(q) ||
+        (skill.slug || '').toLowerCase().includes(q) ||
+        (skill.author || '').toLowerCase().includes(q);
 
-    let matchesSource = true;
-    if (selectedSource === 'built-in') {
-      matchesSource = !!skill.isBundled;
-    } else if (selectedSource === 'marketplace') {
-      matchesSource = !skill.isBundled;
-    }
+      let matchesSource = true;
+      if (selectedSource === 'built-in') {
+        matchesSource = !!skill.isBundled;
+      } else if (selectedSource === 'marketplace') {
+        matchesSource = !skill.isBundled;
+      }
 
-    return matchesSearch && matchesSource;
-  }).sort((a, b) => {
-    const pinnedA = pinnedSkillOrder.get(a.id) ?? Number.POSITIVE_INFINITY;
-    const pinnedB = pinnedSkillOrder.get(b.id) ?? Number.POSITIVE_INFINITY;
-    if (pinnedA !== pinnedB) return pinnedA - pinnedB;
-    if (a.enabled && !b.enabled) return -1;
-    if (!a.enabled && b.enabled) return 1;
-    if (a.isCore && !b.isCore) return -1;
-    if (!a.isCore && b.isCore) return 1;
-    return a.name.localeCompare(b.name);
-  });
+      return matchesSearch && matchesSource;
+    })
+    .sort((a, b) => {
+      const pinnedA = pinnedSkillOrder.get(a.id) ?? Number.POSITIVE_INFINITY;
+      const pinnedB = pinnedSkillOrder.get(b.id) ?? Number.POSITIVE_INFINITY;
+      if (pinnedA !== pinnedB) return pinnedA - pinnedB;
+      if (a.enabled && !b.enabled) return -1;
+      if (!a.enabled && b.enabled) return 1;
+      if (a.isCore && !b.isCore) return -1;
+      if (!a.isCore && b.isCore) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const sourceStats = {
     all: safeSkills.length,
-    builtIn: safeSkills.filter(s => s.isBundled).length,
-    marketplace: safeSkills.filter(s => !s.isBundled).length,
+    builtIn: safeSkills.filter((s) => s.isBundled).length,
+    marketplace: safeSkills.filter((s) => !s.isBundled).length,
   };
 
-  const bulkToggleVisible = useCallback(async (enable: boolean) => {
-    const candidates = filteredSkills.filter((skill) => !skill.isCore && skill.enabled !== enable);
-    if (candidates.length === 0) {
-      toast.info(enable ? t('toast.noBatchEnableTargets') : t('toast.noBatchDisableTargets'));
-      return;
-    }
+  const bulkToggleVisible = useCallback(
+    async (enable: boolean) => {
+      const candidates = filteredSkills.filter(
+        (skill) => !skill.isCore && skill.enabled !== enable
+      );
+      if (candidates.length === 0) {
+        toast.info(enable ? t('toast.noBatchEnableTargets') : t('toast.noBatchDisableTargets'));
+        return;
+      }
 
-    let succeeded = 0;
-    for (const skill of candidates) {
+      let succeeded = 0;
+      for (const skill of candidates) {
+        try {
+          if (enable) {
+            await enableSkill(skill.id);
+          } else {
+            await disableSkill(skill.id);
+          }
+          succeeded += 1;
+        } catch {
+          // Continue to next skill and report final summary.
+        }
+      }
+
+      trackUiEvent('skills.batch_toggle', { enable, total: candidates.length, succeeded });
+      if (succeeded === candidates.length) {
+        toast.success(
+          enable
+            ? t('toast.batchEnabled', { count: succeeded })
+            : t('toast.batchDisabled', { count: succeeded })
+        );
+        return;
+      }
+      toast.warning(t('toast.batchPartial', { success: succeeded, total: candidates.length }));
+    },
+    [disableSkill, enableSkill, filteredSkills, t]
+  );
+
+  const handleToggle = useCallback(
+    async (skillId: string, enable: boolean) => {
       try {
         if (enable) {
-          await enableSkill(skill.id);
+          await enableSkill(skillId);
+          toast.success(t('toast.enabled'));
         } else {
-          await disableSkill(skill.id);
+          await disableSkill(skillId);
+          toast.success(t('toast.disabled'));
         }
-        succeeded += 1;
-      } catch {
-        // Continue to next skill and report final summary.
+      } catch (err) {
+        toast.error(String(err));
       }
-    }
+    },
+    [enableSkill, disableSkill, t]
+  );
 
-    trackUiEvent('skills.batch_toggle', { enable, total: candidates.length, succeeded });
-    if (succeeded === candidates.length) {
-      toast.success(enable ? t('toast.batchEnabled', { count: succeeded }) : t('toast.batchDisabled', { count: succeeded }));
-      return;
-    }
-    toast.warning(t('toast.batchPartial', { success: succeeded, total: candidates.length }));
-  }, [disableSkill, enableSkill, filteredSkills, t]);
-
-  const handleToggle = useCallback(async (skillId: string, enable: boolean) => {
-    try {
-      if (enable) {
-        await enableSkill(skillId);
-        toast.success(t('toast.enabled'));
-      } else {
-        await disableSkill(skillId);
-        toast.success(t('toast.disabled'));
-      }
-    } catch (err) {
-      toast.error(String(err));
-    }
-  }, [enableSkill, disableSkill, t]);
-
-  const hasInstalledSkills = safeSkills.some(s => !s.isBundled);
+  const hasInstalledSkills = safeSkills.some((s) => !s.isBundled);
 
   const handleOpenSkillsFolder = useCallback(async () => {
     try {
@@ -531,7 +586,11 @@ export function Skills() {
       }
       const result = await invokeIpc<string>('shell:openPath', skillsDir);
       if (result) {
-        if (result.toLowerCase().includes('no such file') || result.toLowerCase().includes('not found') || result.toLowerCase().includes('failed to open')) {
+        if (
+          result.toLowerCase().includes('no such file') ||
+          result.toLowerCase().includes('not found') ||
+          result.toLowerCase().includes('failed to open')
+        ) {
           toast.error(t('toast.failedFolderNotFound'));
         } else {
           throw new Error(result);
@@ -542,25 +601,31 @@ export function Skills() {
     }
   }, [t]);
 
-  const handleOpenSkillFolder = useCallback(async (skill: Skill) => {
-    try {
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/clawhub/open-path', {
-        method: 'POST',
-        body: JSON.stringify({
-          skillKey: skill.id,
-          slug: skill.slug,
-          baseDir: skill.baseDir,
-        }),
-      });
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to open folder');
+  const handleOpenSkillFolder = useCallback(
+    async (skill: Skill) => {
+      try {
+        const result = await hostApiFetch<{ success: boolean; error?: string }>(
+          '/api/clawhub/open-path',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              skillKey: skill.id,
+              slug: skill.slug,
+              baseDir: skill.baseDir,
+            }),
+          }
+        );
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to open folder');
+        }
+      } catch (err) {
+        toast.error(t('toast.failedOpenActualFolder') + ': ' + String(err));
       }
-    } catch (err) {
-      toast.error(t('toast.failedOpenActualFolder') + ': ' + String(err));
-    }
-  }, [t]);
+    },
+    [t]
+  );
 
-  const [skillsDirPath, setSkillsDirPath] = useState('~/.openclaw/skills');
+  const [skillsDirPath, setSkillsDirPath] = useState('~/.boostclaw/openclaw/skills');
 
   useEffect(() => {
     invokeIpc<string>('openclaw:getSkillsDir')
@@ -585,29 +650,35 @@ export function Skills() {
     return () => clearTimeout(timer);
   }, [installQuery, installSheetOpen, searchSkills]);
 
-  const handleInstall = useCallback(async (slug: string) => {
-    try {
-      await installSkill(slug);
-      await enableSkill(slug);
-      toast.success(t('toast.installed'));
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (['installTimeoutError', 'installRateLimitError'].includes(errorMessage)) {
-        toast.error(t(`toast.${errorMessage}`, { path: skillsDirPath }), { duration: 10000 });
-      } else {
-        toast.error(t('toast.failedInstall') + ': ' + errorMessage);
+  const handleInstall = useCallback(
+    async (slug: string) => {
+      try {
+        await installSkill(slug);
+        await enableSkill(slug);
+        toast.success(t('toast.installed'));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (['installTimeoutError', 'installRateLimitError'].includes(errorMessage)) {
+          toast.error(t(`toast.${errorMessage}`, { path: skillsDirPath }), { duration: 10000 });
+        } else {
+          toast.error(t('toast.failedInstall') + ': ' + errorMessage);
+        }
       }
-    }
-  }, [installSkill, enableSkill, t, skillsDirPath]);
+    },
+    [installSkill, enableSkill, t, skillsDirPath]
+  );
 
-  const handleUninstall = useCallback(async (slug: string) => {
-    try {
-      await uninstallSkill(slug);
-      toast.success(t('toast.uninstalled'));
-    } catch (err) {
-      toast.error(t('toast.failedUninstall') + ': ' + String(err));
-    }
-  }, [uninstallSkill, t]);
+  const handleUninstall = useCallback(
+    async (slug: string) => {
+      try {
+        await uninstallSkill(slug);
+        toast.success(t('toast.uninstalled'));
+      } catch (err) {
+        toast.error(t('toast.failedUninstall') + ': ' + String(err));
+      }
+    },
+    [uninstallSkill, t]
+  );
 
   if (loading) {
     return (
@@ -620,16 +691,16 @@ export function Skills() {
   return (
     <div className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
-
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-6 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1
+              className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
+              style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}
+            >
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
-              {t('subtitle')}
-            </p>
+            <p className="text-[17px] text-foreground/70 font-medium">{t('subtitle')}</p>
           </div>
 
           <div className="flex items-center gap-3 md:mt-2">
@@ -680,19 +751,34 @@ export function Skills() {
             <div className="flex items-center gap-6">
               <button
                 onClick={() => setSelectedSource('all')}
-                className={cn("font-medium transition-colors flex items-center gap-1.5", selectedSource === 'all' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  'font-medium transition-colors flex items-center gap-1.5',
+                  selectedSource === 'all'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
                 {t('filter.all', { count: sourceStats.all })}
               </button>
               <button
                 onClick={() => setSelectedSource('built-in')}
-                className={cn("font-medium transition-colors flex items-center gap-1.5", selectedSource === 'built-in' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  'font-medium transition-colors flex items-center gap-1.5',
+                  selectedSource === 'built-in'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
                 {t('filter.builtIn', { count: sourceStats.builtIn })}
               </button>
               <button
                 onClick={() => setSelectedSource('marketplace')}
-                className={cn("font-medium transition-colors flex items-center gap-1.5", selectedSource === 'marketplace' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  'font-medium transition-colors flex items-center gap-1.5',
+                  selectedSource === 'marketplace'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
                 {t('filter.marketplace', { count: sourceStats.marketplace })}
               </button>
@@ -735,7 +821,7 @@ export function Skills() {
               className="h-8 w-8 ml-1 rounded-md border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-muted-foreground hover:text-foreground"
               title={t('refresh')}
             >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             </Button>
           </div>
         </div>
@@ -746,7 +832,12 @@ export function Skills() {
             <div className="mb-4 p-4 rounded-xl border border-destructive/50 bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-2">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <span>
-                {['fetchTimeoutError', 'fetchRateLimitError', 'timeoutError', 'rateLimitError'].includes(error)
+                {[
+                  'fetchTimeoutError',
+                  'fetchRateLimitError',
+                  'timeoutError',
+                  'rateLimitError',
+                ].includes(error)
                   ? t(`toast.${error}`, { path: skillsDirPath })
                   : error}
               </span>
@@ -772,7 +863,9 @@ export function Skills() {
                     </div>
                     <div className="flex flex-col overflow-hidden">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-[15px] font-semibold text-foreground truncate">{skill.name}</h3>
+                        <h3 className="text-[15px] font-semibold text-foreground truncate">
+                          {skill.name}
+                        </h3>
                         {skill.isCore ? (
                           <Lock className="h-3 w-3 text-muted-foreground" />
                         ) : skill.isBundled ? (
@@ -788,7 +881,10 @@ export function Skills() {
                         {skill.description}
                       </p>
                       <div className="mt-1 flex items-center gap-2 text-[11px] text-foreground/55">
-                        <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] font-medium bg-black/5 dark:bg-white/10 border-0 shadow-none">
+                        <Badge
+                          variant="secondary"
+                          className="px-1.5 py-0 h-5 text-[10px] font-medium bg-black/5 dark:bg-white/10 border-0 shadow-none"
+                        >
                           {resolveSkillSourceLabel(skill, t)}
                         </Badge>
                         <span className="truncate font-mono">
@@ -797,7 +893,10 @@ export function Skills() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-6 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {skill.version && (
                       <span className="text-[13px] font-mono text-muted-foreground">
                         v{skill.version}
@@ -822,8 +921,12 @@ export function Skills() {
           side="right"
         >
           <div className="px-7 py-6 border-b border-black/10 dark:border-white/10">
-            <h2 className="text-[24px] font-serif text-foreground font-normal tracking-tight">{t('marketplace.installDialogTitle')}</h2>
-            <p className="mt-1 text-[13px] text-foreground/70">{t('marketplace.installDialogSubtitle')}</p>
+            <h2 className="text-[24px] font-serif text-foreground font-normal tracking-tight">
+              {t('marketplace.installDialogTitle')}
+            </h2>
+            <p className="mt-1 text-[13px] text-foreground/70">
+              {t('marketplace.installDialogSubtitle')}
+            </p>
             <div className="mt-4 flex flex-col md:flex-row gap-2">
               <div className="relative flex items-center bg-black/5 dark:bg-white/5 rounded-xl px-3 py-2 border border-black/10 dark:border-white/10 flex-1">
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -858,7 +961,12 @@ export function Skills() {
               <div className="mb-4 p-4 rounded-xl border border-destructive/50 bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <span>
-                  {['searchTimeoutError', 'searchRateLimitError', 'timeoutError', 'rateLimitError'].includes(searchError.replace('Error: ', ''))
+                  {[
+                    'searchTimeoutError',
+                    'searchRateLimitError',
+                    'timeoutError',
+                    'rateLimitError',
+                  ].includes(searchError.replace('Error: ', ''))
                     ? t(`toast.${searchError.replace('Error: ', '')}`, { path: skillsDirPath })
                     : t('marketplace.searchError')}
                 </span>
@@ -875,14 +983,18 @@ export function Skills() {
             {!searching && searchResults.length > 0 && (
               <div className="flex flex-col gap-1">
                 {searchResults.map((skill) => {
-                  const isInstalled = safeSkills.some(s => s.id === skill.slug || s.name === skill.name);
+                  const isInstalled = safeSkills.some(
+                    (s) => s.id === skill.slug || s.name === skill.name
+                  );
                   const isInstallLoading = !!installing[skill.slug];
 
                   return (
                     <div
                       key={skill.slug}
                       className="group flex flex-row items-center justify-between py-3.5 px-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer border-b border-black/5 dark:border-white/5 last:border-0"
-                      onClick={() => invokeIpc('shell:openExternal', `https://clawhub.ai/s/${skill.slug}`)}
+                      onClick={() =>
+                        invokeIpc('shell:openExternal', `https://clawhub.ai/s/${skill.slug}`)
+                      }
                     >
                       <div className="flex items-start gap-4 flex-1 overflow-hidden pr-4">
                         <div className="h-10 w-10 shrink-0 flex items-center justify-center text-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl overflow-hidden">
@@ -890,9 +1002,13 @@ export function Skills() {
                         </div>
                         <div className="flex flex-col overflow-hidden">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-[15px] font-semibold text-foreground truncate">{skill.name}</h3>
+                            <h3 className="text-[15px] font-semibold text-foreground truncate">
+                              {skill.name}
+                            </h3>
                             {skill.author && (
-                              <span className="text-xs text-muted-foreground">• {skill.author}</span>
+                              <span className="text-xs text-muted-foreground">
+                                • {skill.author}
+                              </span>
                             )}
                           </div>
                           <p className="text-[13.5px] text-muted-foreground line-clamp-1 pr-6 leading-relaxed">
@@ -900,7 +1016,10 @@ export function Skills() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 shrink-0" onClick={e => e.stopPropagation()}>
+                      <div
+                        className="flex items-center gap-4 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {skill.version && (
                           <span className="text-[13px] font-mono text-muted-foreground mr-2">
                             v{skill.version}
@@ -914,7 +1033,11 @@ export function Skills() {
                             disabled={isInstallLoading}
                             className="h-8 shadow-none"
                           >
-                            {isInstallLoading ? <LoadingSpinner size="sm" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            {isInstallLoading ? (
+                              <LoadingSpinner size="sm" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
                           </Button>
                         ) : (
                           <Button
@@ -924,7 +1047,11 @@ export function Skills() {
                             disabled={isInstallLoading}
                             className="h-8 px-4 rounded-full shadow-none font-medium text-xs"
                           >
-                            {isInstallLoading ? <LoadingSpinner size="sm" /> : t('marketplace.install', 'Install')}
+                            {isInstallLoading ? (
+                              <LoadingSpinner size="sm" />
+                            ) : (
+                              t('marketplace.install', 'Install')
+                            )}
                           </Button>
                         )}
                       </div>
@@ -937,7 +1064,9 @@ export function Skills() {
             {!searching && searchResults.length === 0 && !searchError && (
               <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                 <Package className="h-10 w-10 mb-4 opacity-50" />
-                <p>{installQuery.trim() ? t('marketplace.noResults') : t('marketplace.emptyPrompt')}</p>
+                <p>
+                  {installQuery.trim() ? t('marketplace.noResults') : t('marketplace.emptyPrompt')}
+                </p>
               </div>
             )}
           </div>

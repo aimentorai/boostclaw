@@ -44,7 +44,8 @@ vi.mock('@/stores/skills', () => ({
 }));
 
 vi.mock('@/stores/providers', () => ({
-  useProviderStore: (selector: (state: typeof providersState) => unknown) => selector(providersState),
+  useProviderStore: (selector: (state: typeof providersState) => unknown) =>
+    selector(providersState),
 }));
 
 vi.mock('@/lib/host-api', () => ({
@@ -124,8 +125,8 @@ describe('ChatInput agent targeting', () => {
         isDefault: true,
         modelDisplay: 'MiniMax',
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
@@ -146,8 +147,8 @@ describe('ChatInput agent targeting', () => {
         isDefault: true,
         modelDisplay: 'MiniMax',
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
@@ -157,8 +158,8 @@ describe('ChatInput agent targeting', () => {
         isDefault: false,
         modelDisplay: 'Claude',
         inheritedModel: false,
-        workspace: '~/.openclaw/workspace-research',
-        agentDir: '~/.openclaw/agents/research/agent',
+        workspace: '~/.boostclaw/openclaw/workspace-research',
+        agentDir: '~/.boostclaw/openclaw/agents/research/agent',
         mainSessionKey: 'agent:research:desk',
         channelTypes: [],
       },
@@ -259,8 +260,8 @@ describe('ChatInput agent targeting', () => {
         modelRef: 'openai/gpt-5.4',
         overrideModelRef: null,
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },

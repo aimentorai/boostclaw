@@ -9,7 +9,7 @@ import { constants } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { logger } from './logger';
-import { getResourcesDir } from './paths';
+import { getResourcesDir, getOpenClawConfigDir } from './paths';
 
 const BoostClaw_BEGIN = '<!-- BoostClaw:begin -->';
 const BoostClaw_END = '<!-- BoostClaw:end -->';
@@ -17,7 +17,12 @@ const BoostClaw_END = '<!-- BoostClaw:end -->';
 // ── Helpers ──────────────────────────────────────────────────────
 
 async function fileExists(p: string): Promise<boolean> {
-  try { await access(p, constants.F_OK); return true; } catch { return false; }
+  try {
+    await access(p, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -51,7 +56,7 @@ export function mergeBoostClawSection(existing: string, section: string): string
  * directories that already exist under ~/.openclaw/.
  */
 async function resolveAllWorkspaceDirs(): Promise<string[]> {
-  const openclawDir = join(homedir(), '.openclaw');
+  const openclawDir = getOpenClawConfigDir();
   const dirs = new Set<string>();
 
   const configPath = join(openclawDir, 'openclaw.json');
@@ -126,7 +131,9 @@ export async function repairBoostClawOnlyBootstrapFiles(): Promise<void> {
       if (before === '' && after === '') {
         try {
           await unlink(filePath);
-          logger.info(`Removed BoostClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`);
+          logger.info(
+            `Removed BoostClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`
+          );
         } catch {
           logger.warn(`Failed to remove BoostClaw-only bootstrap file: ${filePath}`);
         }
@@ -167,7 +174,9 @@ async function mergeBoostClawContextOnce(): Promise<number> {
       const targetPath = join(workspaceDir, targetName);
 
       if (!(await fileExists(targetPath))) {
-        logger.debug(`Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`);
+        logger.debug(
+          `Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`
+        );
         skipped++;
         continue;
       }
@@ -204,8 +213,12 @@ export async function ensureBoostClawContext(): Promise<void> {
       logger.info(`BoostClaw context merge completed after ${attempt} retry(ies)`);
       return;
     }
-    logger.debug(`BoostClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
+    logger.debug(
+      `BoostClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`
+    );
   }
 
-  logger.warn(`BoostClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
+  logger.warn(
+    `BoostClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`
+  );
 }

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { getOpenClawConfigDir } from '../utils/paths';
 
 export type GatewayReloadMode = 'hybrid' | 'reload' | 'restart' | 'off';
 
@@ -14,7 +14,7 @@ export const DEFAULT_GATEWAY_RELOAD_POLICY: GatewayReloadPolicy = {
   debounceMs: 1200,
 };
 
-const OPENCLAW_CONFIG_PATH = join(homedir(), '.openclaw', 'openclaw.json');
+const OPENCLAW_CONFIG_PATH = join(getOpenClawConfigDir(), 'openclaw.json');
 const MAX_DEBOUNCE_MS = 60_000;
 
 function normalizeMode(value: unknown): GatewayReloadMode {
@@ -39,12 +39,13 @@ export function parseGatewayReloadPolicy(config: unknown): GatewayReloadPolicy {
     return { ...DEFAULT_GATEWAY_RELOAD_POLICY };
   }
   const root = config as Record<string, unknown>;
-  const gateway = (root.gateway && typeof root.gateway === 'object'
-    ? root.gateway
-    : {}) as Record<string, unknown>;
-  const reload = (gateway.reload && typeof gateway.reload === 'object'
-    ? gateway.reload
-    : {}) as Record<string, unknown>;
+  const gateway = (root.gateway && typeof root.gateway === 'object' ? root.gateway : {}) as Record<
+    string,
+    unknown
+  >;
+  const reload = (
+    gateway.reload && typeof gateway.reload === 'object' ? gateway.reload : {}
+  ) as Record<string, unknown>;
 
   return {
     mode: normalizeMode(reload.mode),
@@ -60,4 +61,3 @@ export async function loadGatewayReloadPolicy(): Promise<GatewayReloadPolicy> {
     return { ...DEFAULT_GATEWAY_RELOAD_POLICY };
   }
 }
-

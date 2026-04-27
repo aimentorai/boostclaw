@@ -39,15 +39,21 @@ describe('token usage session scan', () => {
   });
 
   it('includes transcripts from agent directories that exist on disk but are not configured', async () => {
-    const openclawDir = join(testHome, '.openclaw');
+    const openclawDir = join(testHome, '.boostclaw', 'openclaw');
     await mkdir(openclawDir, { recursive: true });
-    await writeFile(join(openclawDir, 'openclaw.json'), JSON.stringify({
-      agents: {
-        list: [
-          { id: 'main', name: 'Main', default: true },
-        ],
-      },
-    }, null, 2), 'utf8');
+    await writeFile(
+      join(openclawDir, 'openclaw.json'),
+      JSON.stringify(
+        {
+          agents: {
+            list: [{ id: 'main', name: 'Main', default: true }],
+          },
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
 
     const diskOnlySessionsDir = join(openclawDir, 'agents', 'custom-custom25', 'sessions');
     await mkdir(diskOnlySessionsDir, { recursive: true });
@@ -69,7 +75,7 @@ describe('token usage session scan', () => {
           },
         }),
       ].join('\n'),
-      'utf8',
+      'utf8'
     );
 
     const { getRecentTokenUsageHistory } = await import('@electron/utils/token-usage');
@@ -83,7 +89,7 @@ describe('token usage session scan', () => {
           model: 'gpt-5.2-2025-12-11',
           totalTokens: 17756,
         }),
-      ]),
+      ])
     );
   });
 });

@@ -13,6 +13,31 @@ let gatewayInitPromise: Promise<void> | null = null;
 let gatewayEventUnsubscribers: Array<() => void> | null = null;
 let gatewayReconcileTimer: ReturnType<typeof setInterval> | null = null;
 const gatewayEventDedupe = new Map<string, number>();
+
+// Lazy-resolved chat store reference. Avoids dynamic import('./chat') on every
+// streaming event (the hot path) — after the first resolve the call is synchronous.
+type ChatStoreModule = typeof import('./chat');
+let _chatStore: ChatStoreModule['useChatStore'] | null = null;
+let _chatStoreLoading = false;
+
+function withChatStore(fn: (store: ChatStoreModule['useChatStore']) => void): void {
+  if (_chatStore) {
+    fn(_chatStore);
+    return;
+  }
+  if (!_chatStoreLoading) {
+    _chatStoreLoading = true;
+    import('./chat')
+      .then((mod) => {
+        _chatStore = mod.useChatStore;
+        _chatStoreLoading = false;
+        fn(_chatStore);
+      })
+      .catch(() => {
+        _chatStoreLoading = false;
+      });
+  }
+}
 const GATEWAY_EVENT_DEDUPE_TTL_MS = 30_000;
 const LOAD_SESSIONS_MIN_INTERVAL_MS = 1_200;
 const LOAD_HISTORY_MIN_INTERVAL_MS = 800;
@@ -40,7 +65,11 @@ interface GatewayState {
   clearError: () => void;
 }
 
+let _lastDedupePruneAt = 0;
+
 function pruneGatewayEventDedupe(now: number): void {
+  if (now - _lastDedupePruneAt < GATEWAY_EVENT_DEDUPE_TTL_MS / 2) return;
+  _lastDedupePruneAt = now;
   for (const [key, ts] of gatewayEventDedupe) {
     if (now - ts > GATEWAY_EVENT_DEDUPE_TTL_MS) {
       gatewayEventDedupe.delete(key);
@@ -126,96 +155,95 @@ function handleGatewayNotification(
       message: p.message ?? data.message,
     };
     if (shouldProcessGatewayEvent(normalizedEvent)) {
-      import('./chat')
-        .then(({ useChatStore }) => {
-          useChatStore.getState().handleChatEvent(normalizedEvent);
-        })
-        .catch(() => {});
+      withChatStore((useChatStore) => {
+        useChatStore.getState().handleChatEvent(normalizedEvent);
+      });
     }
   }
 
   const runId = p.runId ?? data.runId;
   const sessionKey = p.sessionKey ?? data.sessionKey;
   if (phase === 'started' && runId != null && sessionKey != null) {
-    import('./chat')
-      .then(({ useChatStore }) => {
-        const state = useChatStore.getState();
-        const resolvedSessionKey = String(sessionKey);
-        const shouldRefreshSessions =
-          resolvedSessionKey !== state.currentSessionKey ||
-          !state.sessions.some((session) => session.key === resolvedSessionKey);
-        if (shouldRefreshSessions) {
-          maybeLoadSessions(state, true);
-        }
+    withChatStore((useChatStore) => {
+      const state = useChatStore.getState();
+      const resolvedSessionKey = String(sessionKey);
+      const shouldRefreshSessions =
+        resolvedSessionKey !== state.currentSessionKey ||
+        !state.sessions.some((session) => session.key === resolvedSessionKey);
+      if (shouldRefreshSessions) {
+        maybeLoadSessions(state, true);
+      }
 
-        state.handleChatEvent({
-          state: 'started',
-          runId,
-          sessionKey: resolvedSessionKey,
-        });
-      })
-      .catch(() => {});
+      state.handleChatEvent({
+        state: 'started',
+        runId,
+        sessionKey: resolvedSessionKey,
+      });
+    });
   }
 
   if (phase === 'completed' || phase === 'done' || phase === 'finished' || phase === 'end') {
-    import('./chat')
-      .then(({ useChatStore }) => {
-        const state = useChatStore.getState();
-        const resolvedSessionKey = sessionKey != null ? String(sessionKey) : null;
-        const shouldRefreshSessions =
-          resolvedSessionKey != null &&
-          (resolvedSessionKey !== state.currentSessionKey ||
-            !state.sessions.some((session) => session.key === resolvedSessionKey));
-        if (shouldRefreshSessions) {
-          maybeLoadSessions(state);
-        }
+    withChatStore((useChatStore) => {
+      const state = useChatStore.getState();
+      const resolvedSessionKey = sessionKey != null ? String(sessionKey) : null;
+      const shouldRefreshSessions =
+        resolvedSessionKey != null &&
+        (resolvedSessionKey !== state.currentSessionKey ||
+          !state.sessions.some((session) => session.key === resolvedSessionKey));
+      if (shouldRefreshSessions) {
+        maybeLoadSessions(state);
+      }
 
-        const matchesCurrentSession =
-          resolvedSessionKey == null || resolvedSessionKey === state.currentSessionKey;
-        const matchesActiveRun =
-          runId != null && state.activeRunId != null && String(runId) === state.activeRunId;
+      const matchesCurrentSession =
+        resolvedSessionKey == null || resolvedSessionKey === state.currentSessionKey;
+      const matchesActiveRun =
+        runId != null && state.activeRunId != null && String(runId) === state.activeRunId;
 
-        if (matchesCurrentSession || matchesActiveRun) {
-          maybeLoadHistory(state);
-        }
-        if ((matchesCurrentSession || matchesActiveRun) && state.sending) {
-          useChatStore.setState({
-            sending: false,
-            activeRunId: null,
-            pendingFinal: false,
-            lastUserMessageAt: null,
-            error: null,
-          });
-        }
-      })
-      .catch(() => {});
+      if (matchesCurrentSession || matchesActiveRun) {
+        maybeLoadHistory(state);
+      }
+      if ((matchesCurrentSession || matchesActiveRun) && state.sending) {
+        useChatStore.setState({
+          sending: false,
+          activeRunId: null,
+          pendingFinal: false,
+          lastUserMessageAt: null,
+          error: null,
+        });
+      }
+    });
   }
 }
 
 function handleGatewayChatMessage(data: unknown): void {
-  import('./chat')
-    .then(({ useChatStore }) => {
-      const chatData = data as Record<string, unknown>;
-      const payload =
-        'message' in chatData && typeof chatData.message === 'object'
-          ? (chatData.message as Record<string, unknown>)
-          : chatData;
+  withChatStore((useChatStore) => {
+    const chatData = data as Record<string, unknown>;
+    const payload =
+      'message' in chatData && typeof chatData.message === 'object'
+        ? (chatData.message as Record<string, unknown>)
+        : chatData;
 
-      if (payload.state) {
-        if (!shouldProcessGatewayEvent(payload)) return;
-        useChatStore.getState().handleChatEvent(payload);
-        return;
-      }
+    if (payload.state) {
+      const dedup = shouldProcessGatewayEvent(payload);
+      console.log(
+        `[perf] chat-message: state=${payload.state} runId=${payload.runId ?? '-'} dedup=${dedup}`
+      );
+      if (!dedup) return;
+      useChatStore.getState().handleChatEvent(payload);
+      return;
+    }
 
-      const normalized = {
-        state: 'final',
-        message: payload,
-        runId: chatData.runId ?? payload.runId,
-      };
-      if (!shouldProcessGatewayEvent(normalized)) return;
-      useChatStore.getState().handleChatEvent(normalized);
-    })
-    .catch(() => {});
+    console.log(
+      `[perf] chat-message: no state, wrapping as final. keys=${Object.keys(chatData).join(',')}`
+    );
+    const normalized = {
+      state: 'final',
+      message: payload,
+      runId: chatData.runId ?? payload.runId,
+    };
+    if (!shouldProcessGatewayEvent(normalized)) return;
+    useChatStore.getState().handleChatEvent(normalized);
+  });
 }
 
 function mapChannelStatus(status: string): 'connected' | 'connecting' | 'disconnected' | 'error' {
@@ -237,7 +265,7 @@ function mapChannelStatus(status: string): 'connected' | 'connecting' | 'disconn
 export const useGatewayStore = create<GatewayState>((set, get) => ({
   status: {
     state: 'stopped',
-    port: 18789,
+    port: 18790,
   },
   health: null,
   isInitialized: false,
@@ -277,7 +305,14 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
           );
           unsubscribers.push(
             subscribeHostEvent('gateway:chat-message', (payload) => {
-              handleGatewayChatMessage(payload);
+              // Main process may batch multiple events into a single IPC message
+              if (Array.isArray(payload)) {
+                for (const item of payload) {
+                  handleGatewayChatMessage(item);
+                }
+              } else {
+                handleGatewayChatMessage(payload);
+              }
             })
           );
           unsubscribers.push(

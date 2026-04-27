@@ -3,16 +3,18 @@ import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { testHome, testUserData, mockLoggerWarn, mockLoggerInfo, mockLoggerError } = vi.hoisted(() => {
-  const suffix = Math.random().toString(36).slice(2);
-  return {
-    testHome: `/tmp/BoostClaw-channel-config-${suffix}`,
-    testUserData: `/tmp/BoostClaw-channel-config-user-data-${suffix}`,
-    mockLoggerWarn: vi.fn(),
-    mockLoggerInfo: vi.fn(),
-    mockLoggerError: vi.fn(),
-  };
-});
+const { testHome, testUserData, mockLoggerWarn, mockLoggerInfo, mockLoggerError } = vi.hoisted(
+  () => {
+    const suffix = Math.random().toString(36).slice(2);
+    return {
+      testHome: `/tmp/BoostClaw-channel-config-${suffix}`,
+      testUserData: `/tmp/BoostClaw-channel-config-user-data-${suffix}`,
+      mockLoggerWarn: vi.fn(),
+      mockLoggerInfo: vi.fn(),
+      mockLoggerError: vi.fn(),
+    };
+  }
+);
 
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');
@@ -42,7 +44,7 @@ vi.mock('@electron/utils/logger', () => ({
 }));
 
 async function readOpenClawJson(): Promise<Record<string, unknown>> {
-  const content = await readFile(join(testHome, '.openclaw', 'openclaw.json'), 'utf8');
+  const content = await readFile(join(testHome, '.boostclaw', 'openclaw', 'openclaw.json'), 'utf8');
   return JSON.parse(content) as Record<string, unknown>;
 }
 
@@ -60,7 +62,7 @@ describe('channel credential normalization and duplicate checks', () => {
     await saveChannelConfig('feishu', { appId: 'bot-123', appSecret: 'secret-a' }, 'agent-a');
 
     await expect(
-      saveChannelConfig('feishu', { appId: '  bot-123  ', appSecret: 'secret-b' }, 'agent-b'),
+      saveChannelConfig('feishu', { appId: '  bot-123  ', appSecret: 'secret-b' }, 'agent-b')
     ).rejects.toThrow('already bound to another agent');
   });
 
@@ -73,7 +75,7 @@ describe('channel credential normalization and duplicate checks', () => {
 
     // Should NOT throw - different case is considered a different credential
     await expect(
-      saveChannelConfig('feishu', { appId: 'bot-abc', appSecret: 'secret-b' }, 'agent-b'),
+      saveChannelConfig('feishu', { appId: 'bot-abc', appSecret: 'secret-b' }, 'agent-b')
     ).resolves.not.toThrow();
   });
 
@@ -83,7 +85,10 @@ describe('channel credential normalization and duplicate checks', () => {
     await saveChannelConfig('feishu', { appId: '  BoT-XyZ  ', appSecret: 'secret' }, 'agent-a');
 
     const config = await readOpenClawJson();
-    const channels = config.channels as Record<string, { accounts: Record<string, { appId?: string }> }>;
+    const channels = config.channels as Record<
+      string,
+      { accounts: Record<string, { appId?: string }> }
+    >;
     // Should trim whitespace but preserve original case
     expect(channels.feishu.accounts['agent-a'].appId).toBe('BoT-XyZ');
   });
@@ -95,11 +100,11 @@ describe('channel credential normalization and duplicate checks', () => {
 
     expect(mockLoggerWarn).toHaveBeenCalledWith(
       'Normalized channel credential value for duplicate check',
-      expect.objectContaining({ channelType: 'feishu', accountId: 'agent-a', key: 'appId' }),
+      expect.objectContaining({ channelType: 'feishu', accountId: 'agent-a', key: 'appId' })
     );
     expect(mockLoggerWarn).toHaveBeenCalledWith(
       'Normalizing channel credential value before save',
-      expect.objectContaining({ channelType: 'feishu', accountId: 'agent-a', key: 'appId' }),
+      expect.objectContaining({ channelType: 'feishu', accountId: 'agent-a', key: 'appId' })
     );
   });
 });
@@ -110,7 +115,7 @@ describe('parseDoctorValidationOutput', () => {
 
     const out = parseDoctorValidationOutput(
       'feishu',
-      'feishu error: token invalid\nfeishu warning: fallback enabled\n',
+      'feishu error: token invalid\nfeishu warning: fallback enabled\n'
     );
 
     expect(out.undetermined).toBe(false);
@@ -125,7 +130,9 @@ describe('parseDoctorValidationOutput', () => {
 
     expect(out.undetermined).toBe(true);
     expect(out.errors).toEqual([]);
-    expect(out.warnings.some((w: string) => w.includes('falling back to local channel config checks'))).toBe(true);
+    expect(
+      out.warnings.some((w: string) => w.includes('falling back to local channel config checks'))
+    ).toBe(true);
   });
 
   it('falls back with hint when output is empty', async () => {
@@ -135,7 +142,9 @@ describe('parseDoctorValidationOutput', () => {
 
     expect(out.undetermined).toBe(true);
     expect(out.errors).toEqual([]);
-    expect(out.warnings.some((w: string) => w.includes('falling back to local channel config checks'))).toBe(true);
+    expect(
+      out.warnings.some((w: string) => w.includes('falling back to local channel config checks'))
+    ).toBe(true);
   });
 });
 
@@ -153,8 +162,11 @@ describe('WeCom plugin configuration', () => {
     await saveChannelConfig('wecom', { botId: 'test-bot', secret: 'test-secret' }, 'agent-a');
 
     const config = await readOpenClawJson();
-    const plugins = config.plugins as { allow: string[], entries: Record<string, { enabled?: boolean }> };
-    
+    const plugins = config.plugins as {
+      allow: string[];
+      entries: Record<string, { enabled?: boolean }>;
+    };
+
     expect(plugins.allow).toContain('wecom');
     expect(plugins.entries['wecom'].enabled).toBe(true);
   });
@@ -165,7 +177,14 @@ describe('WeCom plugin configuration', () => {
     await saveChannelConfig('whatsapp', { enabled: true }, 'default');
 
     const config = await readOpenClawJson();
-    const channels = config.channels as Record<string, { enabled?: boolean; defaultAccount?: string; accounts?: Record<string, { enabled?: boolean }> }>;
+    const channels = config.channels as Record<
+      string,
+      {
+        enabled?: boolean;
+        defaultAccount?: string;
+        accounts?: Record<string, { enabled?: boolean }>;
+      }
+    >;
 
     expect(channels.whatsapp.enabled).toBe(true);
     expect(channels.whatsapp.defaultAccount).toBe('default');
@@ -174,7 +193,8 @@ describe('WeCom plugin configuration', () => {
   });
 
   it('cleans up stale whatsapp plugin registration when saving built-in config', async () => {
-    const { saveChannelConfig, writeOpenClawConfig } = await import('@electron/utils/channel-config');
+    const { saveChannelConfig, writeOpenClawConfig } =
+      await import('@electron/utils/channel-config');
 
     await writeOpenClawConfig({
       plugins: {
@@ -199,7 +219,11 @@ describe('WeCom plugin configuration', () => {
 
     await saveChannelConfig('discord', { token: 'discord-token' }, 'default');
     await saveChannelConfig('whatsapp', { enabled: true }, 'default');
-    await saveChannelConfig('qqbot', { appId: 'qq-app', token: 'qq-token', appSecret: 'qq-secret' }, 'default');
+    await saveChannelConfig(
+      'qqbot',
+      { appId: 'qq-app', token: 'qq-token', appSecret: 'qq-secret' },
+      'default'
+    );
 
     const config = await readOpenClawJson();
     const channels = config.channels as Record<string, { accounts?: Record<string, unknown> }>;
@@ -225,7 +249,8 @@ describe('WeChat dangling plugin cleanup', () => {
   });
 
   it('removes dangling openclaw-weixin plugin registration and state when no channel config exists', async () => {
-    const { cleanupDanglingWeChatPluginState, writeOpenClawConfig } = await import('@electron/utils/channel-config');
+    const { cleanupDanglingWeChatPluginState, writeOpenClawConfig } =
+      await import('@electron/utils/channel-config');
 
     await writeOpenClawConfig({
       plugins: {
@@ -237,16 +262,24 @@ describe('WeChat dangling plugin cleanup', () => {
       },
     });
 
-    const staleStateDir = join(testHome, '.openclaw', 'openclaw-weixin', 'accounts');
+    const staleStateDir = join(testHome, '.boostclaw', 'openclaw', 'openclaw-weixin', 'accounts');
     await mkdir(staleStateDir, { recursive: true });
-    await writeFile(join(staleStateDir, 'bot-im-bot.json'), JSON.stringify({ token: 'stale-token' }), 'utf8');
-    await writeFile(join(testHome, '.openclaw', 'openclaw-weixin', 'accounts.json'), JSON.stringify(['bot-im-bot']), 'utf8');
+    await writeFile(
+      join(staleStateDir, 'bot-im-bot.json'),
+      JSON.stringify({ token: 'stale-token' }),
+      'utf8'
+    );
+    await writeFile(
+      join(testHome, '.boostclaw', 'openclaw', 'openclaw-weixin', 'accounts.json'),
+      JSON.stringify(['bot-im-bot']),
+      'utf8'
+    );
 
     const result = await cleanupDanglingWeChatPluginState();
     expect(result.cleanedDanglingState).toBe(true);
 
     const config = await readOpenClawJson();
     expect(config.plugins).toBeUndefined();
-    expect(existsSync(join(testHome, '.openclaw', 'openclaw-weixin'))).toBe(false);
+    expect(existsSync(join(testHome, '.boostclaw', 'openclaw', 'openclaw-weixin'))).toBe(false);
   });
 });

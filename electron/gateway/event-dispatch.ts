@@ -34,20 +34,25 @@ export function dispatchJsonRpcNotification(
   emitter: GatewayEventEmitter,
   notification: JsonRpcNotification
 ): void {
-  emitter.emit('notification', notification);
   switch (notification.method) {
-    case GatewayEventType.CHANNEL_STATUS_CHANGED:
-      emitter.emit('channel:status', notification.params as { channelId: string; status: string });
-      break;
     case GatewayEventType.MESSAGE_RECEIVED:
+      // Route chat messages directly — skip the universal notification emit
+      // since the renderer's handleGatewayNotification filters out non-'agent'
+      // methods anyway.  Eliminates a redundant IPC serialization per token.
       emitter.emit('chat:message', notification.params as { message: unknown });
       break;
+    case GatewayEventType.CHANNEL_STATUS_CHANGED:
+      emitter.emit('notification', notification);
+      emitter.emit('channel:status', notification.params as { channelId: string; status: string });
+      break;
     case GatewayEventType.ERROR: {
+      emitter.emit('notification', notification);
       const errorData = notification.params as { message?: string };
       emitter.emit('error', new Error(errorData.message || 'Gateway error'));
       break;
     }
     default:
+      emitter.emit('notification', notification);
       logger.debug(`Unknown Gateway notification: ${notification.method}`);
   }
 }

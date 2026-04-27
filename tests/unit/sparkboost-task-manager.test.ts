@@ -39,7 +39,7 @@ describe('SparkBoostTaskManager', () => {
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
 
-      const task = await mgr.submit({
+      const task = await mgr.submit('grok-video', {
         prompt: 'a cat playing piano',
         duration: 10,
         aspectRatio: '9:16',
@@ -47,7 +47,7 @@ describe('SparkBoostTaskManager', () => {
 
       expect(task.taskId).toBe('task-1');
       expect(task.status).toBe('submitted');
-      expect(task.prompt).toBe('a cat playing piano');
+      expect(task.params.prompt).toBe('a cat playing piano');
       expect(task.pollCount).toBe(0);
       expect(typeof task.submittedAt).toBe('number');
     });
@@ -58,7 +58,7 @@ describe('SparkBoostTaskManager', () => {
       const mgr = new SparkBoostTaskManager(client, stateDir);
 
       await expect(
-        mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' })
+        mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' })
       ).rejects.toThrow('no task ID');
     });
   });
@@ -76,7 +76,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       const a = mgr.getStatus('t1');
       const b = mgr.getStatus('t1');
@@ -98,7 +98,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       const submitted = mgr.listTasks('submitted');
       const succeeded = mgr.listTasks('succeeded');
@@ -114,7 +114,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       const beforeCancel = mgr.getStatus('t1')!;
       expect(beforeCancel.status).toBe('submitted');
@@ -142,7 +142,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       // Simulate succeeded by directly manipulating internal state
       const task = mgr.getStatus('t1')!;
@@ -163,7 +163,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       // Force persist
       await (mgr as any).persist();
@@ -187,7 +187,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       // Cancel the task (makes it 'failed')
       mgr.cancel('t1');
@@ -215,7 +215,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
       await (mgr as any).persist();
 
       // Temp file should not exist after persist
@@ -232,7 +232,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       // Simulate a completed task from 2 days ago
       const task = mgr.getStatus('t1')!;
@@ -254,7 +254,7 @@ describe('SparkBoostTaskManager', () => {
       ]);
       const client = mockClient(responses);
       const mgr = new SparkBoostTaskManager(client, stateDir);
-      await mgr.submit({ prompt: 'test', duration: 6, aspectRatio: '9:16' });
+      await mgr.submit('grok-video', { prompt: 'test', duration: 6, aspectRatio: '9:16' });
 
       const task = mgr.getStatus('t1')!;
       (mgr as any).tasks.set('t1', {
