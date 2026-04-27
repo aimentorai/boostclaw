@@ -19,7 +19,6 @@ import {
   File,
   Loader2,
   ChevronDown,
-  Wand2,
   Bot,
   Check,
   Search,
@@ -32,11 +31,9 @@ import { cn } from '@/lib/utils';
 import { useGatewayStore } from '@/stores/gateway';
 import { useAgentsStore } from '@/stores/agents';
 import { useChatStore } from '@/stores/chat';
-import { useSkillsStore } from '@/stores/skills';
 import { useTemplatesStore } from '@/stores/templates';
 import { useExpertsStore } from '@/stores/experts';
-import type { AgentSummary } from '@/types/agent';
-import type { Skill } from '@/types/skill';
+import type { ExpertStatus } from '@/types/expert';
 import { useProviderStore } from '@/stores/providers';
 import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +64,21 @@ interface ChatInputProps {
   disabled?: boolean;
   sending?: boolean;
   isEmpty?: boolean;
+}
+
+interface PickerItem {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  status?: ExpertStatus;
+  category?: string;
+  sessionKey: string;
+  agentId: string;
+  isExpert: boolean;
+  isTemplate: boolean;
+  expertId?: string;
+  templateId?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -122,37 +134,6 @@ function readFileAsBase64(file: globalThis.File): Promise<string> {
     reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
     reader.readAsDataURL(file);
   });
-}
-
-function buildSkillInjectedMessage(
-  baseText: string,
-  skills: Skill[],
-  hasAttachments: boolean
-): string {
-  if (skills.length === 0) return baseText;
-  const userPrompt = baseText.trim();
-  const fallbackPrompt = hasAttachments
-    ? 'Please process the attached file(s).'
-    : 'Please help with this task.';
-
-  const skillContexts = skills
-    .map((skill) => [
-      `<skill_context name="${skill.name}" id="${skill.id}">`,
-      `Use this skill as the primary approach for this request.`,
-      skill.description ? `Skill description: ${skill.description}` : null,
-      `</skill_context>`,
-    ])
-    .flat()
-    .filter((line): line is string => Boolean(line))
-    .join('\n');
-
-  return [
-    skillContexts,
-    '',
-    `<user_request>`,
-    userPrompt || fallbackPrompt,
-    `</user_request>`,
-  ].join('\n');
 }
 
 function resolveRuntimeProviderKey(account: ProviderAccount): string {
@@ -220,27 +201,21 @@ export function ChatInput({
   const { t } = useTranslation('chat');
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
-  const [targetAgentId, setTargetAgentId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerUpward, setPickerUpward] = useState(true);
-  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
-  const [skillPickerUpward, setSkillPickerUpward] = useState(true);
+  const [expertPickerOpen, setExpertPickerOpen] = useState(false);
+  const [expertPickerUpward, setExpertPickerUpward] = useState(true);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerUpward, setModelPickerUpward] = useState(true);
   const [switchingModel, setSwitchingModel] = useState(false);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
-  const [skillSearchQuery, setSkillSearchQuery] = useState('');
+  const [expertSearchQuery, setExpertSearchQuery] = useState('');
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const skillPickerRef = useRef<HTMLDivElement>(null);
+  const expertPickerRef = useRef<HTMLDivElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
   const updateAgentModel = useAgentsStore((s) => s.updateAgentModel);
   const defaultModelRef = useAgentsStore((s) => s.defaultModelRef);
-  const skills = useSkillsStore((s) => s.skills);
-  const fetchSkills = useSkillsStore((s) => s.fetchSkills);
   const providerAccounts = useProviderStore((s) => s.accounts);
   const providerStatuses = useProviderStore((s) => s.statuses);
   const providerVendors = useProviderStore((s) => s.vendors);
@@ -311,22 +286,56 @@ export function ChatInput({
     [modelTargetAgent?.modelRef, modelTargetAgent?.overrideModelRef, defaultModelRef],
   );
 
-  /** 当前输入框选择的 skills（仅用于 UI 选择，不会改变发送链路） */
-  const selectedSkills: Skill[] = useMemo(
-    () => (skills ?? []).filter((s) => selectedSkillIds.includes(s.id)),
-    [skills, selectedSkillIds]
-  );
-  const filteredSkills = useMemo(() => {
-    const query = skillSearchQuery.trim().toLowerCase();
-    if (!query) return skills ?? [];
-    return (skills ?? []).filter((skill) => {
-      const searchable = [skill.name, skill.id, skill.slug, skill.description]
+      // 2. Templates under this expert
+      const expertAgent = allAgents.find((a) => a.expertId === cfg.id);
+      if (expertAgent) {
+        for (const tpl of templates) {
+          items.push({
+            id: `tpl:${tpl.id}`,
+            label: tpl.name,
+            description: tpl.description,
+            icon: tpl.icon || cfg.icon || tpl.name.charAt(0).toUpperCase(),
+            category: tpl.category,
+            sessionKey: `agent:${expertAgent.id}:tpl-${tpl.id}`,
+            agentId: expertAgent.id,
+            isExpert: true,
+            isTemplate: true,
+            expertId: cfg.id,
+            templateId: tpl.id,
+          });
+        }
+      }
+    }
+
+    // 3. Non-expert agents
+    for (const agent of allAgents) {
+      if (agent.expertId && agent.id !== 'main') continue;
+      items.push({
+        id: `agent:${agent.id}`,
+        label: agent.name,
+        description: agent.modelDisplay || '',
+        icon: agent.name?.trim()?.charAt(0)?.toUpperCase() || 'A',
+        sessionKey: agent.mainSessionKey ?? `agent:${agent.id}:main`,
+        agentId: agent.id,
+        isExpert: false,
+        isTemplate: false,
+      });
+    }
+
+    return items;
+  }, [agents, expertRuntimes, templates]);
+
+  const filteredPickerItems = useMemo(() => {
+    const query = expertSearchQuery.trim().toLowerCase();
+    if (!query) return pickerItems;
+    return pickerItems.filter((item) => {
+      const searchable = [item.label, item.description, item.category, item.expertId]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return searchable.includes(query);
     });
-  }, [skillSearchQuery, skills]);
+  }, [expertSearchQuery, pickerItems]);
   const modelOptions = useMemo(() => {
     const vendorById = new Map<string, ProviderVendorInfo>(providerVendors.map((vendor) => [vendor.id, vendor]));
     const statusById = new Map<string, ProviderWithKeyInfo>(providerStatuses.map((status) => [status.id, status]));
@@ -389,36 +398,17 @@ export function ChatInput({
   }, [disabled]);
 
   useEffect(() => {
-    if (!targetAgentId) return;
-    if (targetAgentId === currentAgentId) {
-      setTargetAgentId(null);
-      setPickerOpen(false);
-      return;
-    }
-    if (!(agents ?? []).some((agent) => agent.id === targetAgentId)) {
-      setTargetAgentId(null);
-      setPickerOpen(false);
-    }
-  }, [agents, currentAgentId, targetAgentId]);
-
-  useEffect(() => {
-    if (!pickerOpen && !skillPickerOpen && !modelPickerOpen) return;
+    if (!expertPickerOpen && !modelPickerOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       const node = event.target as Node;
-      if (!pickerRef.current?.contains(node)) setPickerOpen(false);
-      if (!skillPickerRef.current?.contains(node)) setSkillPickerOpen(false);
+      if (!expertPickerRef.current?.contains(node)) setExpertPickerOpen(false);
       if (!modelPickerRef.current?.contains(node)) setModelPickerOpen(false);
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [pickerOpen, skillPickerOpen, modelPickerOpen]);
-
-  // Skills 列表用于下拉选择（静默刷新）
-  useEffect(() => {
-    void fetchSkills();
-  }, [fetchSkills]);
+  }, [expertPickerOpen, modelPickerOpen]);
 
   useEffect(() => {
     void refreshProviderSnapshot();
@@ -580,13 +570,7 @@ export function ChatInput({
   const handleSend = useCallback(() => {
     if (!canSend) return;
     const readyAttachments = attachments.filter((a) => a.status === 'ready');
-    // Capture values before clearing — clear input immediately for snappy UX,
-    // but keep attachments available for the async send
-    const textToSend = buildSkillInjectedMessage(
-      input,
-      selectedSkills,
-      readyAttachments.length > 0
-    );
+    const textToSend = input.trim();
     const attachmentsToSend = readyAttachments.length > 0 ? readyAttachments : undefined;
     console.log(
       `[handleSend] text="${textToSend.substring(0, 50)}", attachments=${attachments.length}, ready=${readyAttachments.length}, sending=${!!attachmentsToSend}`
@@ -610,10 +594,9 @@ export function ChatInput({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    onSend(textToSend, attachmentsToSend, targetAgentId);
-    setTargetAgentId(null);
-    setPickerOpen(false);
-  }, [input, attachments, canSend, onSend, selectedSkills, targetAgentId]);
+    onSend(textToSend, attachmentsToSend, null);
+    setExpertPickerOpen(false);
+  }, [input, attachments, canSend, onSend]);
 
   const handleStop = useCallback(() => {
     if (!canStop) return;
@@ -622,10 +605,6 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Backspace' && !input && targetAgentId) {
-        setTargetAgentId(null);
-        return;
-      }
       if (e.key === 'Enter' && !e.shiftKey) {
         const nativeEvent = e.nativeEvent as KeyboardEvent;
         if (isComposingRef.current || nativeEvent.isComposing || nativeEvent.keyCode === 229) {
@@ -635,7 +614,7 @@ export function ChatInput({
         handleSend();
       }
     },
-    [handleSend, input, targetAgentId, selectedSkillIds]
+    [handleSend]
   );
 
   // Handle paste (Ctrl/Cmd+V with files)
@@ -775,10 +754,10 @@ export function ChatInput({
 
           {/* 底部工具栏：左侧选择器与图标，右侧发送 */}
           <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
-            {/* 左侧：Agent + 模型 + Skill + 附件 */}
+            {/* 左侧：专家 + 模型 + 附件 */}
             <div className="flex items-center gap-1 min-w-0">
-              {/* Agent 选择器按钮 - 胶囊背景样式（参考原型） */}
-              <div ref={pickerRef} className="relative w-[150px] shrink-0">
+              {/* 专家选择器按钮 */}
+              <div ref={expertPickerRef} className="relative w-[150px] shrink-0">
                 <Button
                   data-testid="chat-agent-picker-button"
                   variant="ghost"
@@ -788,10 +767,11 @@ export function ChatInput({
                     (pickerOpen || selectedTarget) && 'border-[#dfe5ee] bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff]'
                   )}
                   onClick={() => {
-                    if (!pickerOpen) {
-                      setPickerUpward(shouldOpenDropdownUpward(pickerRef.current, 220));
+                    if (!expertPickerOpen) {
+                      setExpertPickerUpward(shouldOpenDropdownUpward(expertPickerRef.current, 280));
+                      setExpertSearchQuery('');
                     }
-                    setPickerOpen((open) => !open);
+                    setExpertPickerOpen((open) => !open);
                   }}
                   disabled={disabled || sending}
                   title={t('composer.pickAgent')}
@@ -869,10 +849,11 @@ export function ChatInput({
                     onClick={() => {
                       if (!modelPickerOpen) {
                         setModelPickerUpward(shouldOpenDropdownUpward(modelPickerRef.current, 220));
+                        setModelSearchQuery('');
                       }
                       setModelPickerOpen((open) => !open);
                     }}
-                    title="Select model"
+                    title={t('composer.selectModel')}
                   >
                     <span className="min-w-0 flex-1 truncate text-left">{modelTargetModelDisplay || formatModelLabel(modelTargetModelRef) || 'Model'}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
@@ -1239,7 +1220,7 @@ function AttachmentPreview({
           />
           <div className="min-w-0 overflow-hidden">
             <p className="text-xs font-medium truncate">{attachment.fileName}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {attachment.fileSize > 0 ? formatFileSize(attachment.fileSize) : '...'}
             </p>
           </div>
@@ -1256,14 +1237,14 @@ function AttachmentPreview({
       {/* Error overlay */}
       {attachment.status === 'error' && (
         <div className="absolute inset-0 bg-destructive/20 flex items-center justify-center">
-          <span className="text-[10px] text-destructive font-medium px-1">Error</span>
+          <span className="text-[11px] text-destructive font-medium px-1">Error</span>
         </div>
       )}
 
       {/* Remove button */}
       <button
         onClick={onRemove}
-        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-30 group-hover:opacity-100 transition-opacity"
       >
         <X className="h-3 w-3" />
       </button>
@@ -1271,19 +1252,26 @@ function AttachmentPreview({
   );
 }
 
-function AgentPickerItem({
-  agent,
+function ExpertPickerItem({
+  item,
   selected,
   onSelect,
 }: {
-  agent: AgentSummary;
+  item: PickerItem;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const statusColor: Record<string, string> = {
+    ready: 'bg-green-500',
+    'setting-up': 'bg-yellow-500 animate-pulse',
+    limited: 'bg-orange-500',
+    unavailable: 'bg-red-500',
+  };
+
   return (
     <button
       type="button"
-      data-testid={`chat-agent-option-${agent.id}`}
+      data-testid={`chat-expert-option-${item.id}`}
       onClick={onSelect}
       className={cn(
         'flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',

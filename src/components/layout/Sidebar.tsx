@@ -54,6 +54,7 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
       to={to}
       onClick={onClick}
       data-testid={testId}
+      aria-label={hideLabel ? label : undefined}
       className={({ isActive }) =>
         cn(
           'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all duration-200',
@@ -278,6 +279,7 @@ export function Sidebar() {
             <NavLink
               to="/settings"
               data-testid="sidebar-nav-settings"
+              aria-label={t('common:sidebar.settings')}
               className={({ isActive }) =>
                 cn(
                   'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all',
@@ -349,7 +351,7 @@ export function Sidebar() {
                               <div className="flex min-w-0 items-center gap-1">
                                 <span
                                   className={cn(
-                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[9px] font-medium',
+                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[11px] font-medium',
                                     isActiveSession
                                       ? 'border-[#d9e2f3] bg-white text-[#20242d]'
                                       : 'border-[#e4e8ef] bg-white text-[#77808d]'

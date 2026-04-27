@@ -72,8 +72,16 @@
         "gatewayConnected": "已连接",
         "gatewayStatus": "网关 {{state}} | 端口: {{port}} {{pid}}",
         "retryFailedAttachments": "重试失败的附件",
-        "modelUpdated": "已将 {{agent}} 的模型切换为 {{model}}",
-        "modelUpdateFailed": "切换模型失败：{{error}}"
+        "searchExpert": "搜索专家",
+        "searchModel": "搜索模型",
+        "selectModel": "选择模型",
+        "otherAgents": "其他"
+    },
+    "thinking": {
+        "label": "思考中"
+    },
+    "activity": {
+        "toolProcessing": "正在处理工具结果…"
     },
     "historyBuckets": {
         "today": "今天",

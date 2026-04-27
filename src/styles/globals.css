@@ -30,6 +30,20 @@
     --panel-overlay: 220 45% 99%;
     --glow: 226 88% 59%;
     --grid-line: 213 32% 90%;
+    --sidebar-bg: 226 88% 59%;
+    --sidebar-text: 0 0% 100%;
+    --sidebar-active-bg: 0 0% 100%;
+    --sidebar-active-text: 226 88% 59%;
+    --sidebar-border: 0 0% 100% / 0.20;
+    --sidebar-history-bg: 220 30% 99%;
+    --sidebar-history-text: 223 34% 35%;
+    --sidebar-history-muted: 215 20% 55%;
+    --sidebar-history-hover: 226 88% 59% / 0.08;
+    --sidebar-history-active: 226 88% 59%;
+    --sidebar-history-active-text: 0 0% 100%;
+    --sidebar-history-badge-bg: 226 88% 59% / 0.12;
+    --sidebar-history-badge-text: 226 88% 59%;
+    --sidebar-history-badge-border: 226 88% 59% / 0.25;
     --font-display: "Space Grotesk", "Avenir Next", "Segoe UI Variable Display", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
     --font-body: "Manrope", "Inter", "Segoe UI Variable Text", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", "Menlo", monospace;
@@ -61,6 +75,20 @@
     --panel-overlay: 223 32% 12%;
     --glow: 226 88% 59%;
     --grid-line: 222 21% 18%;
+    --sidebar-bg: 224 34% 11%;
+    --sidebar-text: 210 32% 96%;
+    --sidebar-active-bg: 226 88% 59%;
+    --sidebar-active-text: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.08;
+    --sidebar-history-bg: 224 34% 9%;
+    --sidebar-history-text: 210 32% 80%;
+    --sidebar-history-muted: 217 14% 55%;
+    --sidebar-history-hover: 226 88% 59% / 0.12;
+    --sidebar-history-active: 226 88% 59%;
+    --sidebar-history-active-text: 0 0% 100%;
+    --sidebar-history-badge-bg: 226 88% 59% / 0.18;
+    --sidebar-history-badge-text: 210 32% 96%;
+    --sidebar-history-badge-border: 226 88% 59% / 0.30;
   }
 }
 
@@ -96,7 +124,7 @@
   h5,
   h6 {
     font-family: var(--font-display);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.025em;
   }
 
   code,

@@ -13,8 +13,14 @@ interface AgentsState {
   loading: boolean;
   error: string | null;
   fetchAgents: () => Promise<void>;
-  createAgent: (name: string, options?: { inheritWorkspace?: boolean; description?: string }) => Promise<void>;
-  updateAgent: (agentId: string, profile: { name: string; description?: string | null }) => Promise<void>;
+  createAgent: (
+    name: string,
+    options?: { inheritWorkspace?: boolean; description?: string }
+  ) => Promise<void>;
+  updateAgent: (
+    agentId: string,
+    profile: { name: string; description?: string | null }
+  ) => Promise<void>;
   setDefaultAgent: (agentId: string) => Promise<void>;
   updateAgentModel: (agentId: string, modelRef: string | null) => Promise<void>;
   deleteAgent: (agentId: string) => Promise<void>;
@@ -61,7 +67,10 @@ export const useAgentsStore = create<AgentsState>((set) => ({
     }
   },
 
-  createAgent: async (name: string, options?: { inheritWorkspace?: boolean; description?: string }) => {
+  createAgent: async (
+    name: string,
+    options?: { inheritWorkspace?: boolean; description?: string }
+  ) => {
     set({ error: null });
     try {
       const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents', {
@@ -86,7 +95,7 @@ export const useAgentsStore = create<AgentsState>((set) => ({
         `/api/agents/${encodeURIComponent(agentId)}`,
         {
           method: 'PUT',
-        body: JSON.stringify(profile),
+          body: JSON.stringify(profile),
         }
       );
       set(applySnapshot(snapshot));
@@ -175,7 +184,7 @@ export const useAgentsStore = create<AgentsState>((set) => ({
 
 // Keep nonExpertAgents in sync whenever agents change
 useAgentsStore.subscribe((state) => {
-  const filtered = state.agents.filter((a) => !a.expertId);
+  const filtered = state.agents.filter((a) => !a.expertId || a.id === 'main');
   const current = state.nonExpertAgents;
   if (filtered.length !== current.length || filtered.some((a, i) => a.id !== current[i]?.id)) {
     useAgentsStore.setState({ nonExpertAgents: filtered });

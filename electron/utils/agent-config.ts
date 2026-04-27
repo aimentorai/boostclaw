@@ -13,8 +13,8 @@ import { expandPath, getOpenClawConfigDir } from './paths';
 import * as logger from './logger';
 import { toUiChannelType } from './channel-alias';
 
-const MAIN_AGENT_ID = 'main';
-const MAIN_AGENT_NAME = 'Main Agent';
+export const MAIN_AGENT_ID = 'main';
+const MAIN_AGENT_NAME = 'marketing_staff';
 const DEFAULT_ACCOUNT_ID = 'default';
 const DEFAULT_WORKSPACE_PATH = '~/.boostclaw/openclaw/workspace';
 const EXPERT_MARKER_FILENAME = 'EXPERT_ID';
@@ -543,7 +543,7 @@ async function buildSnapshotFromConfig(
       const expertId = await readExpertIdMarker(entry.id);
       return {
         id: entry.id,
-        name: entry.name || (entry.id === MAIN_AGENT_ID ? MAIN_AGENT_NAME : entry.id),
+        name: entry.id === MAIN_AGENT_ID ? MAIN_AGENT_NAME : entry.name || entry.id,
         description: normalizeAgentDescription(entry.description),
         isDefault: entry.id === defaultAgentId,
         modelDisplay: modelLabel,

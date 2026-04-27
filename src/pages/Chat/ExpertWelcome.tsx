@@ -41,7 +41,7 @@ export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-3xl">
           {activeTemplate.icon}
         </div>
-        <h1 className="text-2xl font-semibold text-foreground md:text-3xl leading-snug">
+        <h1 className="text-2xl font-semibold text-foreground leading-snug">
           {activeTemplate.name}
         </h1>
         <Badge

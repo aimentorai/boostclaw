@@ -9,12 +9,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import { subscribeHostEvent } from '@/lib/host-events';
 import { ChannelConfigModal } from '@/components/channels/ChannelConfigModal';
 import { cn } from '@/lib/utils';
-import {
-  CHANNEL_NAMES,
-  CHANNEL_META,
-  getPrimaryChannels,
-  type ChannelType,
-} from '@/types/channel';
+import { CHANNEL_NAMES, CHANNEL_META, getPrimaryChannels, type ChannelType } from '@/types/channel';
 import { usesPluginManagedQrAccounts } from '@/lib/channel-alias';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -86,11 +81,16 @@ export function Channels() {
   const [allowExistingConfigInModal, setAllowExistingConfigInModal] = useState(true);
   const [allowEditAccountIdInModal, setAllowEditAccountIdInModal] = useState(false);
   const [existingAccountIdsForModal, setExistingAccountIdsForModal] = useState<string[]>([]);
-  const [initialConfigValuesForModal, setInitialConfigValuesForModal] = useState<Record<string, string> | undefined>(undefined);
+  const [initialConfigValuesForModal, setInitialConfigValuesForModal] = useState<
+    Record<string, string> | undefined
+  >(undefined);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const displayedChannelTypes = useMemo(() => getPrimaryChannels(), []);
-  const displayedChannelTypeSet = useMemo(() => new Set(displayedChannelTypes), [displayedChannelTypes]);
+  const displayedChannelTypeSet = useMemo(
+    () => new Set(displayedChannelTypes),
+    [displayedChannelTypes]
+  );
   const visibleChannelGroups = channelGroups;
   const visibleAgents = agents;
   const hasStableValue = visibleChannelGroups.length > 0 || visibleAgents.length > 0;
@@ -113,7 +113,9 @@ export function Channels() {
     setError(null);
     try {
       const [channelsRes, agentsRes] = await Promise.all([
-        hostApiFetch<{ success: boolean; channels?: ChannelGroupItem[]; error?: string }>('/api/channels/accounts'),
+        hostApiFetch<{ success: boolean; channels?: ChannelGroupItem[]; error?: string }>(
+          '/api/channels/accounts'
+        ),
         hostApiFetch<{ success: boolean; agents?: AgentItem[]; error?: string }>('/api/agents'),
       ]);
 
@@ -125,7 +127,11 @@ export function Channels() {
         throw new Error(agentsRes.error || 'Failed to load agents');
       }
 
-      setChannelGroups((channelsRes.channels || []).filter((group) => displayedChannelTypeSet.has(group.channelType as ChannelType)));
+      setChannelGroups(
+        (channelsRes.channels || []).filter((group) =>
+          displayedChannelTypeSet.has(group.channelType as ChannelType)
+        )
+      );
       setAgents(agentsRes.agents || []);
     } catch (fetchError) {
       // Preserve previous data on error — don't clear channelGroups/agents.
@@ -133,7 +139,7 @@ export function Channels() {
     } finally {
       setLoading(false);
     }
-  // Stable reference — reads state via refs, no deps needed.
+    // Stable reference — reads state via refs, no deps needed.
   }, [displayedChannelTypeSet]);
 
   useEffect(() => {
@@ -180,7 +186,7 @@ export function Channels() {
 
   const configuredTypes = useMemo(
     () => visibleChannelGroups.map((group) => group.channelType),
-    [visibleChannelGroups],
+    [visibleChannelGroups]
   );
 
   const groupedByType = useMemo(() => {
@@ -191,7 +197,9 @@ export function Channels() {
     const known = displayedChannelTypes
       .map((type) => groupedByType[type])
       .filter((group): group is ChannelGroupItem => Boolean(group));
-    const unknown = visibleChannelGroups.filter((group) => !displayedChannelTypes.includes(group.channelType as ChannelType));
+    const unknown = visibleChannelGroups.filter(
+      (group) => !displayedChannelTypes.includes(group.channelType as ChannelType)
+    );
     return [...known, ...unknown];
   }, [visibleChannelGroups, displayedChannelTypes, groupedByType]);
 
@@ -227,9 +235,12 @@ export function Channels() {
       const suffix = deleteTarget.accountId
         ? `?accountId=${encodeURIComponent(deleteTarget.accountId)}`
         : '';
-      await hostApiFetch(`/api/channels/config/${encodeURIComponent(deleteTarget.channelType)}${suffix}`, {
-        method: 'DELETE',
-      });
+      await hostApiFetch(
+        `/api/channels/config/${encodeURIComponent(deleteTarget.channelType)}${suffix}`,
+        {
+          method: 'DELETE',
+        }
+      );
       setChannelGroups((prev) => removeDeletedTarget(prev, deleteTarget));
       toast.success(deleteTarget.accountId ? t('toast.accountDeleted') : t('toast.channelDeleted'));
       // Channel reload is debounced in main process; pull again shortly to
@@ -262,16 +273,17 @@ export function Channels() {
   }
 
   return (
-    <div data-testid="channels-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
+    <div
+      data-testid="channels-page"
+      className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden"
+    >
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
-              {t('subtitle')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
 
           <div className="flex items-center gap-3 md:mt-2">
@@ -300,20 +312,21 @@ export function Channels() {
           {error && (
             <div className="mb-8 p-4 rounded-xl border border-destructive/50 bg-destructive/10 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              <span className="text-destructive text-sm font-medium">
-                {error}
-              </span>
+              <span className="text-destructive text-sm font-medium">{error}</span>
             </div>
           )}
 
           {configuredGroups.length > 0 && (
             <div className="mb-12">
-              <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+              <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
                 {t('configured')}
               </h2>
               <div className="space-y-4">
                 {configuredGroups.map((group) => (
-                  <div key={group.channelType} className="rounded-2xl border border-black/10 dark:border-white/10 p-4 bg-transparent">
+                  <div
+                    key={group.channelType}
+                    className="rounded-2xl border border-black/10 dark:border-white/10 p-4 bg-transparent"
+                  >
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="h-[40px] w-[40px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm">
@@ -345,18 +358,22 @@ export function Channels() {
                           variant="outline"
                           className="h-8 text-xs rounded-full"
                           onClick={() => {
-                            const shouldUseGeneratedAccountId = !usesPluginManagedQrAccounts(group.channelType);
+                            const shouldUseGeneratedAccountId = !usesPluginManagedQrAccounts(
+                              group.channelType
+                            );
                             const nextAccountId = shouldUseGeneratedAccountId
                               ? createNewAccountId(
-                                group.channelType,
-                                group.accounts.map((item) => item.accountId),
-                              )
+                                  group.channelType,
+                                  group.accounts.map((item) => item.accountId)
+                                )
                               : undefined;
                             setSelectedChannelType(group.channelType as ChannelType);
                             setSelectedAccountId(nextAccountId);
                             setAllowExistingConfigInModal(false);
                             setAllowEditAccountIdInModal(shouldUseGeneratedAccountId);
-                            setExistingAccountIdsForModal(group.accounts.map((item) => item.accountId));
+                            setExistingAccountIdsForModal(
+                              group.accounts.map((item) => item.accountId)
+                            );
                             setInitialConfigValuesForModal(undefined);
                             setShowConfigModal(true);
                           }}
@@ -383,43 +400,63 @@ export function Channels() {
                             ? t('account.mainAccount')
                             : account.name;
                         return (
-                        <div key={`${group.channelType}-${account.accountId}`} className="rounded-xl bg-black/5 dark:bg-white/5 px-3 py-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-[13px] font-medium text-foreground truncate">{displayName}</p>
+                          <div
+                            key={`${group.channelType}-${account.accountId}`}
+                            className="rounded-xl bg-black/5 dark:bg-white/5 px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-[13px] font-medium text-foreground truncate">
+                                    {displayName}
+                                  </p>
+                                </div>
+                                {account.lastError && (
+                                  <div className="text-[12px] text-destructive mt-1">
+                                    {account.lastError}
+                                  </div>
+                                )}
                               </div>
-                              {account.lastError && (
-                                <div className="text-[12px] text-destructive mt-1">{account.lastError}</div>
-                              )}
-                            </div>
 
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{t('account.bindAgentLabel')}</span>
-                              <select
-                                className="h-8 rounded-lg border border-black/10 dark:border-white/10 bg-background px-2 text-xs"
-                                value={account.agentId || ''}
-                                onChange={(event) => {
-                                  void handleBindAgent(group.channelType, account.accountId, event.target.value);
-                                }}
-                              >
-                                <option value="">{t('account.unassigned')}</option>
-                                {visibleAgents.map((agent) => (
-                                  <option key={agent.id} value={agent.id}>{agent.name}</option>
-                                ))}
-                              </select>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 text-xs rounded-full"
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {t('account.bindAgentLabel')}
+                                </span>
+                                <select
+                                  className="h-8 rounded-lg border border-black/10 dark:border-white/10 bg-background px-2 text-xs"
+                                  value={account.agentId || ''}
+                                  onChange={(event) => {
+                                    void handleBindAgent(
+                                      group.channelType,
+                                      account.accountId,
+                                      event.target.value
+                                    );
+                                  }}
+                                >
+                                  <option value="">{t('account.unassigned')}</option>
+                                  {visibleAgents.map((agent) => (
+                                    <option key={agent.id} value={agent.id}>
+                                      {agent.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs rounded-full"
                                   onClick={() => {
                                     void (async () => {
                                       try {
                                         const accountParam = `?accountId=${encodeURIComponent(account.accountId)}`;
-                                        const result = await hostApiFetch<{ success: boolean; values?: Record<string, string> }>(
+                                        const result = await hostApiFetch<{
+                                          success: boolean;
+                                          values?: Record<string, string>;
+                                        }>(
                                           `/api/channels/config/${encodeURIComponent(group.channelType)}${accountParam}`
                                         );
-                                        setInitialConfigValuesForModal(result.success ? (result.values || {}) : undefined);
+                                        setInitialConfigValuesForModal(
+                                          result.success ? result.values || {} : undefined
+                                        );
                                       } catch {
                                         // Fall back to modal-side loading when prefetch fails.
                                         setInitialConfigValuesForModal(undefined);
@@ -433,20 +470,25 @@ export function Channels() {
                                     })();
                                   }}
                                 >
-                                {t('account.edit')}
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setDeleteTarget({ channelType: group.channelType, accountId: account.accountId })}
-                                title={t('account.delete')}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                  {t('account.edit')}
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() =>
+                                    setDeleteTarget({
+                                      channelType: group.channelType,
+                                      accountId: account.accountId,
+                                    })
+                                  }
+                                  title={t('account.delete')}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
                         );
                       })}
                     </div>
@@ -457,7 +499,7 @@ export function Channels() {
           )}
 
           <div className="mb-8">
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-lg font-display text-foreground mb-4 font-semibold tracking-tight">
               {t('supportedChannels')}
             </h2>
 
@@ -485,9 +527,14 @@ export function Channels() {
                     </div>
                     <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-[16px] font-semibold text-foreground truncate">{meta.name}</h3>
+                        <h3 className="text-[16px] font-semibold text-foreground truncate">
+                          {meta.name}
+                        </h3>
                         {meta.isPlugin && (
-                          <Badge variant="secondary" className="font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70">
+                          <Badge
+                            variant="secondary"
+                            className="font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
+                          >
                             {t('pluginBadge')}
                           </Badge>
                         )}

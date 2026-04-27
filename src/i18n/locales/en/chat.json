@@ -72,8 +72,16 @@
         "gatewayConnected": "connected",
         "gatewayStatus": "Gateway {{state}} | port: {{port}} {{pid}}",
         "retryFailedAttachments": "Retry failed attachments",
-        "modelUpdated": "Updated {{agent}} model to {{model}}",
-        "modelUpdateFailed": "Failed to update model: {{error}}"
+        "searchExpert": "Search experts",
+        "searchModel": "Search models",
+        "selectModel": "Select model",
+        "otherAgents": "Other"
+    },
+    "thinking": {
+        "label": "Thinking"
+    },
+    "activity": {
+        "toolProcessing": "Processing tool results…"
     },
     "historyBuckets": {
         "today": "Today",

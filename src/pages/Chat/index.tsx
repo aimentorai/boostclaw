@@ -290,7 +290,7 @@ export function Chat() {
 
       {/* Transparent loading overlay */}
       {minLoading && !sending && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-[1px] pointer-events-auto">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[1px] pointer-events-auto">
           <div className="rounded-full border border-border bg-background p-2.5 shadow-lg">
             <LoadingSpinner size="md" />
           </div>
@@ -323,10 +323,10 @@ function WelcomeScreen() {
 function TypingIndicator() {
   return (
     <div className="flex gap-3">
-      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-foreground">
+      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/30 text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="rounded-2xl border border-border/60 bg-white/[0.05] px-4 py-3 text-foreground">
+      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
         <div className="flex gap-1">
           <span
             className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
@@ -350,15 +350,16 @@ function TypingIndicator() {
 
 function ActivityIndicator({ phase }: { phase: 'tool_processing' }) {
   void phase;
+  const { t } = useTranslation('chat');
   return (
     <div className="flex gap-3">
-      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-foreground">
+      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/30 text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="rounded-2xl border border-border/60 bg-white/[0.05] px-4 py-3 text-foreground">
+      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          <span>Processing tool results…</span>
+          <span>{t('activity.toolProcessing')}</span>
         </div>
       </div>
     </div>

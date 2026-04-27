@@ -2,7 +2,14 @@
  * Cron Page
  * Manage scheduled tasks
  */
-import { useEffect, useState, useCallback, useMemo, type ReactNode, type SelectHTMLAttributes } from 'react';
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 import {
   Plus,
   Clock,
@@ -69,7 +76,13 @@ const schedulePresets: { key: string; value: string; type: ScheduleType }[] = [
 function parseCronSchedule(schedule: unknown, t: TFunction<'cron'>): string {
   // Handle Gateway CronSchedule object format
   if (schedule && typeof schedule === 'object') {
-    const s = schedule as { kind?: string; expr?: string; tz?: string; everyMs?: number; at?: string };
+    const s = schedule as {
+      kind?: string;
+      expr?: string;
+      tz?: string;
+      everyMs?: number;
+      at?: string;
+    };
     if (s.kind === 'cron' && typeof s.expr === 'string') {
       return parseCronExpr(s.expr, t);
     }
@@ -109,13 +122,17 @@ function parseCronExpr(cron: string, t: TFunction<'cron'>): string {
   const [minute, hour, dayOfMonth, , dayOfWeek] = parts;
 
   if (minute === '*' && hour === '*') return t('presets.everyMinute');
-  if (minute.startsWith('*/')) return t('schedule.everyMinutes', { count: Number(minute.slice(2)) });
+  if (minute.startsWith('*/'))
+    return t('schedule.everyMinutes', { count: Number(minute.slice(2)) });
   if (hour === '*' && minute === '0') return t('presets.everyHour');
   if (dayOfWeek !== '*' && dayOfMonth === '*') {
     return t('schedule.weeklyAt', { day: dayOfWeek, time: `${hour}:${minute.padStart(2, '0')}` });
   }
   if (dayOfMonth !== '*') {
-    return t('schedule.monthlyAtDay', { day: dayOfMonth, time: `${hour}:${minute.padStart(2, '0')}` });
+    return t('schedule.monthlyAtDay', {
+      day: dayOfMonth,
+      time: `${hour}:${minute.padStart(2, '0')}`,
+    });
   }
   if (hour !== '*') {
     return t('schedule.dailyAt', { time: `${hour}:${minute.padStart(2, '0')}` });
@@ -237,7 +254,13 @@ function getDeliveryAccountDisplayName(account: DeliveryChannelAccount, t: TFunc
     : account.name;
 }
 
-const TESTED_CRON_DELIVERY_CHANNELS = new Set<string>(['feishu', 'telegram', 'qqbot', 'wecom', 'wechat']);
+const TESTED_CRON_DELIVERY_CHANNELS = new Set<string>([
+  'feishu',
+  'telegram',
+  'qqbot',
+  'wecom',
+  'wechat',
+]);
 
 function isSupportedCronDeliveryChannel(channelType: string): boolean {
   return TESTED_CRON_DELIVERY_CHANNELS.has(channelType);
@@ -253,7 +276,7 @@ function SelectField({ className, children, ...props }: SelectFieldProps) {
       <Select
         className={cn(
           'h-[44px] rounded-xl border-black/10 dark:border-white/10 bg-background text-[13px] pr-10 [background-image:none] appearance-none',
-          className,
+          className
         )}
         {...props}
       >
@@ -292,25 +315,41 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
   const [customSchedule, setCustomSchedule] = useState('');
   const [useCustom, setUseCustom] = useState(false);
   const [enabled, setEnabled] = useState(job?.enabled ?? true);
-  const [deliveryMode, setDeliveryMode] = useState<'none' | 'announce'>(job?.delivery?.mode === 'announce' ? 'announce' : 'none');
+  const [deliveryMode, setDeliveryMode] = useState<'none' | 'announce'>(
+    job?.delivery?.mode === 'announce' ? 'announce' : 'none'
+  );
   const [deliveryChannel, setDeliveryChannel] = useState(job?.delivery?.channel || '');
   const [deliveryTarget, setDeliveryTarget] = useState(job?.delivery?.to || '');
-  const [selectedDeliveryAccountId, setSelectedDeliveryAccountId] = useState(job?.delivery?.accountId || '');
+  const [selectedDeliveryAccountId, setSelectedDeliveryAccountId] = useState(
+    job?.delivery?.accountId || ''
+  );
   const [channelTargetOptions, setChannelTargetOptions] = useState<ChannelTargetOption[]>([]);
   const [loadingChannelTargets, setLoadingChannelTargets] = useState(false);
   const schedulePreview = estimateNextRun(useCustom ? customSchedule : schedule);
-  const selectableChannels = configuredChannels.filter((group) => isSupportedCronDeliveryChannel(group.channelType));
-  const availableChannels = selectableChannels.some((group) => group.channelType === deliveryChannel)
+  const selectableChannels = configuredChannels.filter((group) =>
+    isSupportedCronDeliveryChannel(group.channelType)
+  );
+  const availableChannels = selectableChannels.some(
+    (group) => group.channelType === deliveryChannel
+  )
     ? selectableChannels
-    : (
-      deliveryChannel && isSupportedCronDeliveryChannel(deliveryChannel)
-        ? [...selectableChannels, configuredChannels.find((group) => group.channelType === deliveryChannel) || { channelType: deliveryChannel, defaultAccountId: 'default', accounts: [] }]
-        : selectableChannels
-    );
-  const effectiveDeliveryChannel = deliveryChannel
-    || (deliveryMode === 'announce' ? (availableChannels[0]?.channelType || '') : '');
-  const unsupportedDeliveryChannel = !!effectiveDeliveryChannel && !isSupportedCronDeliveryChannel(effectiveDeliveryChannel);
-  const selectedChannel = availableChannels.find((group) => group.channelType === effectiveDeliveryChannel);
+    : deliveryChannel && isSupportedCronDeliveryChannel(deliveryChannel)
+      ? [
+          ...selectableChannels,
+          configuredChannels.find((group) => group.channelType === deliveryChannel) || {
+            channelType: deliveryChannel,
+            defaultAccountId: 'default',
+            accounts: [],
+          },
+        ]
+      : selectableChannels;
+  const effectiveDeliveryChannel =
+    deliveryChannel || (deliveryMode === 'announce' ? availableChannels[0]?.channelType || '' : '');
+  const unsupportedDeliveryChannel =
+    !!effectiveDeliveryChannel && !isSupportedCronDeliveryChannel(effectiveDeliveryChannel);
+  const selectedChannel = availableChannels.find(
+    (group) => group.channelType === effectiveDeliveryChannel
+  );
   const deliveryAccountOptions = (selectedChannel?.accounts ?? []).map((account) => ({
     accountId: account.accountId,
     displayName: getDeliveryAccountDisplayName(account, t),
@@ -318,19 +357,23 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
   const hasCurrentDeliveryTarget = !!deliveryTarget;
   const currentDeliveryTargetOption = hasCurrentDeliveryTarget
     ? {
-      value: deliveryTarget,
-      label: `${t('dialog.currentTarget')} (${deliveryTarget})`,
-      kind: 'user' as const,
-    }
+        value: deliveryTarget,
+        label: `${t('dialog.currentTarget')} (${deliveryTarget})`,
+        kind: 'user' as const,
+      }
     : null;
-  const effectiveDeliveryAccountId = selectedDeliveryAccountId
-    || selectedChannel?.defaultAccountId
-    || deliveryAccountOptions[0]?.accountId
-    || '';
+  const effectiveDeliveryAccountId =
+    selectedDeliveryAccountId ||
+    selectedChannel?.defaultAccountId ||
+    deliveryAccountOptions[0]?.accountId ||
+    '';
   const showsAccountSelector = (selectedChannel?.accounts.length ?? 0) > 0;
   const selectedResolvedAccountId = effectiveDeliveryAccountId || undefined;
   const availableTargetOptions = currentDeliveryTargetOption
-    ? [currentDeliveryTargetOption, ...channelTargetOptions.filter((option) => option.value !== deliveryTarget)]
+    ? [
+        currentDeliveryTargetOption,
+        ...channelTargetOptions.filter((option) => option.value !== deliveryTarget),
+      ]
     : channelTargetOptions;
 
   useEffect(() => {
@@ -364,28 +407,37 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
       params.set('accountId', selectedResolvedAccountId);
     }
     void hostApiFetch<{ success: boolean; targets?: ChannelTargetOption[]; error?: string }>(
-      `/api/channels/targets?${params.toString()}`,
-    ).then((result) => {
-      if (cancelled) return;
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load channel targets');
-      }
-      setChannelTargetOptions(result.targets || []);
-    }).catch((error) => {
-      if (!cancelled) {
-        console.warn('Failed to load channel targets:', error);
-        setChannelTargetOptions([]);
-      }
-    }).finally(() => {
-      if (!cancelled) {
-        setLoadingChannelTargets(false);
-      }
-    });
+      `/api/channels/targets?${params.toString()}`
+    )
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load channel targets');
+        }
+        setChannelTargetOptions(result.targets || []);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('Failed to load channel targets:', error);
+          setChannelTargetOptions([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingChannelTargets(false);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [deliveryMode, effectiveDeliveryChannel, selectedResolvedAccountId, showsAccountSelector, unsupportedDeliveryChannel]);
+  }, [
+    deliveryMode,
+    effectiveDeliveryChannel,
+    selectedResolvedAccountId,
+    showsAccountSelector,
+    unsupportedDeliveryChannel,
+  ]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -405,16 +457,15 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
 
     setSaving(true);
     try {
-      const finalDelivery = deliveryMode === 'announce'
-        ? {
-          mode: 'announce' as const,
-          channel: effectiveDeliveryChannel.trim(),
-          ...(selectedResolvedAccountId
-            ? { accountId: effectiveDeliveryAccountId }
-            : {}),
-          to: deliveryTarget.trim(),
-        }
-        : { mode: 'none' as const };
+      const finalDelivery =
+        deliveryMode === 'announce'
+          ? {
+              mode: 'announce' as const,
+              channel: effectiveDeliveryChannel.trim(),
+              ...(selectedResolvedAccountId ? { accountId: effectiveDeliveryAccountId } : {}),
+              to: deliveryTarget.trim(),
+            }
+          : { mode: 'none' as const };
 
       if (finalDelivery.mode === 'announce') {
         if (!finalDelivery.channel) {
@@ -422,7 +473,11 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
           return;
         }
         if (!isSupportedCronDeliveryChannel(finalDelivery.channel)) {
-          toast.error(t('toast.deliveryChannelUnsupported', { channel: getChannelDisplayName(finalDelivery.channel) }));
+          toast.error(
+            t('toast.deliveryChannelUnsupported', {
+              channel: getChannelDisplayName(finalDelivery.channel),
+            })
+          );
           return;
         }
         if (!finalDelivery.to) {
@@ -448,21 +503,38 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <Card className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-[#f3f1e9] dark:bg-card overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <Card
+        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-[#f3f1e9] dark:bg-card overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <CardHeader className="flex flex-row items-start justify-between pb-2 shrink-0">
           <div>
-            <CardTitle className="text-2xl font-serif font-normal">{job ? t('dialog.editTitle') : t('dialog.createTitle')}</CardTitle>
-            <CardDescription className="text-[15px] mt-1 text-foreground/70">{t('dialog.description')}</CardDescription>
+            <CardTitle className="text-base font-display font-semibold">
+              {job ? t('dialog.editTitle') : t('dialog.createTitle')}
+            </CardTitle>
+            <CardDescription className="text-[15px] mt-1 text-foreground/70">
+              {t('dialog.description')}
+            </CardDescription>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="rounded-full h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="space-y-6 pt-4 overflow-y-auto flex-1 p-6">
           {/* Name */}
           <div className="space-y-2.5">
-            <Label htmlFor="name" className="text-[14px] text-foreground/80 font-bold">{t('dialog.taskName')}</Label>
+            <Label htmlFor="name" className="text-[14px] text-foreground/80 font-bold">
+              {t('dialog.taskName')}
+            </Label>
             <Input
               id="name"
               placeholder={t('dialog.taskNamePlaceholder')}
@@ -474,7 +546,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
 
           {/* Message */}
           <div className="space-y-2.5">
-            <Label htmlFor="message" className="text-[14px] text-foreground/80 font-bold">{t('dialog.message')}</Label>
+            <Label htmlFor="message" className="text-[14px] text-foreground/80 font-bold">
+              {t('dialog.message')}
+            </Label>
             <Textarea
               id="message"
               placeholder={t('dialog.messagePlaceholder')}
@@ -487,7 +561,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
 
           {/* Schedule */}
           <div className="space-y-2.5">
-            <Label className="text-[14px] text-foreground/80 font-bold">{t('dialog.schedule')}</Label>
+            <Label className="text-[14px] text-foreground/80 font-bold">
+              {t('dialog.schedule')}
+            </Label>
             {!useCustom ? (
               <div className="grid grid-cols-2 gap-2">
                 {schedulePresets.map((preset) => (
@@ -498,10 +574,10 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                     size="sm"
                     onClick={() => setSchedule(preset.value)}
                     className={cn(
-                      "justify-start h-10 rounded-xl font-medium text-[13px] transition-all",
+                      'justify-start h-10 rounded-xl font-medium text-[13px] transition-all',
                       schedule === preset.value
-                        ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border-transparent"
-                        : "bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground"
+                        ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border-transparent'
+                        : 'bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground'
                     )}
                   >
                     <Timer className="h-4 w-4 mr-2 opacity-70" />
@@ -519,7 +595,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
             )}
             <div className="flex items-center justify-between mt-2">
               <p className="text-[12px] text-muted-foreground/80 font-medium">
-                {schedulePreview ? `${t('card.next')}: ${schedulePreview}` : t('dialog.cronPlaceholder')}
+                {schedulePreview
+                  ? `${t('card.next')}: ${schedulePreview}`
+                  : t('dialog.cronPlaceholder')}
               </p>
               <Button
                 type="button"
@@ -536,7 +614,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
           {/* Delivery */}
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-[14px] text-foreground/80 font-bold">{t('dialog.deliveryTitle')}</Label>
+              <Label className="text-[14px] text-foreground/80 font-bold">
+                {t('dialog.deliveryTitle')}
+              </Label>
               <p className="text-[12px] text-muted-foreground">{t('dialog.deliveryDescription')}</p>
             </div>
 
@@ -550,7 +630,7 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                   'justify-start h-auto min-h-12 rounded-xl px-4 py-3 text-left whitespace-normal',
                   deliveryMode === 'none'
                     ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-transparent'
-                    : 'bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground',
+                    : 'bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground'
                 )}
               >
                 <div>
@@ -567,12 +647,16 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                   'justify-start h-auto min-h-12 rounded-xl px-4 py-3 text-left whitespace-normal',
                   deliveryMode === 'announce'
                     ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-transparent'
-                    : 'bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground',
+                    : 'bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground'
                 )}
               >
                 <div>
-                  <div className="text-[13px] font-semibold">{t('dialog.deliveryModeAnnounce')}</div>
-                  <div className="text-[11px] opacity-80">{t('dialog.deliveryModeAnnounceDesc')}</div>
+                  <div className="text-[13px] font-semibold">
+                    {t('dialog.deliveryModeAnnounce')}
+                  </div>
+                  <div className="text-[11px] opacity-80">
+                    {t('dialog.deliveryModeAnnounceDesc')}
+                  </div>
                 </div>
               </Button>
             </div>
@@ -580,7 +664,10 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
             {deliveryMode === 'announce' && (
               <div className="space-y-3 rounded-2xl border border-black/5 dark:border-white/5 bg-[#eeece3] dark:bg-muted p-4 shadow-sm">
                 <div className="space-y-2">
-                  <Label htmlFor="delivery-channel" className="text-[13px] text-foreground/80 font-bold">
+                  <Label
+                    htmlFor="delivery-channel"
+                    className="text-[13px] text-foreground/80 font-bold"
+                  >
                     {t('dialog.deliveryChannel')}
                   </Label>
                   <SelectField
@@ -605,18 +692,27 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                     <p className="text-[12px] text-muted-foreground">{t('dialog.noChannels')}</p>
                   )}
                   {unsupportedDeliveryChannel && (
-                    <p className="text-[12px] text-destructive">{t('dialog.deliveryChannelUnsupported', { channel: getChannelDisplayName(effectiveDeliveryChannel) })}</p>
+                    <p className="text-[12px] text-destructive">
+                      {t('dialog.deliveryChannelUnsupported', {
+                        channel: getChannelDisplayName(effectiveDeliveryChannel),
+                      })}
+                    </p>
                   )}
                   {selectedChannel && (
                     <p className="text-[12px] text-muted-foreground">
-                      {t('dialog.deliveryDefaultAccountHint', { account: selectedChannel.defaultAccountId })}
+                      {t('dialog.deliveryDefaultAccountHint', {
+                        account: selectedChannel.defaultAccountId,
+                      })}
                     </p>
                   )}
                 </div>
 
                 {showsAccountSelector && (
                   <div className="space-y-2">
-                    <Label htmlFor="delivery-account" className="text-[13px] text-foreground/80 font-bold">
+                    <Label
+                      htmlFor="delivery-account"
+                      className="text-[13px] text-foreground/80 font-bold"
+                    >
                       {t('dialog.deliveryAccount')}
                     </Label>
                     <SelectField
@@ -628,21 +724,24 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                       }}
                       disabled={deliveryAccountOptions.length === 0}
                     >
-                      <option value="">
-                        {t('dialog.selectDeliveryAccount')}
-                      </option>
+                      <option value="">{t('dialog.selectDeliveryAccount')}</option>
                       {deliveryAccountOptions.map((option) => (
                         <option key={option.accountId} value={option.accountId}>
                           {option.displayName}
                         </option>
                       ))}
                     </SelectField>
-                    <p className="text-[12px] text-muted-foreground">{t('dialog.deliveryAccountDesc')}</p>
+                    <p className="text-[12px] text-muted-foreground">
+                      {t('dialog.deliveryAccountDesc')}
+                    </p>
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="delivery-target-select" className="text-[13px] text-foreground/80 font-bold">
+                  <Label
+                    htmlFor="delivery-target-select"
+                    className="text-[13px] text-foreground/80 font-bold"
+                  >
                     {t('dialog.deliveryTarget')}
                   </Label>
                   <SelectField
@@ -651,7 +750,11 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                     onChange={(event) => setDeliveryTarget(event.target.value)}
                     disabled={loadingChannelTargets || availableTargetOptions.length === 0}
                   >
-                    <option value="">{loadingChannelTargets ? t('dialog.loadingTargets') : t('dialog.selectDeliveryTarget')}</option>
+                    <option value="">
+                      {loadingChannelTargets
+                        ? t('dialog.loadingTargets')
+                        : t('dialog.selectDeliveryTarget')}
+                    </option>
                     {availableTargetOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -661,7 +764,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
                   <p className="text-[12px] text-muted-foreground">
                     {availableTargetOptions.length > 0
                       ? t('dialog.deliveryTargetDescAuto')
-                      : t('dialog.noDeliveryTargets', { channel: getChannelDisplayName(effectiveDeliveryChannel) })}
+                      : t('dialog.noDeliveryTargets', {
+                          channel: getChannelDisplayName(effectiveDeliveryChannel),
+                        })}
                   </p>
                 </div>
               </div>
@@ -671,7 +776,9 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
           {/* Enabled */}
           <div className="flex items-center justify-between bg-[#eeece3] dark:bg-muted p-4 rounded-2xl shadow-sm border border-black/5 dark:border-white/5">
             <div>
-              <Label className="text-[14px] text-foreground/80 font-bold">{t('dialog.enableImmediately')}</Label>
+              <Label className="text-[14px] text-foreground/80 font-bold">
+                {t('dialog.enableImmediately')}
+              </Label>
               <p className="text-[13px] text-muted-foreground mt-0.5">
                 {t('dialog.enableImmediatelyDesc')}
               </p>
@@ -681,10 +788,18 @@ function TaskDialog({ job, configuredChannels, onClose, onSave }: TaskDialogProp
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="rounded-full px-6 h-[42px] text-[13px] font-semibold border-black/20 dark:border-white/20 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground shadow-sm">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="rounded-full px-6 h-[42px] text-[13px] font-semibold border-black/20 dark:border-white/20 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80 hover:text-foreground shadow-sm"
+            >
               {t('common:actions.cancel', 'Cancel')}
             </Button>
-            <Button onClick={handleSubmit} disabled={saving} className="rounded-full px-6 h-[42px] text-[13px] font-semibold shadow-sm border border-transparent transition-all">
+            <Button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="rounded-full px-6 h-[42px] text-[13px] font-semibold shadow-sm border border-transparent transition-all"
+            >
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -714,7 +829,14 @@ interface CronJobCardProps {
   onTrigger: () => Promise<void>;
 }
 
-function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onTrigger }: CronJobCardProps) {
+function CronJobCard({
+  job,
+  deliveryAccountName,
+  onToggle,
+  onEdit,
+  onDelete,
+  onTrigger,
+}: CronJobCardProps) {
   const { t } = useTranslation('cron');
   const [triggering, setTriggering] = useState(false);
 
@@ -726,7 +848,9 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
       toast.success(t('toast.triggered'));
     } catch (error) {
       console.error('Failed to trigger cron job:', error);
-      toast.error(t('toast.failedTrigger', { error: error instanceof Error ? error.message : String(error) }));
+      toast.error(
+        t('toast.failedTrigger', { error: error instanceof Error ? error.message : String(error) })
+      );
     } finally {
       setTriggering(false);
     }
@@ -739,9 +863,10 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
 
   const deliveryChannel = typeof job.delivery?.channel === 'string' ? job.delivery.channel : '';
   const deliveryLabel = deliveryChannel ? getChannelDisplayName(deliveryChannel) : '';
-  const deliveryIcon = deliveryChannel && isKnownChannelType(deliveryChannel)
-    ? <ChannelLogo type={deliveryChannel} />
-    : null;
+  const deliveryIcon =
+    deliveryChannel && isKnownChannelType(deliveryChannel) ? (
+      <ChannelLogo type={deliveryChannel} />
+    ) : null;
 
   return (
     <div
@@ -751,15 +876,17 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
           <div className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm group-hover:scale-105 transition-transform">
-            <Clock className={cn("h-5 w-5", job.enabled ? "text-foreground" : "text-muted-foreground")} />
+            <Clock
+              className={cn('h-5 w-5', job.enabled ? 'text-foreground' : 'text-muted-foreground')}
+            />
           </div>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-[16px] font-semibold text-foreground truncate">{job.name}</h3>
               <div
                 className={cn(
-                  "w-2 h-2 rounded-full shrink-0",
-                  job.enabled ? "bg-green-500" : "bg-muted-foreground"
+                  'w-2 h-2 rounded-full shrink-0',
+                  job.enabled ? 'bg-green-500' : 'bg-muted-foreground'
                 )}
                 title={job.enabled ? t('stats.active') : t('stats.paused')}
               />
@@ -771,11 +898,8 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
           </div>
         </div>
 
-        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-          <Switch
-            checked={job.enabled}
-            onCheckedChange={onToggle}
-          />
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <Switch checked={job.enabled} onCheckedChange={onToggle} />
         </div>
       </div>
 
@@ -795,8 +919,8 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
               <span>{deliveryLabel}</span>
               {deliveryAccountName ? (
                 <span className="max-w-[220px] truncate">{deliveryAccountName}</span>
-              ) : job.delivery.to && (
-                <span className="max-w-[220px] truncate">{job.delivery.to}</span>
+              ) : (
+                job.delivery.to && <span className="max-w-[220px] truncate">{job.delivery.to}</span>
               )}
             </span>
           )}
@@ -863,7 +987,17 @@ function CronJobCard({ job, deliveryAccountName, onToggle, onEdit, onDelete, onT
 export function Cron() {
   const { t } = useTranslation('cron');
   const visibleChannelTypeSet = useMemo(() => new Set(getPrimaryChannels()), []);
-  const { jobs, loading, error, fetchJobs, createJob, updateJob, toggleJob, deleteJob, triggerJob } = useCronStore();
+  const {
+    jobs,
+    loading,
+    error,
+    fetchJobs,
+    createJob,
+    updateJob,
+    toggleJob,
+    deleteJob,
+    triggerJob,
+  } = useCronStore();
   const gatewayStatus = useGatewayStore((state) => state.status);
   const [showDialog, setShowDialog] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | undefined>();
@@ -874,13 +1008,19 @@ export function Cron() {
 
   const fetchConfiguredChannels = useCallback(async () => {
     try {
-      const response = await hostApiFetch<{ success: boolean; channels?: DeliveryChannelGroup[]; error?: string }>(
-        '/api/channels/accounts',
-      );
+      const response = await hostApiFetch<{
+        success: boolean;
+        channels?: DeliveryChannelGroup[];
+        error?: string;
+      }>('/api/channels/accounts');
       if (!response.success) {
         throw new Error(response.error || 'Failed to load delivery channels');
       }
-      setConfiguredChannels((response.channels || []).filter((group) => visibleChannelTypeSet.has(group.channelType as ChannelType)));
+      setConfiguredChannels(
+        (response.channels || []).filter((group) =>
+          visibleChannelTypeSet.has(group.channelType as ChannelType)
+        )
+      );
     } catch (fetchError) {
       console.warn('Failed to load delivery channels:', fetchError);
       setConfiguredChannels([]);
@@ -904,24 +1044,28 @@ export function Cron() {
   const pausedJobs = safeJobs.filter((j) => !j.enabled);
   const failedJobs = safeJobs.filter((j) => j.lastRun && !j.lastRun.success);
 
-  const handleSave = useCallback(async (input: CronJobCreateInput) => {
-    if (editingJob) {
-      await updateJob(editingJob.id, input);
-    } else {
-      await createJob(input);
-    }
-  }, [editingJob, createJob, updateJob]);
+  const handleSave = useCallback(
+    async (input: CronJobCreateInput) => {
+      if (editingJob) {
+        await updateJob(editingJob.id, input);
+      } else {
+        await createJob(input);
+      }
+    },
+    [editingJob, createJob, updateJob]
+  );
 
-  const handleToggle = useCallback(async (id: string, enabled: boolean) => {
-    try {
-      await toggleJob(id, enabled);
-      toast.success(enabled ? t('toast.enabled') : t('toast.paused'));
-    } catch {
-      toast.error(t('toast.failedUpdate'));
-    }
-  }, [toggleJob, t]);
-
-
+  const handleToggle = useCallback(
+    async (id: string, enabled: boolean) => {
+      try {
+        await toggleJob(id, enabled);
+        toast.success(enabled ? t('toast.enabled') : t('toast.paused'));
+      } catch {
+        toast.error(t('toast.failedUpdate'));
+      }
+    },
+    [toggleJob, t]
+  );
 
   if (loading) {
     return (
@@ -937,12 +1081,10 @@ export function Cron() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
-              {t('subtitle')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
           <div className="flex items-center gap-3 md:mt-2">
             <Button
@@ -987,9 +1129,7 @@ export function Cron() {
           {error && (
             <div className="mb-8 p-4 rounded-xl border border-destructive/50 bg-destructive/10 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              <span className="text-destructive text-sm font-medium">
-                {error}
-              </span>
+              <span className="text-destructive text-sm font-medium">{error}</span>
             </div>
           )}
 
@@ -1002,7 +1142,9 @@ export function Cron() {
                 </div>
               </div>
               <div className="mt-4 flex items-baseline gap-3">
-                <p className="text-[40px] leading-none font-serif text-foreground">{safeJobs.length}</p>
+                <p className="text-3xl leading-none font-display text-foreground font-semibold">
+                  {safeJobs.length}
+                </p>
                 <p className="text-[14px] font-medium text-muted-foreground">{t('stats.total')}</p>
               </div>
             </div>
@@ -1014,7 +1156,9 @@ export function Cron() {
                 </div>
               </div>
               <div className="mt-4 flex items-baseline gap-3">
-                <p className="text-[40px] leading-none font-serif text-foreground">{activeJobs.length}</p>
+                <p className="text-3xl leading-none font-display text-foreground font-semibold">
+                  {activeJobs.length}
+                </p>
                 <p className="text-[14px] font-medium text-muted-foreground">{t('stats.active')}</p>
               </div>
             </div>
@@ -1026,7 +1170,9 @@ export function Cron() {
                 </div>
               </div>
               <div className="mt-4 flex items-baseline gap-3">
-                <p className="text-[40px] leading-none font-serif text-foreground">{pausedJobs.length}</p>
+                <p className="text-3xl leading-none font-display text-foreground font-semibold">
+                  {pausedJobs.length}
+                </p>
                 <p className="text-[14px] font-medium text-muted-foreground">{t('stats.paused')}</p>
               </div>
             </div>
@@ -1038,7 +1184,9 @@ export function Cron() {
                 </div>
               </div>
               <div className="mt-4 flex items-baseline gap-3">
-                <p className="text-[40px] leading-none font-serif text-foreground">{failedJobs.length}</p>
+                <p className="text-3xl leading-none font-display text-foreground font-semibold">
+                  {failedJobs.length}
+                </p>
                 <p className="text-[14px] font-medium text-muted-foreground">{t('stats.failed')}</p>
               </div>
             </div>
@@ -1049,9 +1197,7 @@ export function Cron() {
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-black/5 dark:bg-white/5 rounded-3xl border border-transparent border-dashed">
               <Clock className="h-10 w-10 mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2 text-foreground">{t('empty.title')}</h3>
-              <p className="text-[14px] text-center mb-6 max-w-md">
-                {t('empty.description')}
-              </p>
+              <p className="text-[14px] text-center mb-6 max-w-md">{t('empty.description')}</p>
               <Button
                 onClick={() => {
                   setEditingJob(undefined);
@@ -1067,27 +1213,32 @@ export function Cron() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {safeJobs.map((job) => {
-                const channelGroup = configuredChannels.find((group) => group.channelType === job.delivery?.channel);
-                const account = channelGroup?.accounts.find((item) => item.accountId === job.delivery?.accountId);
-                const deliveryAccountName = account ? getDeliveryAccountDisplayName(account, t) : undefined;
+                const channelGroup = configuredChannels.find(
+                  (group) => group.channelType === job.delivery?.channel
+                );
+                const account = channelGroup?.accounts.find(
+                  (item) => item.accountId === job.delivery?.accountId
+                );
+                const deliveryAccountName = account
+                  ? getDeliveryAccountDisplayName(account, t)
+                  : undefined;
                 return (
-                <CronJobCard
-                  key={job.id}
-                  job={job}
-                  deliveryAccountName={deliveryAccountName}
-                  onToggle={(enabled) => handleToggle(job.id, enabled)}
-                  onEdit={() => {
-                    setEditingJob(job);
-                    setShowDialog(true);
-                  }}
-                  onDelete={() => setJobToDelete({ id: job.id })}
-                  onTrigger={() => triggerJob(job.id)}
-                />
+                  <CronJobCard
+                    key={job.id}
+                    job={job}
+                    deliveryAccountName={deliveryAccountName}
+                    onToggle={(enabled) => handleToggle(job.id, enabled)}
+                    onEdit={() => {
+                      setEditingJob(job);
+                      setShowDialog(true);
+                    }}
+                    onDelete={() => setJobToDelete({ id: job.id })}
+                    onTrigger={() => triggerJob(job.id)}
+                  />
                 );
               })}
             </div>
           )}
-
         </div>
       </div>
 

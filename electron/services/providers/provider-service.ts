@@ -1,7 +1,4 @@
-import {
-  PROVIDER_DEFINITIONS,
-  getProviderDefinition,
-} from '../../shared/providers/registry';
+import { PROVIDER_DEFINITIONS, getProviderDefinition } from '../../shared/providers/registry';
 import type {
   ProviderAccount,
   ProviderConfig,
@@ -49,7 +46,7 @@ function logLegacyProviderApiUsage(method: string, replacement: string): void {
   }
   legacyProviderApiWarned.add(method);
   logger.warn(
-    `[provider-migration] Legacy provider API "${method}" is deprecated. Migrate to "${replacement}".`,
+    `[provider-migration] Legacy provider API "${method}" is deprecated. Migrate to "${replacement}".`
   );
 }
 
@@ -108,7 +105,7 @@ export class ProviderService {
         for (const account of storeGroup) {
           if (account.id !== kept.id) {
             logger.info(
-              `[provider-sync] Removing orphaned account "${account.id}" for key "${key}" (keeping "${kept.id}")`,
+              `[provider-sync] Removing orphaned account "${account.id}" for key "${key}" (keeping "${kept.id}")`
             );
             await deleteProviderAccount(account.id);
           }
@@ -121,12 +118,14 @@ export class ProviderService {
             { [key]: entry },
             new Set(),
             new Set(),
-            defaultModel,
+            defaultModel
           );
           for (const account of seeded) {
             await saveProviderAccount(account);
             result.push(account);
-            logger.info(`[provider-sync] Seeded provider account "${account.id}" from openclaw.json`);
+            logger.info(
+              `[provider-sync] Seeded provider account "${account.id}" from openclaw.json`
+            );
           }
         }
       }
@@ -134,8 +133,6 @@ export class ProviderService {
 
     return result;
   }
-
-
 
   /**
    * Build ProviderAccount objects from OpenClaw config entries, skipping any
@@ -145,7 +142,7 @@ export class ProviderService {
     providers: Record<string, Record<string, unknown>>,
     existingIds: Set<string>,
     existingVendorIds: Set<string>,
-    defaultModel: string | undefined,
+    defaultModel: string | undefined
   ): ProviderAccount[] {
     const defaultModelProvider = defaultModel?.includes('/')
       ? defaultModel.split('/')[0]
@@ -172,26 +169,41 @@ export class ProviderService {
         continue;
       }
 
-      const baseUrl = typeof entry.baseUrl === 'string' ? entry.baseUrl : definition?.providerConfig?.baseUrl;
+      const baseUrl =
+        typeof entry.baseUrl === 'string' ? entry.baseUrl : definition?.providerConfig?.baseUrl;
 
       // Infer model from the default model if it belongs to this provider
       let model: string | undefined;
       if (defaultModelProvider === key && defaultModel) {
-        model = defaultModel;
+        const slashIndex = defaultModel.indexOf('/');
+        const modelId = slashIndex > 0 ? defaultModel.slice(slashIndex + 1) : defaultModel;
+
+        if (definition?.defaultModelId && modelId !== definition.defaultModelId) {
+          // The model ref's ID part doesn't match this provider's expected model.
+          // e.g. "deepseek/qwen-plus" assigned to deepseek provider — qwen-plus
+          // is a Qwen model, not a DeepSeek model. Fall back to provider default.
+          logger.warn(
+            `[provider-sync] Default model "${defaultModel}" does not match provider "${key}" (expected: "${definition.defaultModelId}"). Falling back to provider default.`
+          );
+          model = definition.defaultModelId;
+        } else {
+          model = modelId;
+        }
       } else if (definition?.defaultModelId) {
         model = definition.defaultModelId;
       }
 
       const account: ProviderAccount = {
         id: key,
-        vendorId: (vendorId as ProviderAccount['vendorId'] as ProviderType),
+        vendorId: vendorId as ProviderAccount['vendorId'] as ProviderType,
         label: definition?.name ?? key.charAt(0).toUpperCase() + key.slice(1),
         authMode: definition?.defaultAuthMode ?? 'api_key',
         baseUrl,
         apiProtocol: definition?.providerConfig?.api,
-        headers: (entry.headers && typeof entry.headers === 'object'
-          ? (entry.headers as Record<string, string>)
-          : undefined),
+        headers:
+          entry.headers && typeof entry.headers === 'object'
+            ? (entry.headers as Record<string, string>)
+            : undefined,
         model,
         enabled: true,
         isDefault: false,
@@ -229,7 +241,7 @@ export class ProviderService {
   async updateAccount(
     accountId: string,
     patch: Partial<ProviderAccount>,
-    apiKey?: string,
+    apiKey?: string
   ): Promise<ProviderAccount> {
     await ensureProviderStoreMigrated();
     const existing = await getProviderAccount(accountId);
