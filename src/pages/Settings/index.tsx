@@ -154,7 +154,7 @@ export function Settings() {
   const [showTelemetryViewer, setShowTelemetryViewer] = useState(false);
   const [telemetryEntries, setTelemetryEntries] = useState<UiTelemetryEntry[]>([]);
 
-  const isWindows = window.electron.platform === 'win32';
+  const isWindows = (window as any).electron?.platform === 'win32';
   const showCliTools = true;
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
@@ -513,7 +513,9 @@ export function Settings() {
   };
 
   useEffect(() => {
-    const unsubscribe = window.electron.ipcRenderer.on(
+    const electron = (window as any).electron;
+    if (!electron?.ipcRenderer) return;
+    const unsubscribe = electron.ipcRenderer.on(
       'openclaw:cli-installed',
       (...args: unknown[]) => {
         const installedPath = typeof args[0] === 'string' ? args[0] : '';
