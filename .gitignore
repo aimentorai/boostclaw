@@ -55,6 +55,15 @@ test-results/
 *.rpm
 
 resources/bin
+!resources/bin/
+!resources/bin/win32-x64/
+!resources/bin/win32-x64/uv.exe
+!resources/bin/win32-x64/uvw.exe
+!resources/bin/win32-x64/uvx.exe
+!resources/bin/win32-arm64/
+!resources/bin/win32-arm64/uv.exe
+!resources/bin/win32-arm64/uvw.exe
+!resources/bin/win32-arm64/uvx.exe
 resources/openclaw-plugins/sparkboost/.omc
 
 # Secrets
@@ -71,4 +80,3 @@ docs/pr-session-notes-*.md
 package-lock.json
 .gstack/
 .omc/
-

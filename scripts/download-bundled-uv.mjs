@@ -53,22 +53,28 @@ async function setupTarget(id) {
   const tempDir = path.join(ROOT_DIR, 'temp_uv_extract');
   const archivePath = path.join(ROOT_DIR, target.filename);
   const downloadUrl = `${BASE_URL}/${target.filename}`;
+  const hasLocalArchive = await fs.pathExists(archivePath);
+  const destBin = path.join(targetDir, target.binName);
 
   echo(chalk.blue`\n📦 Setting up uv for ${id}...`);
 
   // Cleanup & Prep
-  await fs.remove(targetDir);
+  await fs.remove(destBin);
   await fs.remove(tempDir);
   await fs.ensureDir(targetDir);
   await fs.ensureDir(tempDir);
 
   try {
     // Download
-    echo`⬇️ Downloading: ${downloadUrl}`;
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(archivePath, Buffer.from(buffer));
+    if (hasLocalArchive) {
+      echo`📦 Using local archive: ${archivePath}`;
+    } else {
+      echo`⬇️ Downloading: ${downloadUrl}`;
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
+      const buffer = await response.arrayBuffer();
+      await fs.writeFile(archivePath, Buffer.from(buffer));
+    }
 
     // Extract
     echo`📂 Extracting...`;
@@ -88,7 +94,6 @@ async function setupTarget(id) {
     // uv archives usually contain a folder named after the target
     const folderName = target.filename.replace('.tar.gz', '').replace('.zip', '');
     const sourceBin = path.join(tempDir, folderName, target.binName);
-    const destBin = path.join(targetDir, target.binName);
 
     if (await fs.pathExists(sourceBin)) {
       await fs.move(sourceBin, destBin, { overwrite: true });
@@ -110,7 +115,9 @@ async function setupTarget(id) {
     echo(chalk.green`✅ Success: ${destBin}`);
   } finally {
     // Cleanup
-    await fs.remove(archivePath);
+    if (!hasLocalArchive) {
+      await fs.remove(archivePath);
+    }
     await fs.remove(tempDir);
   }
 }
