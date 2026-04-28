@@ -18,6 +18,12 @@ test.describe('BoostClaw main navigation without setup flow', () => {
 
       await page.getByTestId('sidebar-nav-experts').click();
       await expect(page.getByTestId('experts-page')).toBeVisible();
+      await expect(page.getByTestId('experts-content')).toBeVisible();
+      const mainContentBox = await page.getByTestId('main-content').boundingBox();
+      const expertsContentBox = await page.getByTestId('experts-content').boundingBox();
+      expect(mainContentBox).not.toBeNull();
+      expect(expertsContentBox).not.toBeNull();
+      expect(expertsContentBox!.width).toBeGreaterThan(mainContentBox!.width - 8);
 
       await page.getByTestId('sidebar-nav-channels').click();
       await expect(page.getByTestId('channels-page')).toBeVisible();

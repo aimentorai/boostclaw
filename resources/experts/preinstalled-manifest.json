@@ -31,7 +31,7 @@
         "告诉我目标店铺和商品，我来处理剩下的事",
         "可以先让我用 AI 生成视频，再发布到店铺"
       ],
-      "enabled": true,
+      "enabled": false,
       "version": 9,
       "mergeToMainAgent": true
     }

@@ -111,6 +111,7 @@ export function Experts() {
   }, [loadTemplates]);
 
   const enabledExperts = useMemo(() => experts.filter((e) => e.enabled), [experts]);
+  const hasTemplates = templates.length > 0;
 
   const handleStartExpert = (runtime: ExpertRuntime) => {
     if (runtime.status === 'unavailable') return;
@@ -207,9 +208,9 @@ export function Experts() {
   return (
     <div
       data-testid="experts-page"
-      className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden"
+      className="flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden bg-white dark:bg-background"
     >
-      <div className="w-full max-w-4xl mx-auto flex flex-col h-full p-10 pt-16">
+      <div data-testid="experts-content" className="flex h-full w-full flex-col px-6 py-4">
         {/* Header */}
         <div className="mb-8 shrink-0">
           <h1 className="text-2xl font-display text-foreground mb-2 font-semibold tracking-tight">
@@ -238,13 +239,13 @@ export function Experts() {
 
         {/* Expert Cards */}
         <div className="flex-1 overflow-y-auto pb-10 min-h-0">
-          {enabledExperts.length === 0 ? (
+          {enabledExperts.length === 0 && !hasTemplates ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Sparkles className="h-10 w-10 mb-4 opacity-50" />
               <p className="text-sm">{t('chat:experts.unavailable')}</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ) : enabledExperts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {enabledExperts.map((config) => {
                 const runtime = runtimes[config.id];
                 if (!runtime) return null;
@@ -372,17 +373,17 @@ export function Experts() {
                 );
               })}
             </div>
-          )}
+          ) : null}
 
           {/* Template Cards */}
-          {templates.length > 0 && (
+          {hasTemplates && (
             <>
-              <div className="mt-8 mb-4">
+              <div className={cn('mb-4', enabledExperts.length > 0 ? 'mt-8' : 'mt-0')}>
                 <h2 className="text-[13px] uppercase tracking-wider text-foreground/40 font-medium">
                   市场分析工具
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {templates.map((template) => (
                   <div
                     key={template.id}
