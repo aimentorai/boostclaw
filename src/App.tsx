@@ -113,15 +113,14 @@ function App() {
   const authEnabled = useAuthStore((state) => state.enabled);
   const authLoading = useAuthStore((state) => state.loading);
   const authenticated = useAuthStore((state) => state.authenticated);
-  const pendingLogin = useAuthStore((state) => state.pendingLogin);
 
-  // loginFlowActive: latches to true when auth:success fires (OAuth completed
-  // in external browser/auth window). The /login page itself stays clean while
-  // the user is doing OAuth. Overlay only appears for post-login operations
-  // (fetching session, quotas, MCP config, etc.) until navigation to main page.
+  // loginFlowActive: set true during post-login refresh; cleared after refresh
+  // finishes or when the user leaves #/login (see auth:success handler + effect below).
   const [loginFlowActive, setLoginFlowActive] = useState(false);
 
-  // Clear overlay when the user lands on any page other than /login.
+  // Hide overlay once the router has left /login (e.g. user navigates to Chat).
+  // If the app intentionally keeps users on #/login after OAuth, pathname stays
+  // /login — the auth:success handler still clears overlay after refreshAuthStatus.
   useEffect(() => {
     if (!location.pathname.startsWith('/login')) {
       setLoginFlowActive(false);
@@ -223,19 +222,22 @@ function App() {
         scope?: string;
         expiresAt?: number;
       };
-    }>('auth:success', (payload) => {
+    }>('auth:success', async (payload) => {
       useAuthStore.setState((state) => ({
         authenticated: true,
         pendingLogin: false,
         error: null,
         profile: payload?.profile ?? state.profile,
       }));
-      // OAuth completed in the external browser/auth window. Start the
-      // post-login overlay now: it covers session fetching, quota loading,
-      // MCP config sync, and the final navigation to the main page.
+      // Full-screen overlay while renderer syncs /api/auth/status; then hide so users
+      // are not stuck on "正在进入应用" when #/login is kept without redirect (temp debug).
       setLoginFlowActive(true);
       toast.success(i18n.t('auth.loginSucceeded', { ns: 'common' }));
-      void refreshAuthStatus();
+      try {
+        await refreshAuthStatus();
+      } finally {
+        setLoginFlowActive(false);
+      }
     });
 
     const offError = subscribeHostEvent<{ reason?: string }>('auth:error', (payload) => {
@@ -304,9 +306,8 @@ function App() {
             loginFlowActive latches true when the login button is pressed and
             stays true until the user leaves /login — covering the full window:
             OAuth wait → auth:success → post-login operations → redirect. */}
-        {/* Post-login overlay: shown after auth:success fires (OAuth done in
-            external browser) and stays until the user lands on the main page.
-            Covers session/quota/MCP fetching and the navigate transition. */}
+        {/* Post-login overlay: shown after auth:success until refreshAuthStatus completes
+            or until the route leaves /login. */}
         {authEnabled && loginFlowActive && (
           <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/30 backdrop-blur-sm">
             <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl text-center min-w-[220px]">
