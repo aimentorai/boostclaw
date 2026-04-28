@@ -155,20 +155,25 @@ type PendingAuthFlow = {
 const APP_AUTH_ACCOUNT_ID = '__BoostClaw_app_auth__';
 
 const AUTH_ENABLED = process.env.BoostClaw_APP_AUTH_ENABLED !== '0';
-const AUTHORIZATION_ENDPOINT = process.env.BoostClaw_APP_AUTH_AUTHORIZATION_ENDPOINT
-  || 'https://open.am.microdata-inc.com/usercenter/oauth/authorize';
-const TOKEN_ENDPOINT = process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT
-  || 'https://open.am.microdata-inc.com/usercenter/oauth/token';
+const AUTHORIZATION_ENDPOINT =
+  process.env.BoostClaw_APP_AUTH_AUTHORIZATION_ENDPOINT ||
+  'https://open.am.microdata-inc.com/usercenter/oauth/authorize';
+const TOKEN_ENDPOINT =
+  process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT ||
+  'https://open.am.microdata-inc.com/usercenter/oauth/token';
 const CODE_EXCHANGE_ENDPOINT = (process.env.BoostClaw_APP_AUTH_CODE_EXCHANGE_ENDPOINT || '').trim();
-const CLIENT_ID = process.env.BoostClaw_APP_AUTH_CLIENT_ID
-  || '4edb20b8-9bb1-4fe1-9b20-b89bb19fe13a';
+const CLIENT_ID =
+  process.env.BoostClaw_APP_AUTH_CLIENT_ID || '4edb20b8-9bb1-4fe1-9b20-b89bb19fe13a';
 const CLIENT_SECRET = (process.env.BoostClaw_APP_AUTH_CLIENT_SECRET || '').trim();
-const TOKEN_AUTH_METHOD = (
-  process.env.BoostClaw_APP_AUTH_TOKEN_AUTH_METHOD
-  || 'auto'
-).trim() as 'auto' | 'none' | 'client_secret_post' | 'client_secret_basic';
-const REDIRECT_URI = process.env.BoostClaw_APP_AUTH_REDIRECT_URI || 'https://open.microdata-inc.com';
-const APP_CALLBACK_URI = process.env.BoostClaw_APP_AUTH_APP_CALLBACK_URI || 'BoostClaw://auth/callback';
+const TOKEN_AUTH_METHOD = (process.env.BoostClaw_APP_AUTH_TOKEN_AUTH_METHOD || 'auto').trim() as
+  | 'auto'
+  | 'none'
+  | 'client_secret_post'
+  | 'client_secret_basic';
+const REDIRECT_URI =
+  process.env.BoostClaw_APP_AUTH_REDIRECT_URI || 'https://open.microdata-inc.com';
+const APP_CALLBACK_URI =
+  process.env.BoostClaw_APP_AUTH_APP_CALLBACK_URI || 'BoostClaw://auth/callback';
 const SCOPE = process.env.BoostClaw_APP_AUTH_SCOPE || 'openid profile';
 const AUTH_PROMPT = (process.env.BoostClaw_APP_AUTH_PROMPT || '').trim();
 const AUTH_COOKIE_NAME = process.env.BoostClaw_APP_AUTH_COOKIE_NAME || 'Auth-Graviteeio-APIM';
@@ -189,12 +194,15 @@ const MCP_BLOCKED_SERVER_NAMES = new Set<string>([
     .map((entry) => entry.trim())
     .filter(Boolean),
 ]);
-const POST_LOGIN_SESSION_URL = process.env.BoostClaw_APP_AUTH_POST_LOGIN_URL || 'https://model.microdata-inc.com/login';
+const POST_LOGIN_SESSION_URL =
+  process.env.BoostClaw_APP_AUTH_POST_LOGIN_URL || 'https://model.microdata-inc.com/login';
 const POST_LOGIN_SESSION_COOKIE_NAME = 'session';
-const SYSTEM_DEFAULT_MODEL_KEY_URL = 'https://open.microdata-inc.com/proxy-center/llm/token/system-default-key';
+const SYSTEM_DEFAULT_MODEL_KEY_URL =
+  'https://open.microdata-inc.com/proxy-center/llm/token/system-default-key';
 const SYSTEM_DEFAULT_MODEL_PROVIDER_ACCOUNT_ID = 'boostclaw-system-default';
 const SYSTEM_DEFAULT_MODEL_PROVIDER_LABEL = 'boostmodel';
-const SYSTEM_DEFAULT_MODEL_PROVIDER_BASE_URL = 'https://model.microdata-inc.com/v1/chat/completions';
+const SYSTEM_DEFAULT_MODEL_PROVIDER_BASE_URL =
+  'https://model.microdata-inc.com/v1/chat/completions';
 const SYSTEM_DEFAULT_MODEL_PROVIDER_DEFAULT_MODEL_ID = 'qwen-plus';
 const LOOPBACK_SUCCESS_HTML = `<!doctype html>
 <html lang="zh-CN">
@@ -209,11 +217,7 @@ const LOOPBACK_SUCCESS_HTML = `<!doctype html>
 </html>`;
 
 function base64UrlEncode(input: Buffer): string {
-  return input
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+  return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 function decodeJwtPayload(token: string | undefined): JwtPayload | null {
@@ -227,7 +231,7 @@ function decodeJwtPayload(token: string | undefined): JwtPayload | null {
       .padEnd(Math.ceil(parts[1].length / 4) * 4, '=');
     const json = Buffer.from(padded, 'base64').toString('utf8');
     const parsed = JSON.parse(json) as unknown;
-    return (parsed && typeof parsed === 'object') ? parsed as JwtPayload : null;
+    return parsed && typeof parsed === 'object' ? (parsed as JwtPayload) : null;
   } catch {
     return null;
   }
@@ -249,12 +253,14 @@ function readStringClaim(payload: JwtPayload | null, claim: string): string | un
 function normalizeTokenResponse(payload: unknown): TokenResponse | null {
   if (!payload || typeof payload !== 'object') return null;
   const record = payload as Record<string, unknown>;
-  const nested = record.data && typeof record.data === 'object'
-    ? record.data as Record<string, unknown>
-    : record;
-  const token = nested.token && typeof nested.token === 'object'
-    ? nested.token as Record<string, unknown>
-    : nested;
+  const nested =
+    record.data && typeof record.data === 'object'
+      ? (record.data as Record<string, unknown>)
+      : record;
+  const token =
+    nested.token && typeof nested.token === 'object'
+      ? (nested.token as Record<string, unknown>)
+      : nested;
 
   const access = token.access_token ?? token.accessToken;
   const refresh = token.refresh_token ?? token.refreshToken;
@@ -268,12 +274,18 @@ function normalizeTokenResponse(payload: unknown): TokenResponse | null {
     refresh_token: typeof refresh === 'string' ? refresh : '',
     expires_in: typeof expiresIn === 'number' ? expiresIn : Number(expiresIn || 3600),
     scope: typeof token.scope === 'string' ? token.scope : undefined,
-    id_token: typeof token.id_token === 'string'
-      ? token.id_token
-      : (typeof token.idToken === 'string' ? token.idToken : undefined),
-    token_type: typeof token.token_type === 'string'
-      ? token.token_type
-      : (typeof token.tokenType === 'string' ? token.tokenType : undefined),
+    id_token:
+      typeof token.id_token === 'string'
+        ? token.id_token
+        : typeof token.idToken === 'string'
+          ? token.idToken
+          : undefined,
+    token_type:
+      typeof token.token_type === 'string'
+        ? token.token_type
+        : typeof token.tokenType === 'string'
+          ? token.tokenType
+          : undefined,
   };
 }
 
@@ -304,7 +316,9 @@ function summarizeAuthUrl(urlText: string): {
 } {
   try {
     const parsed = new URL(urlText);
-    const hashParams = new URLSearchParams(parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash);
+    const hashParams = new URLSearchParams(
+      parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash
+    );
     return {
       location: `${parsed.protocol}//${parsed.host}${parsed.pathname || '/'}`,
       hasCode: parsed.searchParams.has('code') || hashParams.has('code'),
@@ -331,11 +345,13 @@ function maskSecret(secret: string | undefined): string | undefined {
   return `${secret.slice(0, 4)}***${secret.slice(-4)}`;
 }
 
-function summarizeCookieValue(value: string | undefined): {
-  length: number;
-  prefix: string;
-  suffix: string;
-} | undefined {
+function summarizeCookieValue(value: string | undefined):
+  | {
+      length: number;
+      prefix: string;
+      suffix: string;
+    }
+  | undefined {
   if (!value) return undefined;
   return {
     length: value.length,
@@ -372,7 +388,9 @@ function pickSystemDefaultApiKey(payload: unknown): string | null {
   }
 
   const record = payload as Record<string, unknown>;
-  const direct = ['apiKey', 'key', 'token', 'data'].find((field) => typeof record[field] === 'string');
+  const direct = ['apiKey', 'key', 'token', 'data'].find(
+    (field) => typeof record[field] === 'string'
+  );
   if (direct) {
     return String(record[direct]).trim() || null;
   }
@@ -392,7 +410,9 @@ function isMcpServerRegistry(value: unknown): value is Record<string, McpServerC
     return false;
   }
 
-  return Object.values(value).every((entry) => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry));
+  return Object.values(value).every(
+    (entry) => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry)
+  );
 }
 
 /**
@@ -406,17 +426,20 @@ function isMcpServerRegistry(value: unknown): value is Record<string, McpServerC
 function mergeMcpServersIntoOpenClawConfig(
   config: OpenClawConfig,
   servers: Record<string, McpServerConfig>,
-  blocked: ReadonlySet<string> = new Set(),
+  blocked: ReadonlySet<string> = new Set()
 ): { serverNames: string[]; changed: boolean } {
-  const mcp = config.mcp && typeof config.mcp === 'object' && !Array.isArray(config.mcp)
-    ? { ...(config.mcp as Record<string, unknown>) }
-    : {};
-  const currentServers = mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers)
-    ? (mcp.servers as Record<string, McpServerConfig>)
-    : {};
-  const existingServers = mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers)
-    ? { ...(mcp.servers as Record<string, McpServerConfig>) }
-    : {};
+  const mcp =
+    config.mcp && typeof config.mcp === 'object' && !Array.isArray(config.mcp)
+      ? { ...(config.mcp as Record<string, unknown>) }
+      : {};
+  const currentServers =
+    mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers)
+      ? (mcp.servers as Record<string, McpServerConfig>)
+      : {};
+  const existingServers =
+    mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers)
+      ? { ...(mcp.servers as Record<string, McpServerConfig>) }
+      : {};
 
   // Drop any previously-written entries whose names are now blocklisted.
   for (const name of Object.keys(existingServers)) {
@@ -464,7 +487,8 @@ export class AppAuthManager extends EventEmitter {
   private postLoginModelUserId: string | null = null;
   private postLoginSessionCookieValue: string | null = null;
   private systemDefaultModelProviderInfoCache: SystemDefaultModelProviderInfo | null = null;
-  private systemDefaultModelProviderInfoRequest: Promise<SystemDefaultModelProviderInfo> | null = null;
+  private systemDefaultModelProviderInfoRequest: Promise<SystemDefaultModelProviderInfo> | null =
+    null;
 
   setWindow(window: BrowserWindow): void {
     this.mainWindow = window;
@@ -770,7 +794,9 @@ export class AppAuthManager extends EventEmitter {
         return null;
       }
     })();
-    const returnUrl = this.authReturnUrl ? this.normalizeMainWindowReturnUrl(this.authReturnUrl) : null;
+    const returnUrl = this.authReturnUrl
+      ? this.normalizeMainWindowReturnUrl(this.authReturnUrl)
+      : null;
     this.cleanupMainWindowAfterAuth();
     if (!win || win.isDestroyed()) {
       return;
@@ -823,16 +849,20 @@ export class AppAuthManager extends EventEmitter {
           name: POST_LOGIN_SESSION_COOKIE_NAME,
           attempt,
           count: cookies.length,
-          cookies: cookies.map((cookie) => summarizeCookieRecord({
-            domain: cookie.domain,
-            path: cookie.path,
-            httpOnly: cookie.httpOnly,
-            secure: cookie.secure,
-            expirationDate: cookie.expirationDate,
-            value: cookie.value,
-          })),
+          cookies: cookies.map((cookie) =>
+            summarizeCookieRecord({
+              domain: cookie.domain,
+              path: cookie.path,
+              httpOnly: cookie.httpOnly,
+              secure: cookie.secure,
+              expirationDate: cookie.expirationDate,
+              value: cookie.value,
+            })
+          ),
         });
-        const sessionCookie = cookies.find((cookie) => cookie.name === POST_LOGIN_SESSION_COOKIE_NAME);
+        const sessionCookie = cookies.find(
+          (cookie) => cookie.name === POST_LOGIN_SESSION_COOKIE_NAME
+        );
         if (sessionCookie?.value) {
           latestCookie = sessionCookie;
           if (sessionCookie.value === lastCookieValue) {
@@ -905,7 +935,8 @@ export class AppAuthManager extends EventEmitter {
 
     for (let attempt = 1; attempt <= 20; attempt += 1) {
       try {
-        const inspection = await win.webContents.executeJavaScript(`
+        const inspection = await win.webContents.executeJavaScript(
+          `
           (() => {
             try {
               const href = typeof window.location?.href === 'string' ? window.location.href : '';
@@ -946,7 +977,9 @@ export class AppAuthManager extends EventEmitter {
               };
             }
           })()
-        `, true);
+        `,
+          true
+        );
 
         logger.info('[AppAuth] Post-login localStorage user inspection', {
           attempt,
@@ -955,7 +988,8 @@ export class AppAuthManager extends EventEmitter {
           hasUser: inspection?.hasUser,
           keys: Array.isArray(inspection?.keys) ? inspection.keys : [],
           parseError: inspection?.parseError || undefined,
-          rawPreview: typeof inspection?.rawPreview === 'string' ? inspection.rawPreview : undefined,
+          rawPreview:
+            typeof inspection?.rawPreview === 'string' ? inspection.rawPreview : undefined,
         });
 
         if (typeof inspection?.userId === 'string' && inspection.userId.trim()) {
@@ -1029,13 +1063,20 @@ export class AppAuthManager extends EventEmitter {
 
   private async getStoredPostLoginModelUserId(): Promise<string | null> {
     const secret = await getSecretStore().get(APP_AUTH_ACCOUNT_ID);
-    if (secret?.type === 'oauth' && typeof secret.modelUserId === 'string' && secret.modelUserId.trim()) {
+    if (
+      secret?.type === 'oauth' &&
+      typeof secret.modelUserId === 'string' &&
+      secret.modelUserId.trim()
+    ) {
       return secret.modelUserId.trim();
     }
     return null;
   }
 
-  private buildSystemDefaultModelProviderUnavailable(error: string, userId?: string): SystemDefaultModelProviderInfo {
+  private buildSystemDefaultModelProviderUnavailable(
+    error: string,
+    userId?: string
+  ): SystemDefaultModelProviderInfo {
     return {
       available: false,
       accountId: SYSTEM_DEFAULT_MODEL_PROVIDER_ACCOUNT_ID,
@@ -1098,7 +1139,7 @@ export class AppAuthManager extends EventEmitter {
       if (!response.ok || !apiKey) {
         return this.buildSystemDefaultModelProviderUnavailable(
           text || response.statusText || 'Failed to load system default model key',
-          userId,
+          userId
         );
       }
 
@@ -1166,7 +1207,10 @@ export class AppAuthManager extends EventEmitter {
   private isCookieDomainMatch(cookieDomain: string, host: string): boolean {
     const normalizedCookieDomain = cookieDomain.replace(/^\./, '').toLowerCase();
     const normalizedHost = host.toLowerCase();
-    return normalizedCookieDomain === normalizedHost || normalizedCookieDomain.endsWith(`.${normalizedHost}`);
+    return (
+      normalizedCookieDomain === normalizedHost ||
+      normalizedCookieDomain.endsWith(`.${normalizedHost}`)
+    );
   }
 
   private getAuthSession(): Electron.Session {
@@ -1176,7 +1220,9 @@ export class AppAuthManager extends EventEmitter {
 
   private async getAuthCookie(): Promise<Electron.Cookie | null> {
     const cookies = await this.getAuthSession().cookies.get({ name: AUTH_COOKIE_NAME });
-    return cookies.find((cookie) => typeof cookie.value === 'string' && cookie.value.length > 0) || null;
+    return (
+      cookies.find((cookie) => typeof cookie.value === 'string' && cookie.value.length > 0) || null
+    );
   }
 
   private async debugFetchUserEndpointWithSessionCookies(): Promise<void> {
@@ -1229,7 +1275,11 @@ export class AppAuthManager extends EventEmitter {
 
   private async ensurePortalUserIdFromSessionCookies(): Promise<string | null> {
     const secret = await getSecretStore().get(APP_AUTH_ACCOUNT_ID);
-    if (secret?.type === 'oauth' && typeof secret.portalUserId === 'string' && secret.portalUserId.length > 0) {
+    if (
+      secret?.type === 'oauth' &&
+      typeof secret.portalUserId === 'string' &&
+      secret.portalUserId.length > 0
+    ) {
       return secret.portalUserId;
     }
 
@@ -1432,8 +1482,10 @@ export class AppAuthManager extends EventEmitter {
   isLoopbackCallbackMode(): boolean {
     try {
       const parsed = this.getRedirectUrl();
-      return (parsed.protocol === 'http:' || parsed.protocol === 'https:')
-        && (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost');
+      return (
+        (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+        (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost')
+      );
     } catch {
       return false;
     }
@@ -1563,9 +1615,7 @@ export class AppAuthManager extends EventEmitter {
       if (TOKEN_AUTH_METHOD === 'client_secret_post') return ['client_secret_post'];
       if (TOKEN_AUTH_METHOD === 'client_secret_basic') return ['client_secret_basic'];
       // auto: try no-auth first for adaptive servers, then secret methods (if secret exists).
-      return CLIENT_SECRET
-        ? ['none', 'client_secret_post', 'client_secret_basic']
-        : ['none'];
+      return CLIENT_SECRET ? ['none', 'client_secret_post', 'client_secret_basic'] : ['none'];
     })();
 
     let lastError: Error | null = null;
@@ -1589,15 +1639,18 @@ export class AppAuthManager extends EventEmitter {
       const bodyObject = Object.fromEntries(body.entries());
       const safeBody = {
         ...bodyObject,
-        code: typeof bodyObject.code === 'string'
-          ? `${String(bodyObject.code).slice(0, 8)}...`
-          : bodyObject.code,
-        code_verifier: typeof bodyObject.code_verifier === 'string'
-          ? `[len:${String(bodyObject.code_verifier).length}]`
-          : bodyObject.code_verifier,
-        refresh_token: typeof bodyObject.refresh_token === 'string'
-          ? `[len:${String(bodyObject.refresh_token).length}]`
-          : bodyObject.refresh_token,
+        code:
+          typeof bodyObject.code === 'string'
+            ? `${String(bodyObject.code).slice(0, 8)}...`
+            : bodyObject.code,
+        code_verifier:
+          typeof bodyObject.code_verifier === 'string'
+            ? `[len:${String(bodyObject.code_verifier).length}]`
+            : bodyObject.code_verifier,
+        refresh_token:
+          typeof bodyObject.refresh_token === 'string'
+            ? `[len:${String(bodyObject.refresh_token).length}]`
+            : bodyObject.refresh_token,
         client_secret: bodyObject.client_secret ? '[redacted]' : undefined,
       };
       const safeHeaders = {
@@ -1709,7 +1762,9 @@ export class AppAuthManager extends EventEmitter {
     });
 
     if (!response.ok) {
-      throw new Error(`Backend token exchange failed (${response.status}): ${text || response.statusText}`);
+      throw new Error(
+        `Backend token exchange failed (${response.status}): ${text || response.statusText}`
+      );
     }
 
     const token = normalizeTokenResponse(json);
@@ -1726,8 +1781,9 @@ export class AppAuthManager extends EventEmitter {
     const subject = readStringClaim(jwt, 'sub');
     const scope = typeof token.scope === 'string' ? token.scope : SCOPE;
     const jwtExpiresAt = readJwtExpiresAt(token.id_token, token.access_token);
-    const expiresIn = typeof token.expires_in === 'number' && token.expires_in > 0 ? token.expires_in : 3600;
-    const expiresAt = token.expires_at || jwtExpiresAt || Date.now() + (expiresIn * 1000);
+    const expiresIn =
+      typeof token.expires_in === 'number' && token.expires_in > 0 ? token.expires_in : 3600;
+    const expiresAt = token.expires_at || jwtExpiresAt || Date.now() + expiresIn * 1000;
 
     await getSecretStore().set({
       type: 'oauth',
@@ -1796,9 +1852,11 @@ export class AppAuthManager extends EventEmitter {
   private isRedirectMatch(url: URL, expected: URL): boolean {
     const expectedPath = expected.pathname || '/';
     const currentPath = url.pathname || '/';
-    return url.protocol === expected.protocol
-      && url.host === expected.host
-      && currentPath === expectedPath;
+    return (
+      url.protocol === expected.protocol &&
+      url.host === expected.host &&
+      currentPath === expectedPath
+    );
   }
 
   private readOAuthCallbackParams(parsed: URL): {
@@ -1965,7 +2023,9 @@ export class AppAuthManager extends EventEmitter {
       return false;
     }
     flow.completed = true;
-    const cookieExpiresAt = authCookie.expirationDate ? authCookie.expirationDate * 1000 : undefined;
+    const cookieExpiresAt = authCookie.expirationDate
+      ? authCookie.expirationDate * 1000
+      : undefined;
     const token: TokenResponse = {
       access_token: authCookie.value,
       refresh_token: '',
@@ -2045,11 +2105,11 @@ export class AppAuthManager extends EventEmitter {
     const protocol = this.getAppCallbackProtocol();
     const appCallback = this.getExpectedAppCallbackLocation();
     return Boolean(
-      protocol
-      && appCallback
-      && parsed.protocol === `${protocol}:`
-      && parsed.host === appCallback.host
-      && parsed.pathname === appCallback.pathname,
+      protocol &&
+      appCallback &&
+      parsed.protocol === `${protocol}:` &&
+      parsed.host === appCallback.host &&
+      parsed.pathname === appCallback.pathname
     );
   }
 
@@ -2064,11 +2124,11 @@ export class AppAuthManager extends EventEmitter {
     const protocol = this.getAppCallbackProtocol();
     const appCallback = this.getExpectedAppCallbackLocation();
     return Boolean(
-      protocol
-      && appCallback
-      && parsed.protocol === `${protocol}:`
-      && parsed.host === appCallback.host
-      && parsed.pathname === appCallback.pathname,
+      protocol &&
+      appCallback &&
+      parsed.protocol === `${protocol}:` &&
+      parsed.host === appCallback.host &&
+      parsed.pathname === appCallback.pathname
     );
   }
 
@@ -2107,7 +2167,7 @@ export class AppAuthManager extends EventEmitter {
 
   private safeHandleAuthNavigation(url: string, source: string): void {
     void this.handleAuthNavigation(url).catch((error) => {
-      const reason = error instanceof Error ? (error.stack || error.message) : String(error);
+      const reason = error instanceof Error ? error.stack || error.message : String(error);
       logger.error(`[AppAuth] handleAuthNavigation failed (${source})`, error);
       this.emitDebug('web_handle_auth_navigation_error', {
         source,
@@ -2155,7 +2215,8 @@ export class AppAuthManager extends EventEmitter {
     flow.redirectPageAutoClickCount += 1;
     try {
       const attempt = flow.redirectPageAutoClickCount;
-      const result = await win.webContents.executeJavaScript(`
+      const result = await win.webContents.executeJavaScript(
+        `
         (() => {
           const norm = (v) => (v || '').toString().trim().toLowerCase();
           const clickElement = (el) => {
@@ -2245,11 +2306,19 @@ export class AppAuthManager extends EventEmitter {
 
           return { clicked: false, method: 'none' };
         })();
-      `, true);
-      const clicked = Boolean(result && typeof result === 'object' && 'clicked' in result && (result as { clicked?: boolean }).clicked);
-      const method = (result && typeof result === 'object' && 'method' in result)
-        ? String((result as { method?: string }).method || 'unknown')
-        : 'unknown';
+      `,
+        true
+      );
+      const clicked = Boolean(
+        result &&
+        typeof result === 'object' &&
+        'clicked' in result &&
+        (result as { clicked?: boolean }).clicked
+      );
+      const method =
+        result && typeof result === 'object' && 'method' in result
+          ? String((result as { method?: string }).method || 'unknown')
+          : 'unknown';
       if (clicked) {
         logger.info('[AppAuth] Auto-clicked login action on redirect page', { attempt, method });
         this.emitDebug('web_redirect_auto_click_login', {
@@ -2259,7 +2328,10 @@ export class AppAuthManager extends EventEmitter {
           clicked: true,
         });
       } else {
-        logger.info('[AppAuth] Redirect page auto-click skipped (no actionable element found)', { attempt, method });
+        logger.info('[AppAuth] Redirect page auto-click skipped (no actionable element found)', {
+          attempt,
+          method,
+        });
       }
       return Boolean(clicked);
     } catch (error) {
@@ -2282,7 +2354,9 @@ export class AppAuthManager extends EventEmitter {
         source,
         ...summarizeAuthUrl(href),
       });
-      logger.info(`[AppAuth] Probed window.location.href from ${source}: ${summarizeAuthUrl(href).location}`);
+      logger.info(
+        `[AppAuth] Probed window.location.href from ${source}: ${summarizeAuthUrl(href).location}`
+      );
       this.safeHandleAuthNavigation(href, `probe:${source}`);
     } catch (error) {
       this.emitDebug('web_location_probe_error', {
@@ -2318,7 +2392,10 @@ export class AppAuthManager extends EventEmitter {
       }
       if (this.pendingFlow && this.isWebRedirectUrl(currentUrl)) {
         this.pendingFlow.cookiePollMisses += 1;
-        if (this.pendingFlow.cookiePollMisses >= 2 && this.pendingFlow.redirectPageAutoClickCount < 3) {
+        if (
+          this.pendingFlow.cookiePollMisses >= 2 &&
+          this.pendingFlow.redirectPageAutoClickCount < 3
+        ) {
           const clicked = await this.tryAutoClickRedirectLoginButton(currentUrl);
           if (clicked) {
             this.scheduleCookiePoll(currentUrl);
@@ -2391,7 +2468,7 @@ export class AppAuthManager extends EventEmitter {
       _event: Electron.Event,
       url: string,
       isInPlace: boolean,
-      isMainFrame: boolean,
+      isMainFrame: boolean
     ) => {
       if (!isMainFrame || isInPlace || !this.shouldHandleAuthNavigation(url)) {
         return;
@@ -2433,7 +2510,7 @@ export class AppAuthManager extends EventEmitter {
       errorCode: number,
       errorDescription: string,
       validatedUrl: string,
-      isMainFrame: boolean,
+      isMainFrame: boolean
     ) => {
       if (!isMainFrame || !this.shouldHandleAuthNavigation(validatedUrl)) {
         return;
@@ -2444,13 +2521,15 @@ export class AppAuthManager extends EventEmitter {
         errorDescription,
       };
       this.emitDebug('web_did_fail_load', detail);
-      logger.warn(`[AppAuth] did-fail-load code=${errorCode} desc=${errorDescription} url=${detail.location}`);
+      logger.warn(
+        `[AppAuth] did-fail-load code=${errorCode} desc=${errorDescription} url=${detail.location}`
+      );
     };
     const handleCookieChanged = (
       _event: Electron.Event,
       cookie: Electron.Cookie,
       _cause: string,
-      removed: boolean,
+      removed: boolean
     ) => {
       if (removed || cookie.name !== AUTH_COOKIE_NAME || !cookie.value) {
         return;
@@ -2497,23 +2576,26 @@ export class AppAuthManager extends EventEmitter {
       const handleDebuggerMessage = async (
         _event: Electron.Event,
         method: string,
-        params?: Record<string, unknown>,
+        params?: Record<string, unknown>
       ) => {
         if (method !== 'Network.responseReceived') {
           return;
         }
 
         const requestId = typeof params?.requestId === 'string' ? params.requestId : '';
-        const response = params?.response && typeof params.response === 'object'
-          ? params.response as Record<string, unknown>
-          : null;
+        const response =
+          params?.response && typeof params.response === 'object'
+            ? (params.response as Record<string, unknown>)
+            : null;
         const responseUrl = typeof response?.url === 'string' ? response.url : '';
         if (!requestId || responseUrl !== DEBUG_CAPTURE_USER_URL) {
           return;
         }
 
         try {
-          const bodyResult = await debuggerApi.sendCommand('Network.getResponseBody', { requestId }) as {
+          const bodyResult = (await debuggerApi.sendCommand('Network.getResponseBody', {
+            requestId,
+          })) as {
             body?: string;
             base64Encoded?: boolean;
           };
@@ -2574,7 +2656,10 @@ export class AppAuthManager extends EventEmitter {
       win.webContents.session.cookies.removeListener('changed', handleCookieChanged);
     };
     this.cleanupSessionWebRequestListener = () => {
-      win.webContents.session.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, null as unknown as Electron.OnBeforeRequestListener);
+      win.webContents.session.webRequest.onBeforeRequest(
+        { urls: ['*://*/*'] },
+        null as unknown as Electron.OnBeforeRequestListener
+      );
     };
 
     await win.loadURL(authorizationUrl);
@@ -2589,11 +2674,11 @@ export class AppAuthManager extends EventEmitter {
     const secret = await getSecretStore().get(APP_AUTH_ACCOUNT_ID);
     if (!authCookie?.value) {
       if (
-        secret?.type === 'oauth'
-        && typeof secret.accessToken === 'string'
-        && secret.accessToken.length > 0
-        && typeof secret.expiresAt === 'number'
-        && secret.expiresAt > Date.now()
+        secret?.type === 'oauth' &&
+        typeof secret.accessToken === 'string' &&
+        secret.accessToken.length > 0 &&
+        typeof secret.expiresAt === 'number' &&
+        secret.expiresAt > Date.now()
       ) {
         const jwt = decodeJwtPayload(secret.accessToken);
         const email = readStringClaim(jwt, 'email') || secret.email;
@@ -2621,12 +2706,15 @@ export class AppAuthManager extends EventEmitter {
     }
 
     const jwt = decodeJwtPayload(authCookie.value);
-    const email = readStringClaim(jwt, 'email') || (secret?.type === 'oauth' ? secret.email : undefined);
-    const subject = readStringClaim(jwt, 'sub') || (secret?.type === 'oauth' ? secret.subject : undefined);
+    const email =
+      readStringClaim(jwt, 'email') || (secret?.type === 'oauth' ? secret.email : undefined);
+    const subject =
+      readStringClaim(jwt, 'sub') || (secret?.type === 'oauth' ? secret.subject : undefined);
     const scope = (secret?.type === 'oauth' ? secret.scopes?.join(' ') : undefined) || SCOPE;
     const expiresAt = authCookie.expirationDate
       ? authCookie.expirationDate * 1000
-      : (readJwtExpiresAt(authCookie.value) || (secret?.type === 'oauth' ? secret.expiresAt : undefined));
+      : readJwtExpiresAt(authCookie.value) ||
+        (secret?.type === 'oauth' ? secret.expiresAt : undefined);
 
     return {
       enabled: true,
@@ -2656,9 +2744,8 @@ export class AppAuthManager extends EventEmitter {
 
     if (authCookie?.value) {
       const jwt = decodeJwtPayload(authCookie.value);
-      const accessToken = secret?.type === 'oauth' && secret.accessToken
-        ? secret.accessToken
-        : authCookie.value;
+      const accessToken =
+        secret?.type === 'oauth' && secret.accessToken ? secret.accessToken : authCookie.value;
       return {
         enabled: true,
         authenticated: true,
@@ -2667,20 +2754,23 @@ export class AppAuthManager extends EventEmitter {
         refreshToken: secret?.type === 'oauth' ? secret.refreshToken || '' : null,
         expiresAt: authCookie.expirationDate
           ? authCookie.expirationDate * 1000
-          : (readJwtExpiresAt(authCookie.value) || (secret?.type === 'oauth' ? secret.expiresAt : undefined)),
-        email: readStringClaim(jwt, 'email') || (secret?.type === 'oauth' ? secret.email : undefined),
-        subject: readStringClaim(jwt, 'sub') || (secret?.type === 'oauth' ? secret.subject : undefined),
+          : readJwtExpiresAt(authCookie.value) ||
+            (secret?.type === 'oauth' ? secret.expiresAt : undefined),
+        email:
+          readStringClaim(jwt, 'email') || (secret?.type === 'oauth' ? secret.email : undefined),
+        subject:
+          readStringClaim(jwt, 'sub') || (secret?.type === 'oauth' ? secret.subject : undefined),
         portalUserId: secret?.type === 'oauth' ? secret.portalUserId : undefined,
         scope: (secret?.type === 'oauth' ? secret.scopes?.join(' ') : undefined) || SCOPE,
       };
     }
 
     if (
-      secret?.type === 'oauth'
-      && typeof secret.accessToken === 'string'
-      && secret.accessToken.length > 0
-      && typeof secret.expiresAt === 'number'
-      && secret.expiresAt > Date.now()
+      secret?.type === 'oauth' &&
+      typeof secret.accessToken === 'string' &&
+      secret.accessToken.length > 0 &&
+      typeof secret.expiresAt === 'number' &&
+      secret.expiresAt > Date.now()
     ) {
       const jwt = decodeJwtPayload(secret.accessToken);
       return {
@@ -2772,12 +2862,15 @@ export class AppAuthManager extends EventEmitter {
     }
 
     const url = `${SUBSCRIPTION_MCP_CONFIG_URL}?userId=${encodeURIComponent(portalUserId)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
     try {
       const response = await proxyAwareFetch(url, {
         method: 'GET',
         headers: {
           'X-Internal-Token': SUBSCRIPTION_INTERNAL_TOKEN,
         },
+        signal: controller.signal,
       });
       const text = await response.text();
       let json: SubscriptionMcpConfigResult | null = null;
@@ -2806,7 +2899,9 @@ export class AppAuthManager extends EventEmitter {
       // Hoisting `data` into a narrowed local preserves the type-guard across
       // the later async closure below.
       const data = json.data;
-      const skippedServerNames = Object.keys(data).filter((name) => MCP_BLOCKED_SERVER_NAMES.has(name));
+      const skippedServerNames = Object.keys(data).filter((name) =>
+        MCP_BLOCKED_SERVER_NAMES.has(name)
+      );
       const servers: SubscriptionMcpServerSummary[] = Object.entries(data)
         .filter(([name]) => !MCP_BLOCKED_SERVER_NAMES.has(name))
         .map(([name, entry]) => {
@@ -2818,7 +2913,11 @@ export class AppAuthManager extends EventEmitter {
 
       const { serverNames, wroteConfig } = await withConfigLock(async () => {
         const config = await readOpenClawConfig();
-        const mergeResult = mergeMcpServersIntoOpenClawConfig(config, data, MCP_BLOCKED_SERVER_NAMES);
+        const mergeResult = mergeMcpServersIntoOpenClawConfig(
+          config,
+          data,
+          MCP_BLOCKED_SERVER_NAMES
+        );
         if (mergeResult.changed) {
           await writeOpenClawConfig(config);
         }
@@ -2856,10 +2955,14 @@ export class AppAuthManager extends EventEmitter {
         servers: [],
         error: String(error),
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
-  async createSubscriptionAutoTrial(provider: 'tt' | 'amz'): Promise<SubscriptionAutoTrialResponse> {
+  async createSubscriptionAutoTrial(
+    provider: 'tt' | 'amz'
+  ): Promise<SubscriptionAutoTrialResponse> {
     const debug = await this.getAuthDebugInfo();
     const portalUserId = debug.portalUserId || null;
     if (!portalUserId) {
@@ -2937,7 +3040,9 @@ export class AppAuthManager extends EventEmitter {
         url: `${target.origin}/`,
         name: POST_LOGIN_SESSION_COOKIE_NAME,
       });
-      const sessionCookie = cookies.find((cookie) => cookie.name === POST_LOGIN_SESSION_COOKIE_NAME);
+      const sessionCookie = cookies.find(
+        (cookie) => cookie.name === POST_LOGIN_SESSION_COOKIE_NAME
+      );
       return {
         found: Boolean(sessionCookie?.value),
         url: target.origin,
@@ -2956,7 +3061,9 @@ export class AppAuthManager extends EventEmitter {
     }
   }
 
-  async getSystemDefaultModelProviderInfo(forceRefresh = false): Promise<SystemDefaultModelProviderInfo> {
+  async getSystemDefaultModelProviderInfo(
+    forceRefresh = false
+  ): Promise<SystemDefaultModelProviderInfo> {
     if (!forceRefresh && this.systemDefaultModelProviderInfoCache) {
       return this.systemDefaultModelProviderInfoCache;
     }
@@ -3059,7 +3166,10 @@ export class AppAuthManager extends EventEmitter {
     const state = parsed.searchParams.get('state');
     if (!this.pendingFlow || !code || !state) {
       this.clearPendingFlow();
-      this.emit('auth:error', { authenticated: false, reason: 'Missing code/state or no active login flow' });
+      this.emit('auth:error', {
+        authenticated: false,
+        reason: 'Missing code/state or no active login flow',
+      });
       return true;
     }
 

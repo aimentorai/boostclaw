@@ -203,6 +203,12 @@ async function writeExpertBootstrapFiles(
     if (toolsMd) {
       await writeFile(join(workspace, 'TOOLS.md'), toolsMd, 'utf-8');
     }
+    // Append MCP server tool awareness
+    const mcpToolsMd = await readPluginToolsMd('proboost-mcp');
+    if (mcpToolsMd) {
+      const existingTools = await readFile(join(workspace, 'TOOLS.md'), 'utf-8').catch(() => '');
+      await writeFile(join(workspace, 'TOOLS.md'), existingTools + '\n\n' + mcpToolsMd, 'utf-8');
+    }
   }
   // USER.md — all experts
   await writeFile(join(workspace, 'USER.md'), generateUserMd(), 'utf-8');
