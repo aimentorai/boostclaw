@@ -58,6 +58,11 @@ async function setupTarget(id) {
 
   echo(chalk.blue`\n📦 Setting up uv for ${id}...`);
 
+  if (await fs.pathExists(destBin)) {
+    echo`✅ Existing uv binary found, skipping download: ${destBin}`;
+    return;
+  }
+
   // Cleanup & Prep
   await fs.remove(destBin);
   await fs.remove(tempDir);
