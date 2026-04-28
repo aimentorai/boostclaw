@@ -175,15 +175,20 @@ export function Settings() {
   const authProfile = useAuthStore((state) => state.profile);
   const logout = useAuthStore((state) => state.logout);
   const [authDebugInfo, setAuthDebugInfo] = useState<AuthDebugInfo | null>(null);
-  const [subscriptionQuotaSummary, setSubscriptionQuotaSummary] = useState<SubscriptionQuotaSummary | null>(null);
-  const [postLoginSessionCookieInfo, setPostLoginSessionCookieInfo] = useState<PostLoginSessionCookieInfo | null>(null);
-  const [subscriptionTrialLoading, setSubscriptionTrialLoading] = useState<Record<'tt' | 'amz', boolean>>({
+  const [subscriptionQuotaSummary, setSubscriptionQuotaSummary] =
+    useState<SubscriptionQuotaSummary | null>(null);
+  const [postLoginSessionCookieInfo, setPostLoginSessionCookieInfo] =
+    useState<PostLoginSessionCookieInfo | null>(null);
+  const [subscriptionTrialLoading, setSubscriptionTrialLoading] = useState<
+    Record<'tt' | 'amz', boolean>
+  >({
     tt: false,
     amz: false,
   });
   // MCP configuration pulled from the subscription service. We keep it in the
   // account panel so the user can verify which services are wired up after login.
-  const [subscriptionMcpConfig, setSubscriptionMcpConfig] = useState<SubscriptionMcpConfigResponse | null>(null);
+  const [subscriptionMcpConfig, setSubscriptionMcpConfig] =
+    useState<SubscriptionMcpConfigResponse | null>(null);
   const [subscriptionMcpConfigLoading, setSubscriptionMcpConfigLoading] = useState(false);
 
   const refreshSubscriptionQuotaSummary = async (): Promise<SubscriptionQuotaSummary> => {
@@ -194,10 +199,14 @@ export function Settings() {
 
   // Fetches the MCP subscription config via the main process. Shows a toast on
   // explicit user refresh so network/code failures are surfaced immediately.
-  const refreshSubscriptionMcpConfig = async (options?: { silent?: boolean }): Promise<SubscriptionMcpConfigResponse | null> => {
+  const refreshSubscriptionMcpConfig = async (options?: {
+    silent?: boolean;
+  }): Promise<SubscriptionMcpConfigResponse | null> => {
     setSubscriptionMcpConfigLoading(true);
     try {
-      const result = await hostApiFetch<SubscriptionMcpConfigResponse>('/api/auth/subscription-mcp-config');
+      const result = await hostApiFetch<SubscriptionMcpConfigResponse>(
+        '/api/auth/subscription-mcp-config'
+      );
       setSubscriptionMcpConfig(result);
       if (!options?.silent) {
         if (result.ok) {
@@ -305,20 +314,23 @@ export function Settings() {
   const handleSubscriptionAutoTrial = async (provider: 'tt' | 'amz') => {
     setSubscriptionTrialLoading((prev) => ({ ...prev, [provider]: true }));
     try {
-      const result = await hostApiFetch<SubscriptionAutoTrialResponse>('/api/auth/subscription-auto-trial', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ provider }),
-      });
+      const result = await hostApiFetch<SubscriptionAutoTrialResponse>(
+        '/api/auth/subscription-auto-trial',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ provider }),
+        }
+      );
       if (!result.ok) {
         throw new Error(result.message || result.error || t('account.subscriptionTrialFailed'));
       }
       toast.success(
         provider === 'tt'
           ? t('account.subscriptionTrialTtSucceeded')
-          : t('account.subscriptionTrialAmzSucceeded'),
+          : t('account.subscriptionTrialAmzSucceeded')
       );
       await refreshSubscriptionQuotaSummary();
     } catch (error) {
@@ -515,13 +527,10 @@ export function Settings() {
   useEffect(() => {
     const electron = (window as any).electron;
     if (!electron?.ipcRenderer) return;
-    const unsubscribe = electron.ipcRenderer.on(
-      'openclaw:cli-installed',
-      (...args: unknown[]) => {
-        const installedPath = typeof args[0] === 'string' ? args[0] : '';
-        toast.success(`openclaw CLI installed at ${installedPath}`);
-      }
-    );
+    const unsubscribe = electron.ipcRenderer.on('openclaw:cli-installed', (...args: unknown[]) => {
+      const installedPath = typeof args[0] === 'string' ? args[0] : '';
+      toast.success(`openclaw CLI installed at ${installedPath}`);
+    });
     return () => {
       unsubscribe?.();
     };
@@ -718,7 +727,7 @@ export function Settings() {
   // Settings account panel should render two fixed provider cards only.
   const accountProviders: Array<'tt' | 'amz'> = ['tt', 'amz'];
   const quotaSnapshotByProvider = new Map(
-    (subscriptionQuotaSummary?.snapshots || []).map((snapshot) => [snapshot.provider, snapshot]),
+    (subscriptionQuotaSummary?.snapshots || []).map((snapshot) => [snapshot.provider, snapshot])
   );
   const mcpServerByProvider: Record<'tt' | 'amz', SubscriptionMcpServerSummary | null> = {
     tt: null,
@@ -873,14 +882,18 @@ export function Settings() {
                     {subscriptionQuotaSummary && (
                       <div data-testid="settings-auth-subscription-quotas" className="pt-1">
                         <div className="flex items-center justify-between gap-3">
-                          <Label className="text-[13px] font-medium text-foreground/80">{t('account.subscriptionQuota')}</Label>
+                          <Label className="text-[13px] font-medium text-foreground/80">
+                            {t('account.subscriptionQuota')}
+                          </Label>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             data-testid="settings-auth-recharge-button"
                             className="shrink-0 rounded-full border-red-500/30 text-red-600 hover:text-red-700 bg-transparent hover:bg-red-500/10 dark:hover:bg-red-500/10"
-                            onClick={() => window.electron.openExternal('https://open.microdata-inc.com/pricing')}
+                            onClick={() =>
+                              window.electron.openExternal('https://open.microdata-inc.com/pricing')
+                            }
                           >
                             {t('account.recharge')}
                           </Button>
@@ -899,7 +912,12 @@ export function Settings() {
                               onClick={() => void refreshSubscriptionMcpConfig()}
                               disabled={subscriptionMcpConfigLoading}
                             >
-                              <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', subscriptionMcpConfigLoading && 'animate-spin')} />
+                              <RefreshCw
+                                className={cn(
+                                  'h-3.5 w-3.5 mr-1.5',
+                                  subscriptionMcpConfigLoading && 'animate-spin'
+                                )}
+                              />
                               {subscriptionMcpConfigLoading
                                 ? t('account.mcpConfigRefreshing')
                                 : t('account.mcpConfigRefresh')}
@@ -910,9 +928,9 @@ export function Settings() {
                               data-testid="settings-auth-mcp-config-error"
                               className="mt-2 text-[12px] text-red-600 dark:text-red-400"
                             >
-                              {subscriptionMcpConfig.message
-                                || subscriptionMcpConfig.error
-                                || t('account.mcpConfigRefreshFailed')}
+                              {subscriptionMcpConfig.message ||
+                                subscriptionMcpConfig.error ||
+                                t('account.mcpConfigRefreshFailed')}
                             </p>
                           )}
                         </div>
@@ -929,16 +947,22 @@ export function Settings() {
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <p className="text-[12px] font-medium text-foreground/80">
-                                      {provider === 'tt' ? t('account.subscriptionQuotaTt') : t('account.subscriptionQuotaAmz')}
+                                      {provider === 'tt'
+                                        ? t('account.subscriptionQuotaTt')
+                                        : t('account.subscriptionQuotaAmz')}
                                     </p>
                                     <p className="mt-1 text-[12px] text-muted-foreground">
-                                      {snapshot?.totalQuota != null && snapshot.usedQuota != null && snapshot.remainingQuota != null
+                                      {snapshot?.totalQuota != null &&
+                                      snapshot.usedQuota != null &&
+                                      snapshot.remainingQuota != null
                                         ? t('account.subscriptionQuotaValue', {
-                                          total: snapshot.totalQuota,
-                                          used: snapshot.usedQuota,
-                                          remaining: snapshot.remainingQuota,
-                                        })
-                                        : (snapshot?.message || snapshot?.error || t('account.subscriptionQuotaUnavailable'))}
+                                            total: snapshot.totalQuota,
+                                            used: snapshot.usedQuota,
+                                            remaining: snapshot.remainingQuota,
+                                          })
+                                        : snapshot?.message ||
+                                          snapshot?.error ||
+                                          t('account.subscriptionQuotaUnavailable')}
                                     </p>
                                   </div>
                                   <Button
@@ -969,7 +993,9 @@ export function Settings() {
                                     </span>
                                   ) : (
                                     <span className="text-[11px] text-muted-foreground">
-                                      {subscriptionMcpConfigLoading ? t('account.mcpConfigLoading') : t('account.mcpConfigEmpty')}
+                                      {subscriptionMcpConfigLoading
+                                        ? t('account.mcpConfigLoading')
+                                        : t('account.mcpConfigEmpty')}
                                     </span>
                                   )}
                                 </div>
