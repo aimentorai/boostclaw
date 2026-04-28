@@ -519,6 +519,9 @@ async function initialize(): Promise<void> {
       void ensureBoostClawContext().catch((error) => {
         logger.warn('Failed to re-merge BoostClaw context after gateway reconnect:', error);
       });
+      void appAuthManager.syncSubscriptionMcpConfig().catch((error) => {
+        logger.warn('Failed to re-sync subscription MCP config after gateway reconnect:', error);
+      });
     }
   });
 
@@ -639,6 +642,10 @@ async function initialize(): Promise<void> {
           await ensureProboostMcpConfigured().catch((err) =>
             logger.warn('Proboost MCP configuration failed:', err)
           );
+          // Re-sync subscription MCP config on startup (tiktok/amazon servers based on user subscription)
+          await appAuthManager
+            .syncSubscriptionMcpConfig()
+            .catch((err) => logger.warn('Subscription MCP config startup sync failed:', err));
         })(),
       ]);
 
