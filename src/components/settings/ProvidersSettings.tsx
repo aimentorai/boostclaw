@@ -69,6 +69,8 @@ const inputClasses =
 const labelClasses = 'text-[14px] text-foreground/80 font-bold';
 type ArkMode = 'apikey' | 'codeplan';
 const MODEL_ID_QUICK_LIST = [
+  'deepseek-v4-pro',
+  'deepseek-v4-flash',
   'deepseek-r1',
   'deepseek-v3.2',
   'MiniMax-M2.5',
