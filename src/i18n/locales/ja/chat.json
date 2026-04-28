@@ -57,6 +57,7 @@
     "composer": {
         "attachFiles": "ファイルを添付",
         "pickAgent": "専門家を選択",
+        "mainAgentPickerLocked": "メイン会話は固定です。専門家の切り替えはサイドバーから行ってください",
         "agentSelectorLabel": "会話専門家: {{agent}}",
         "placeholder": "何でも聞いてください。例: 要件整理、スクリプト作成、エラー調査",
         "clearTarget": "送信先専門家をクリア",
@@ -71,6 +72,9 @@
         "gatewayStatus": "Gateway {{state}} | ポート: {{port}} {{pid}}",
         "retryFailedAttachments": "失敗した添付を再試行",
         "searchExpert": "専門家を検索",
+        "pickTemplate": "テンプレート",
+        "searchTemplate": "テンプレートを検索",
+        "clearTemplate": "テンプレートオーバーレイなし",
         "searchModel": "モデルを検索",
         "selectModel": "モデルを選択",
         "selectSkill": "スキルを選択",

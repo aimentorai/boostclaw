@@ -59,6 +59,7 @@
     "composer": {
         "attachFiles": "Attach files",
         "pickAgent": "Choose expert",
+        "mainAgentPickerLocked": "Main chat is fixed here — switch experts from the sidebar",
         "agentSelectorLabel": "Chat expert: {{agent}}",
         "placeholder": "Help me analyze competitors~",
         "clearTarget": "Clear target expert",
@@ -73,6 +74,9 @@
         "gatewayStatus": "Gateway {{state}} | port: {{port}} {{pid}}",
         "retryFailedAttachments": "Retry failed attachments",
         "searchExpert": "Search experts",
+        "pickTemplate": "Template",
+        "searchTemplate": "Search templates",
+        "clearTemplate": "No template overlay",
         "searchModel": "Search models",
         "selectModel": "Select model",
         "selectSkill": "Select skill",

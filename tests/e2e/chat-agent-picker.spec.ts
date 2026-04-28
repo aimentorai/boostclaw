@@ -1,7 +1,7 @@
 import { closeElectronApp, expect, getStableWindow, test } from './fixtures/electron';
 
 test.describe('BoostClaw chat agent picker', () => {
-  test('supports selecting a target agent from the chat composer', async ({ launchElectronApp }) => {
+  test('locks the main agent picker on the default main session', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
     try {
@@ -21,13 +21,7 @@ test.describe('BoostClaw chat agent picker', () => {
 
       const pickerButton = page.getByTestId('chat-agent-picker-button');
       await expect(pickerButton).toContainText(/Main|main/);
-
-      await pickerButton.click();
-      await expect(page.getByTestId('chat-agent-option-main')).toBeVisible();
-      await page.getByTestId('chat-agent-option-research').click();
-
-      await expect(page.getByTestId('chat-agent-picker-button')).toContainText('Research');
-      await expect(page.getByText('@Research')).toBeVisible();
+      await expect(pickerButton).toBeDisabled();
     } finally {
       await closeElectronApp(app);
     }

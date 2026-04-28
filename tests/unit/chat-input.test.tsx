@@ -10,6 +10,9 @@ const { agentsState, chatState, gatewayState, skillsState, providersState } = vi
   },
   chatState: {
     currentAgentId: 'main',
+    currentSessionKey: 'agent:main:main',
+    messages: [] as unknown[],
+    switchSession: vi.fn(),
   },
   gatewayState: {
     status: { state: 'running', port: 18789 },
@@ -62,6 +65,8 @@ function translate(key: string, vars?: Record<string, unknown>): string {
       return 'Attach files';
     case 'composer.pickAgent':
       return 'Choose agent';
+    case 'composer.mainAgentPickerLocked':
+      return 'Main chat is fixed — use sidebar to switch';
     case 'composer.agentSelectorLabel':
       return `Chat agent: ${String(vars?.agent ?? '')}`;
     case 'composer.clearTarget':
@@ -105,6 +110,8 @@ describe('ChatInput agent targeting', () => {
   beforeEach(() => {
     agentsState.agents = [];
     chatState.currentAgentId = 'main';
+    chatState.currentSessionKey = 'agent:main:main';
+    chatState.messages = [];
     gatewayState.status = { state: 'running', port: 18789 };
     agentsState.defaultModelRef = null;
     agentsState.updateAgentModel.mockClear();
@@ -134,12 +141,15 @@ describe('ChatInput agent targeting', () => {
 
     render(<ChatInput onSend={vi.fn()} />);
 
-    expect(screen.getByTitle('Choose agent')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Main');
+    const agentBtn = screen.getByTestId('chat-agent-picker-button');
+    expect(agentBtn).toBeDisabled();
+    expect(agentBtn).toHaveAttribute('title', 'Main chat is fixed — use sidebar to switch');
+    expect(agentBtn).toHaveTextContent('Main');
   });
 
-  it('lets the user select an agent target and sends it with the message', () => {
-    const onSend = vi.fn();
+  it('enables the agent picker when the current session agent is not main', () => {
+    chatState.currentAgentId = 'research';
+    chatState.currentSessionKey = 'agent:research:main';
     agentsState.agents = [
       {
         id: 'main',
@@ -165,20 +175,10 @@ describe('ChatInput agent targeting', () => {
       },
     ];
 
-    render(<ChatInput onSend={onSend} />);
+    render(<ChatInput onSend={vi.fn()} />);
 
-    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Main');
-
-    fireEvent.click(screen.getByTitle('Choose agent'));
-    fireEvent.click(screen.getByText('Research'));
-
-    expect(screen.getByText('@Research')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-agent-picker-button')).toHaveTextContent('Research');
-
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Hello direct agent' } });
-    fireEvent.click(screen.getByTitle('Send'));
-
-    expect(onSend).toHaveBeenCalledWith('Hello direct agent', undefined, 'research');
+    expect(screen.getByTestId('chat-agent-picker-button')).not.toBeDisabled();
+    expect(screen.getByTestId('chat-agent-picker-button')).toHaveAttribute('title', 'Choose agent');
   });
 
   it('shows a skill chip after selecting a skill', () => {
@@ -341,10 +341,11 @@ describe('ChatInput agent targeting', () => {
     ];
     providersState.statuses = [{ id: 'acc-anthropic', hasKey: true }];
 
+    chatState.currentAgentId = 'research';
+    chatState.currentSessionKey = 'agent:research:main';
+
     render(<ChatInput onSend={vi.fn()} />);
 
-    fireEvent.click(screen.getByTitle('Choose agent'));
-    fireEvent.click(screen.getByText('Research'));
     fireEvent.click(screen.getByTitle('Select model'));
     fireEvent.click(screen.getByText('claude-sonnet-4'));
 

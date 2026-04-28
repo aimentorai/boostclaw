@@ -76,6 +76,64 @@ export async function readExpertManifest(): Promise<ExpertManifest> {
   }
 }
 
+/** Bundled overrides for the primary (main) agent workspace — SOUL.md / IDENTITY.md source. */
+export interface MainAgentBootstrapFile {
+  /** Bump when changing prompts so main workspace bootstrap files are rewritten. */
+  version: number;
+  systemPrompt: string;
+  identityPrompt?: string;
+  /** Drives SparkBoost TOOLS.md; omit or leave empty to inherit from the merge manifest row. */
+  requiredSkills?: string[];
+}
+
+const MAIN_AGENT_BOOTSTRAP_FILENAME = 'main-agent-bootstrap.json';
+
+/**
+ * Read optional `resources/experts/main-agent-bootstrap.json`.
+ * When present and valid, mergeToMainAgent uses this instead of long prompt fields in preinstalled-manifest.
+ */
+export async function readMainAgentBootstrap(): Promise<MainAgentBootstrapFile | null> {
+  const path = join(getResourcesDir(), 'experts', MAIN_AGENT_BOOTSTRAP_FILENAME);
+  try {
+    const raw = await readFile(path, 'utf-8');
+    const data = JSON.parse(raw) as MainAgentBootstrapFile;
+    if (typeof data.systemPrompt !== 'string' || !data.systemPrompt.trim()) {
+      logger.warn('main-agent-bootstrap.json: missing or empty systemPrompt');
+      return null;
+    }
+    const version =
+      typeof data.version === 'number' && Number.isFinite(data.version) ? data.version : 1;
+    return { ...data, version };
+  } catch (err) {
+    logger.warn('main-agent-bootstrap.json not found or invalid:', err);
+    return null;
+  }
+}
+
+/**
+ * Apply main-agent-bootstrap.json fields onto the manifest merge row for file writes and version checks.
+ */
+function mergeMainBootstrapOverrides(
+  expert: ExpertManifestEntry,
+  bootstrap: MainAgentBootstrapFile | null
+): ExpertManifestEntry {
+  if (!bootstrap) return expert;
+  const version =
+    typeof bootstrap.version === 'number' && Number.isFinite(bootstrap.version)
+      ? bootstrap.version
+      : expert.version ?? 1;
+  return {
+    ...expert,
+    systemPrompt: bootstrap.systemPrompt,
+    identityPrompt:
+      typeof bootstrap.identityPrompt === 'string' ? bootstrap.identityPrompt : expert.identityPrompt,
+    requiredSkills: Array.isArray(bootstrap.requiredSkills)
+      ? bootstrap.requiredSkills
+      : expert.requiredSkills,
+    version,
+  };
+}
+
 interface ExpertMarker {
   expertId: string;
   version: number;
@@ -239,6 +297,10 @@ async function findExistingExpertAgent(expertId: string): Promise<string | null>
  * 2. If not, create it and write custom bootstrap files
  * 3. Return status for each expert
  *
+ * mergeToMainAgent entries sync SOUL.md / IDENTITY.md into the main workspace even when
+ * enabled is false. Prefer editing `resources/experts/main-agent-bootstrap.json` (and bump its
+ * `version`); that file overrides prompt fields from the preinstalled manifest row when present.
+ *
  * Skill installation is handled separately by the renderer process
  * via the skills store, since it needs the Gateway RPC.
  */
@@ -247,8 +309,6 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
   const results: ExpertInitResult[] = [];
 
   for (const expert of manifest.experts) {
-    if (!expert.enabled) continue;
-
     // Merged expert: write config to main agent's workspace, no separate agent.
     if (expert.mergeToMainAgent) {
       try {
@@ -271,20 +331,24 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
           }
         }
 
-        // Version check: only rewrite bootstrap files when manifest version bumps
+        const bootstrap = await readMainAgentBootstrap();
+        const expertForWrite = mergeMainBootstrapOverrides(expert, bootstrap);
+
+        // Version check: only rewrite bootstrap files when merged version bumps (from main json or manifest)
         const marker = await readExpertMarker(MAIN_AGENT_ID);
         const storedVersion = marker?.version ?? 0;
-        const manifestVersion = expert.version ?? 1;
+        const manifestVersion = expertForWrite.version ?? 1;
 
         if (storedVersion < manifestVersion) {
           const snapshot = await listAgentsSnapshot();
           const mainEntry = snapshot.agents.find((a) => a.id === MAIN_AGENT_ID);
           if (mainEntry?.workspace) {
-            await writeExpertBootstrapFiles(mainEntry.workspace, expert);
+            await writeExpertBootstrapFiles(mainEntry.workspace, expertForWrite);
           }
-          await writeExpertMarker(MAIN_AGENT_ID, expert);
+          await writeExpertMarker(MAIN_AGENT_ID, expertForWrite);
           logger.info('Updated merged expert in main agent', {
             expertId: expert.id,
+            mainAgentBootstrap: !!bootstrap,
             fromVersion: storedVersion,
             toVersion: manifestVersion,
           });
@@ -310,6 +374,8 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
       }
       continue;
     }
+
+    if (!expert.enabled) continue;
 
     try {
       // Check if agent already exists for this expert
@@ -414,8 +480,11 @@ export async function initializeExperts(): Promise<ExpertInitResult[]> {
     }
   }
 
-  // Clean up orphaned and duplicate expert agents
-  const manifestIds = new Set(manifest.experts.filter((e) => e.enabled).map((e) => e.id));
+  // Clean up orphaned and duplicate expert agents (include mergeToMainAgent ids so main
+  // is not removed when that expert row is disabled but still merges into main).
+  const manifestIds = new Set(
+    manifest.experts.filter((e) => e.enabled || e.mergeToMainAgent).map((e) => e.id)
+  );
   const removedIds = new Set(manifest.removedExperts ?? []);
   const allKnownExpertIds = new Set([...manifestIds, ...removedIds]);
   try {

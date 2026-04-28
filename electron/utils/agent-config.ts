@@ -14,7 +14,8 @@ import * as logger from './logger';
 import { toUiChannelType } from './channel-alias';
 
 export const MAIN_AGENT_ID = 'main';
-const MAIN_AGENT_NAME = 'marketing_staff';
+/** Display / synthetic name for the primary agent row (was marketing_staff). */
+const MAIN_AGENT_NAME = 'main';
 const DEFAULT_ACCOUNT_ID = 'default';
 const DEFAULT_WORKSPACE_PATH = '~/.boostclaw/openclaw/workspace';
 const EXPERT_MARKER_FILENAME = 'EXPERT_ID';

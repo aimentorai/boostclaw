@@ -135,12 +135,9 @@ export function Experts() {
     const template = templates.find((t) => t.id === templateId);
     if (!template) return;
 
-    const marketingStaff = runtimes['marketing-staff'];
     const agentId =
-      marketingStaff?.agentId ||
-      agents.find((agent) => agent.expertId === 'marketing-staff')?.id ||
-      agents.find((agent) => agent.id === defaultAgentId)?.id ||
       agents.find((agent) => agent.id === 'main')?.id ||
+      agents.find((agent) => agent.id === defaultAgentId)?.id ||
       defaultAgentId ||
       'main';
 

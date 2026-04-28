@@ -59,6 +59,7 @@
     "composer": {
         "attachFiles": "添加文件",
         "pickAgent": "选择专家",
+        "mainAgentPickerLocked": "主对话固定为 Main，请从侧栏切换专家会话",
         "agentSelectorLabel": "对话专家：{{agent}}",
         "placeholder": "帮我分析竞争对手~",
         "clearTarget": "清除目标专家",
@@ -73,6 +74,9 @@
         "gatewayStatus": "网关 {{state}} | 端口: {{port}} {{pid}}",
         "retryFailedAttachments": "重试失败的附件",
         "searchExpert": "搜索专家",
+        "pickTemplate": "专家",
+        "searchTemplate": "搜索专家",
+        "clearTemplate": "不使用专家叠加",
         "searchModel": "搜索模型",
         "selectModel": "选择模型",
         "selectSkill": "选择技能",

@@ -221,6 +221,8 @@ export function ChatInput({
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [expertPickerOpen, setExpertPickerOpen] = useState(false);
   const [expertPickerUpward, setExpertPickerUpward] = useState(true);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templatePickerUpward, setTemplatePickerUpward] = useState(true);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [skillPickerUpward, setSkillPickerUpward] = useState(true);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -228,10 +230,12 @@ export function ChatInput({
   const [switchingModel, setSwitchingModel] = useState(false);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [expertSearchQuery, setExpertSearchQuery] = useState('');
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('');
   const [skillSearchQuery, setSkillSearchQuery] = useState('');
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const expertPickerRef = useRef<HTMLDivElement>(null);
+  const templatePickerRef = useRef<HTMLDivElement>(null);
   const skillPickerRef = useRef<HTMLDivElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
@@ -239,7 +243,6 @@ export function ChatInput({
   const missingAgentFetchKey = useRef<string | null>(null);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
-  const defaultAgentId = useAgentsStore((s) => s.defaultAgentId);
   const agentsLoading = useAgentsStore((s) => s.loading);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const updateAgentModel = useAgentsStore((s) => s.updateAgentModel);
@@ -258,6 +261,8 @@ export function ChatInput({
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
   const currentSessionHasMessages = messages.length > 0;
+  /** Main agent session: composer agent picker is read-only (switch via sidebar). */
+  const isMainAgentSession = currentAgentId === 'main';
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
   const currentModelRef = useMemo(
     () =>
@@ -292,29 +297,52 @@ export function ChatInput({
     return skills.find((s) => s.id === skillId || s.slug === skillId || s.name === skillId) ?? null;
   }, [currentTemplateId, activeTemplate, templates, skills]);
 
-  const currentExpertRuntime = useMemo(() => {
-    if (currentTemplateId || activeTemplate) return null;
-    return Object.values(expertRuntimes).find((r) => r.agentId === currentAgentId) ?? null;
-  }, [expertRuntimes, currentAgentId, currentTemplateId, activeTemplate]);
+  /** Expert runtime for whoever hosts the current session (including :tpl- sessions). */
+  const currentExpertRuntime = useMemo(
+    () => Object.values(expertRuntimes).find((r) => r.agentId === currentAgentId) ?? null,
+    [expertRuntimes, currentAgentId]
+  );
 
-  const effectiveTargetLabel = useMemo(() => {
-    if (currentTemplateId) {
-      const tpl = templates.find((t) => t.id === currentTemplateId);
-      if (tpl) return getTemplateName(t, tpl);
-    }
-    if (activeTemplate) return getTemplateName(t, activeTemplate);
-    if (currentExpertRuntime) return currentExpertRuntime.config.name;
-    return currentAgentName;
-  }, [currentTemplateId, activeTemplate, templates, currentExpertRuntime, currentAgentName, t]);
+  /** Main agent row: expert name/icon, else plain agent label (separate from template picker). */
+  const agentTargetLabel = useMemo(
+    () => currentExpertRuntime?.config.name ?? currentAgentName,
+    [currentExpertRuntime, currentAgentName]
+  );
+  const agentTargetIcon = useMemo(
+    () => currentExpertRuntime?.config.icon ?? null,
+    [currentExpertRuntime]
+  );
 
-  const effectiveTargetIcon = useMemo(() => {
-    if (currentTemplateId) {
-      const tpl = templates.find((t) => t.id === currentTemplateId);
-      if (tpl?.icon) return tpl.icon;
-    }
-    if (activeTemplate?.icon) return activeTemplate.icon;
-    return currentExpertRuntime?.config.icon || null;
-  }, [currentTemplateId, activeTemplate, templates, currentExpertRuntime]);
+  /** Template shown on the template button: session-bound tpl or overlay. */
+  const displayTemplateConfig = useMemo(() => {
+    if (currentTemplateId) return templates.find((t) => t.id === currentTemplateId) ?? null;
+    return activeTemplate;
+  }, [currentTemplateId, activeTemplate, templates]);
+
+  const filteredTemplatesForPicker = useMemo(() => {
+    const q = templateSearchQuery.trim().toLowerCase();
+    if (!q) return templates;
+    return templates.filter((tpl) => {
+      const searchable = [
+        getTemplateName(t, tpl),
+        getTemplateDescription(t, tpl),
+        tpl.category,
+        tpl.id,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return searchable.includes(q);
+    });
+  }, [templateSearchQuery, templates, t]);
+
+  /** Icon / expertId fallback for template rows: prefer runtime bound to agent `main`, then legacy key. */
+  const templateAnchorExpertRuntime = useMemo(
+    () =>
+      Object.values(expertRuntimes).find((r) => r.agentId === 'main') ??
+      expertRuntimes['marketing-staff'],
+    [expertRuntimes]
+  );
 
   // Keep AgentSummary in sync with chat session: expert switch updates currentAgentId before
   // the agents list may be populated — without this, the model row stays hidden until another
@@ -338,23 +366,13 @@ export function ChatInput({
     void loadTemplates();
   }, [loadTemplates]);
 
-  // Unified picker items: experts and their templates only (no separate "other agents" section)
+  useEffect(() => {
+    if (isMainAgentSession && expertPickerOpen) setExpertPickerOpen(false);
+  }, [isMainAgentSession, expertPickerOpen]);
+
+  // Expert-only rows for the main agent dropdown (templates use `filteredTemplatesForPicker`).
   const pickerItems = useMemo<PickerItem[]>(() => {
     const items: PickerItem[] = [];
-    const allAgents = agents ?? [];
-    const marketingRuntime = expertRuntimes['marketing-staff'];
-    const templateHostAgent =
-      (marketingRuntime?.agentId
-        ? allAgents.find((agent) => agent.id === marketingRuntime.agentId)
-        : null) ??
-      allAgents.find((agent) => agent.expertId === 'marketing-staff') ??
-      allAgents.find((agent) => agent.id === defaultAgentId) ??
-      allAgents.find((agent) => agent.id === 'main') ??
-      currentAgent;
-    const templateHostAgentId =
-      templateHostAgent?.id || marketingRuntime?.agentId || defaultAgentId || currentAgentId || 'main';
-
-    // Expert-backed items
     for (const runtime of Object.values(expertRuntimes)) {
       if (!runtime.agentId || !runtime.mainSessionKey) continue;
       const cfg = runtime.config;
@@ -372,28 +390,8 @@ export function ChatInput({
         expertId: cfg.id,
       });
     }
-
-    for (const tpl of templates) {
-      items.push({
-        id: `tpl:${tpl.id}`,
-        label: getTemplateName(t, tpl),
-        description: getTemplateDescription(t, tpl),
-        icon:
-          tpl.icon ||
-          marketingRuntime?.config.icon ||
-          tpl.name.charAt(0).toUpperCase(),
-        category: tpl.category,
-        sessionKey: `agent:${templateHostAgentId}:tpl-${tpl.id}`,
-        agentId: templateHostAgentId,
-        isExpert: false,
-        isTemplate: true,
-        expertId: marketingRuntime?.config.id,
-        templateId: tpl.id,
-      });
-    }
-
     return items;
-  }, [agents, currentAgent, currentAgentId, defaultAgentId, expertRuntimes, templates, t]);
+  }, [expertRuntimes]);
 
   const filteredPickerItems = useMemo(() => {
     const query = expertSearchQuery.trim().toLowerCase();
@@ -505,10 +503,11 @@ export function ChatInput({
   }, [disabled]);
 
   useEffect(() => {
-    if (!expertPickerOpen && !skillPickerOpen && !modelPickerOpen) return;
+    if (!expertPickerOpen && !templatePickerOpen && !skillPickerOpen && !modelPickerOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       const node = event.target as Node;
       if (!expertPickerRef.current?.contains(node)) setExpertPickerOpen(false);
+      if (!templatePickerRef.current?.contains(node)) setTemplatePickerOpen(false);
       if (!skillPickerRef.current?.contains(node)) setSkillPickerOpen(false);
       if (!modelPickerRef.current?.contains(node)) setModelPickerOpen(false);
     };
@@ -516,7 +515,7 @@ export function ChatInput({
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [expertPickerOpen, skillPickerOpen, modelPickerOpen]);
+  }, [expertPickerOpen, templatePickerOpen, skillPickerOpen, modelPickerOpen]);
 
   // Fetch skills when gateway is running
   useEffect(() => {
@@ -846,8 +845,8 @@ export function ChatInput({
           <div className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-1">
             {/* 左侧：专家 + 模型 + 附件 */}
             <div className="flex items-center gap-1 min-w-0">
-              {/* 专家选择器按钮 */}
-              <div ref={expertPickerRef} className="relative w-[150px] shrink-0">
+              {/* 主 Agent / 专家选择器（仅专家列表，与模板选择器分离） */}
+              <div ref={expertPickerRef} className="relative w-[140px] shrink-0">
                 <Button
                   data-testid="chat-agent-picker-button"
                   variant="ghost"
@@ -858,22 +857,32 @@ export function ChatInput({
                       'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
                   )}
                   onClick={() => {
+                    if (isMainAgentSession) return;
                     if (!expertPickerOpen) {
                       setExpertPickerUpward(shouldOpenDropdownUpward(expertPickerRef.current, 280));
                       setExpertSearchQuery('');
                     }
+                    setTemplatePickerOpen(false);
                     setExpertPickerOpen((open) => !open);
                   }}
-                  disabled={disabled || sending}
-                  title={t('composer.pickAgent')}
+                  disabled={disabled || sending || isMainAgentSession}
+                  title={
+                    isMainAgentSession
+                      ? t('composer.mainAgentPickerLocked')
+                      : t('composer.pickAgent')
+                  }
                 >
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px]">
-                    {effectiveTargetIcon || <Bot className="h-3.5 w-3.5" />}
+                    {agentTargetIcon || <Bot className="h-3.5 w-3.5" />}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-left">{effectiveTargetLabel}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                  <span className="min-w-0 flex-1 truncate text-left">{agentTargetLabel}</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 shrink-0 opacity-60',
+                      isMainAgentSession && 'opacity-30'
+                    )}
+                  />
                 </Button>
-                {/* 专家下拉面板 */}
                 {expertPickerOpen && (
                   <div
                     className={cn(
@@ -898,68 +907,143 @@ export function ChatInput({
                       />
                     </div>
                     <div className="max-h-64 overflow-y-auto">
-                      {(() => {
-                        const expertItems = filteredPickerItems.filter(
-                          (i) => i.isExpert && !i.isTemplate
-                        );
-                        const templateItems = filteredPickerItems.filter((i) => i.isTemplate);
-
-                        return (
-                          <>
-                            {expertItems.map((item) => (
-                              <ExpertPickerItem
-                                key={item.id}
-                                item={item}
-                                selected={
-                                  !currentTemplateId &&
-                                  !activeTemplate &&
-                                  currentAgentId === item.agentId
-                                }
-                                onSelect={() => {
-                                  if (activeTemplate) setActiveTemplate(null);
-                                  if (
-                                    item.sessionKey &&
-                                    item.agentId !== currentAgentId &&
-                                    currentSessionHasMessages
-                                  ) {
-                                    switchSession(item.sessionKey);
-                                  }
-                                  setExpertPickerOpen(false);
-                                  textareaRef.current?.focus();
-                                }}
-                              />
-                            ))}
-                            {templateItems.length > 0 && (
-                              <div className="ml-3 mt-0.5 border-l border-border/50 pl-1">
-                                {templateItems.map((item) => (
-                                  <ExpertPickerItem
-                                    key={item.id}
-                                    item={item}
-                                    selected={
-                                      currentTemplateId === item.templateId ||
-                                      activeTemplate?.id === item.templateId
-                                    }
-                                    onSelect={() => {
-                                      const tpl = templates.find((t) => t.id === item.templateId);
-                                      if (tpl) {
-                                        // Keep the current session/messages; template only affects
-                                        // composer context (skills, welcome) until user sends.
-                                        setActiveTemplate(tpl);
-                                      }
-                                      setExpertPickerOpen(false);
-                                      textareaRef.current?.focus();
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                      {filteredPickerItems
+                        .filter((i) => i.isExpert && !i.isTemplate)
+                        .map((item) => (
+                          <ExpertPickerItem
+                            key={item.id}
+                            item={item}
+                            selected={currentAgentId === item.agentId}
+                            onSelect={() => {
+                              if (
+                                item.sessionKey &&
+                                item.agentId !== currentAgentId &&
+                                currentSessionHasMessages
+                              ) {
+                                switchSession(item.sessionKey);
+                              }
+                              setExpertPickerOpen(false);
+                              textareaRef.current?.focus();
+                            }}
+                          />
+                        ))}
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* 模板选择器（叠加模板；不改变当前会话） */}
+              {templates.length > 0 && (
+                <div ref={templatePickerRef} className="relative w-[128px] shrink-0">
+                  <Button
+                    type="button"
+                    data-testid="chat-template-picker-button"
+                    variant="ghost"
+                    className={cn(
+                      'h-8 w-full gap-1.5 rounded-sm px-2.5 text-[11px] font-medium text-foreground transition-colors',
+                      'border border-border/70 bg-muted shadow-sm hover:bg-muted/80',
+                      templatePickerOpen &&
+                        'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+                    )}
+                    onClick={() => {
+                      if (!templatePickerOpen) {
+                        setTemplatePickerUpward(
+                          shouldOpenDropdownUpward(templatePickerRef.current, 280)
+                        );
+                        setTemplateSearchQuery('');
+                      }
+                      setExpertPickerOpen(false);
+                      setTemplatePickerOpen((open) => !open);
+                    }}
+                    disabled={disabled || sending}
+                    title={t('composer.pickTemplate')}
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px]">
+                      {displayTemplateConfig?.icon || (
+                        <Wand2 className="h-3.5 w-3.5 opacity-70" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {displayTemplateConfig
+                        ? getTemplateName(t, displayTemplateConfig)
+                        : t('composer.pickTemplate')}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                  </Button>
+                  {templatePickerOpen && (
+                    <div
+                      className={cn(
+                        'absolute left-0 z-20 w-full min-w-[220px] overflow-hidden rounded-xl panel-elevated border border-border/70 p-1 shadow-xl',
+                        templatePickerUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+                      )}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTemplatePickerOpen(false);
+                          textareaRef.current?.focus();
+                        }
+                      }}
+                    >
+                      <div className="relative mb-1">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          value={templateSearchQuery}
+                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                          placeholder={t('composer.searchTemplate')}
+                          className="h-8 w-full rounded-lg border border-border/70 bg-background/70 pl-8 pr-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {activeTemplate && !currentTemplateId && (
+                          <button
+                            type="button"
+                            className="mb-1 w-full rounded-lg px-2 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            onClick={() => {
+                              setActiveTemplate(null);
+                              setTemplatePickerOpen(false);
+                              textareaRef.current?.focus();
+                            }}
+                          >
+                            {t('composer.clearTemplate')}
+                          </button>
+                        )}
+                        {filteredTemplatesForPicker.map((tpl) => {
+                          const item: PickerItem = {
+                            id: `tpl:${tpl.id}`,
+                            label: getTemplateName(t, tpl),
+                            description: getTemplateDescription(t, tpl),
+                            icon:
+                              tpl.icon ||
+                              templateAnchorExpertRuntime?.config.icon ||
+                              tpl.name.charAt(0).toUpperCase(),
+                            category: tpl.category,
+                            sessionKey: '',
+                            agentId: '',
+                            isExpert: false,
+                            isTemplate: true,
+                            expertId: templateAnchorExpertRuntime?.config.id,
+                            templateId: tpl.id,
+                          };
+                          return (
+                            <ExpertPickerItem
+                              key={item.id}
+                              item={item}
+                              selected={
+                                (currentTemplateId ?? activeTemplate?.id) === item.templateId
+                              }
+                              onSelect={() => {
+                                setActiveTemplate(tpl);
+                                setTemplatePickerOpen(false);
+                                textareaRef.current?.focus();
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 模型选择器 */}
               {showModelPicker && (
