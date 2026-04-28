@@ -188,6 +188,7 @@ echo`   Skipped ${skippedDevCount} dev-only package references`;
 //     then BFS its transitive deps exactly like we did for openclaw above.
 const EXTRA_BUNDLED_PACKAGES = [
   '@whiskeysockets/baileys',   // WhatsApp channel (was a dep of old clawdbot, not openclaw)
+  'qrcode-terminal',           // QR rendering for Electron WhatsApp/WeChat login flows
 ];
 
 let extraCount = 0;
