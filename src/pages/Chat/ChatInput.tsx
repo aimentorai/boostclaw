@@ -39,6 +39,10 @@ import type { ExpertStatus } from '@/types/expert';
 import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
 import type { ProviderAccount, ProviderWithKeyInfo } from '@/lib/providers';
+import {
+  getTemplateDescription,
+  getTemplateName,
+} from '@/lib/template-i18n';
 import { useTranslation } from 'react-i18next';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -235,6 +239,7 @@ export function ChatInput({
   const missingAgentFetchKey = useRef<string | null>(null);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
+  const defaultAgentId = useAgentsStore((s) => s.defaultAgentId);
   const agentsLoading = useAgentsStore((s) => s.loading);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const updateAgentModel = useAgentsStore((s) => s.updateAgentModel);
@@ -261,6 +266,7 @@ export function ChatInput({
   // Expert-centric data
   const expertRuntimes = useExpertsStore((s) => s.runtimes);
   const templates = useTemplatesStore((s) => s.templates);
+  const loadTemplates = useTemplatesStore((s) => s.loadTemplates);
   const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
   const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
 
@@ -291,11 +297,19 @@ export function ChatInput({
   const effectiveTargetLabel = useMemo(() => {
     if (currentTemplateId) {
       const tpl = templates.find((t) => t.id === currentTemplateId);
-      if (tpl) return tpl.name;
+      if (tpl) return getTemplateName(t, tpl);
     }
     if (currentExpertRuntime) return currentExpertRuntime.config.name;
     return currentAgentName;
-  }, [currentTemplateId, templates, currentExpertRuntime, currentAgentName]);
+  }, [currentTemplateId, templates, currentExpertRuntime, currentAgentName, t]);
+
+  const effectiveTargetIcon = useMemo(() => {
+    if (currentTemplateId) {
+      const tpl = templates.find((t) => t.id === currentTemplateId);
+      if (tpl?.icon) return tpl.icon;
+    }
+    return currentExpertRuntime?.config.icon || null;
+  }, [currentTemplateId, templates, currentExpertRuntime]);
 
   // Keep AgentSummary in sync with chat session: expert switch updates currentAgentId before
   // the agents list may be populated — without this, the model row stays hidden until another
@@ -315,10 +329,25 @@ export function ChatInput({
     void fetchAgents();
   }, [currentAgent, currentAgentId, agentsLoading, fetchAgents]);
 
+  useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
+
   // Unified picker items: experts and their templates only (no separate "other agents" section)
   const pickerItems = useMemo<PickerItem[]>(() => {
     const items: PickerItem[] = [];
     const allAgents = agents ?? [];
+    const marketingRuntime = expertRuntimes['marketing-staff'];
+    const templateHostAgent =
+      (marketingRuntime?.agentId
+        ? allAgents.find((agent) => agent.id === marketingRuntime.agentId)
+        : null) ??
+      allAgents.find((agent) => agent.expertId === 'marketing-staff') ??
+      allAgents.find((agent) => agent.id === defaultAgentId) ??
+      allAgents.find((agent) => agent.id === 'main') ??
+      currentAgent;
+    const templateHostAgentId =
+      templateHostAgent?.id || marketingRuntime?.agentId || defaultAgentId || currentAgentId || 'main';
 
     // Expert-backed items
     for (const runtime of Object.values(expertRuntimes)) {
@@ -337,30 +366,29 @@ export function ChatInput({
         isTemplate: false,
         expertId: cfg.id,
       });
+    }
 
-      // 2. Templates under this expert
-      const expertAgent = allAgents.find((a) => a.expertId === cfg.id);
-      if (expertAgent) {
-        for (const tpl of templates) {
-          items.push({
-            id: `tpl:${tpl.id}`,
-            label: tpl.name,
-            description: tpl.description,
-            icon: tpl.icon || cfg.icon || tpl.name.charAt(0).toUpperCase(),
-            category: tpl.category,
-            sessionKey: `agent:${expertAgent.id}:tpl-${tpl.id}`,
-            agentId: expertAgent.id,
-            isExpert: true,
-            isTemplate: true,
-            expertId: cfg.id,
-            templateId: tpl.id,
-          });
-        }
-      }
+    for (const tpl of templates) {
+      items.push({
+        id: `tpl:${tpl.id}`,
+        label: getTemplateName(t, tpl),
+        description: getTemplateDescription(t, tpl),
+        icon:
+          tpl.icon ||
+          marketingRuntime?.config.icon ||
+          tpl.name.charAt(0).toUpperCase(),
+        category: tpl.category,
+        sessionKey: `agent:${templateHostAgentId}:tpl-${tpl.id}`,
+        agentId: templateHostAgentId,
+        isExpert: false,
+        isTemplate: true,
+        expertId: marketingRuntime?.config.id,
+        templateId: tpl.id,
+      });
     }
 
     return items;
-  }, [agents, expertRuntimes, templates]);
+  }, [agents, currentAgent, currentAgentId, defaultAgentId, expertRuntimes, templates, t]);
 
   const filteredPickerItems = useMemo(() => {
     const query = expertSearchQuery.trim().toLowerCase();
@@ -833,7 +861,7 @@ export function ChatInput({
                   title={t('composer.pickAgent')}
                 >
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px]">
-                    {currentExpertRuntime?.config.icon || <Bot className="h-3.5 w-3.5" />}
+                    {effectiveTargetIcon || <Bot className="h-3.5 w-3.5" />}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-left">{effectiveTargetLabel}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />

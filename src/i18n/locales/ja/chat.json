@@ -121,6 +121,46 @@
         "skillReady": "準備完了",
         "skillPartial": "一部準備完了",
         "suggestedPrompts": "おすすめ",
-        "retrySetup": "再試行"
+        "retrySetup": "再試行",
+        "installing": "インストール中...",
+        "installSkills": "{{count}} 個の不足スキルをインストール",
+        "startConversation": "会話を開始",
+        "templatesSectionTitle": "市場分析ツール",
+        "toastRateLimited": "レート制限中 — しばらく待ってから再試行するか、スキルページから手動でインストールしてください。",
+        "toastInstalled": "{{count}} 個のスキルをインストールしました",
+        "toastPartialInstall": "{{installed}} 個インストール、{{failed}} 個失敗",
+        "toastInstallFailed": "スキルのインストールに失敗しました"
+    },
+    "templates": {
+        "product-market-scout": {
+            "name": "商品分析",
+            "description": "Amazon と TikTok Shop の需要、トレンド、競争、利益余地、参入適性を分析します。",
+            "welcomeMessage": "こんにちは。商品分析アシスタントです 📊\n\n商品名、リンク、画像を送ると、次を分析します:\n• Amazon / TikTok Shop の販売トレンド\n• 競争度と利益余地\n• 参入する価値があるか\n\n例: 「米国でBluetoothイヤホンは売れていますか？」",
+            "suggestedPrompts": [
+                "米国AmazonでBluetoothイヤホンは売れていますか？",
+                "TikTok米国で猫用爪とぎにチャンスはありますか？",
+                "この1688リンクは越境ECに向いていますか？"
+            ]
+        },
+        "amz-product-select0427": {
+            "name": "Amazon 商品選定",
+            "description": "Amazon のキーワード、競合ASIN、商品案をセラー視点で評価します。",
+            "welcomeMessage": "こんにちは。Amazon 商品選定アシスタントです 🧭\n\nキーワード、競合ASIN、商品案、サプライチェーン条件を送ると、次を判断します:\n• 需要とトレンドの質\n• 競争、レビュー、価格帯の健全性\n• 認証、重量、季節性リスク\n• テストすべきか、避けるべきか\n\n「このキーワードはやる価値がありますか？」から始められます。",
+            "suggestedPrompts": [
+                "このキーワードはやる価値がありますか？",
+                "この競合ASINを追う価値があるか分解してください",
+                "予算とサプライチェーン条件に合う商品方向を探してください"
+            ]
+        },
+        "listing-generator0428": {
+            "name": "Listing 生成",
+            "description": "元ASINと競合データを基に、商品事実を保ったAmazon Listingを生成・最適化します。",
+            "welcomeMessage": "こんにちは。Listing 生成アシスタントです 📝\n\n元ASINを送ると、次を支援します:\n• 元商品と競合情報の取得\n• キーワードの拡張と選別\n• タイトル、箇条書き、説明、Search Terms の生成\n• 出品用ワークブックの出力\n\n元ASINを送って開始してください。",
+            "suggestedPrompts": [
+                "この元ASINからAmazon Listingを生成してください",
+                "このListingのタイトルと箇条書きを最適化してください",
+                "競合キーワードを使って英語Listingを書き直してください"
+            ]
+        }
     }
 }

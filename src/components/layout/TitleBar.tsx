@@ -18,14 +18,14 @@ export function TitleBar({ sidebarStripWidth = 0 }: TitleBarProps) {
   if (platform === 'darwin') {
     // macOS: just a drag region, traffic lights are native
     return (
-      <div className="drag-region flex h-10 shrink-0 bg-[#f8f9fb]">
+      <div className="drag-region flex h-10 shrink-0 bg-[#f8f9fb] dark:bg-[#0d1117]">
         {sidebarStripWidth > 0 && (
           <div
-            className="h-full shrink-0 bg-[#eef3ff]"
+            className="h-full shrink-0 bg-[#eef3ff] dark:bg-[#181d28]"
             style={{ width: sidebarStripWidth }}
           />
         )}
-        <div className="h-full min-w-0 flex-1 bg-[#f8f9fb]" />
+        <div className="h-full min-w-0 flex-1 bg-[#f8f9fb] dark:bg-[#0d1117]" />
       </div>
     );
   }
@@ -65,14 +65,14 @@ function WindowsTitleBar({ sidebarStripWidth }: { sidebarStripWidth: number }) {
   };
 
   return (
-    <div className="flex h-10 shrink-0 bg-[#f8f9fb]">
+    <div className="flex h-10 shrink-0 bg-[#f8f9fb] dark:bg-[#0d1117]">
       {sidebarStripWidth > 0 && (
         <div
-          className="drag-region h-full shrink-0 bg-[#eef3ff]"
+          className="drag-region h-full shrink-0 bg-[#eef3ff] dark:bg-[#181d28]"
           style={{ width: sidebarStripWidth }}
         />
       )}
-      <div className="drag-region flex h-full min-w-0 flex-1 items-center justify-end bg-[#f8f9fb]">
+      <div className="drag-region flex h-full min-w-0 flex-1 items-center justify-end bg-[#f8f9fb] dark:bg-[#0d1117]">
 
         {/* Right: Window Controls */}
         <div className="no-drag flex h-full">

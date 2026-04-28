@@ -19,6 +19,9 @@ test.describe('BoostClaw main navigation without setup flow', () => {
       await page.getByTestId('sidebar-nav-experts').click();
       await expect(page.getByTestId('experts-page')).toBeVisible();
       await expect(page.getByTestId('experts-content')).toBeVisible();
+      await expect(page.getByText('选品分析')).toBeVisible();
+      await expect(page.getByText('Amazon 选品')).toBeVisible();
+      await expect(page.getByText('Listing 生成')).toBeVisible();
       const mainContentBox = await page.getByTestId('main-content').boundingBox();
       const expertsContentBox = await page.getByTestId('experts-content').boundingBox();
       expect(mainContentBox).not.toBeNull();

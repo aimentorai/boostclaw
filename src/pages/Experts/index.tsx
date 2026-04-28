@@ -10,10 +10,16 @@ import { useSkillsStore } from '@/stores/skills';
 import { useChatStore } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
 import { useTemplatesStore } from '@/stores/templates';
+import { useAgentsStore } from '@/stores/agents';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import {
+  getTemplateDescription,
+  getTemplateName,
+  getTemplateSuggestedPrompts,
+} from '@/lib/template-i18n';
 import { toast } from 'sonner';
 import type { ExpertRuntime } from '@/types/expert';
 import type { ExpertSkillStatus } from '@/stores/experts';
@@ -89,6 +95,8 @@ export function Experts() {
   const templates = useTemplatesStore((s) => s.templates);
   const loadTemplates = useTemplatesStore((s) => s.loadTemplates);
   const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
+  const agents = useAgentsStore((s) => s.agents);
+  const defaultAgentId = useAgentsStore((s) => s.defaultAgentId);
 
   const fetchSkills = useSkillsStore((s) => s.fetchSkills);
   const installSkill = useSkillsStore((s) => s.installSkill);
@@ -127,12 +135,17 @@ export function Experts() {
     const template = templates.find((t) => t.id === templateId);
     if (!template) return;
 
-    // Find the marketing-staff expert's agent
     const marketingStaff = runtimes['marketing-staff'];
-    if (!marketingStaff?.agentId) return;
+    const agentId =
+      marketingStaff?.agentId ||
+      agents.find((agent) => agent.expertId === 'marketing-staff')?.id ||
+      agents.find((agent) => agent.id === defaultAgentId)?.id ||
+      agents.find((agent) => agent.id === 'main')?.id ||
+      defaultAgentId ||
+      'main';
 
     setActiveTemplate(template);
-    const sessionKey = `agent:${marketingStaff.agentId}:tpl-${template.id}`;
+    const sessionKey = `agent:${agentId}:tpl-${template.id}`;
     switchSession(sessionKey);
     navigate('/');
   };
@@ -182,16 +195,13 @@ export function Experts() {
       });
 
       if (rateLimited > 0) {
-        toast.error(
-          `Rate limited — please wait a moment and retry, or install manually from the Skills page.`,
-          { duration: 8000 }
-        );
+        toast.error(t('chat:experts.toastRateLimited'), { duration: 8000 });
       } else if (failed === 0) {
-        toast.success(`Installed ${installed} skill${installed > 1 ? 's' : ''}`);
+        toast.success(t('chat:experts.toastInstalled', { count: installed }));
       } else if (installed > 0) {
-        toast.warning(`Installed ${installed}, ${failed} failed`);
+        toast.warning(t('chat:experts.toastPartialInstall', { installed, failed }));
       } else {
-        toast.error('Failed to install skills');
+        toast.error(t('chat:experts.toastInstallFailed'));
       }
     },
     [skillStatuses, installSkill, enableSkill]
@@ -332,8 +342,8 @@ export function Experts() {
                           <Download className="h-3.5 w-3.5" />
                         )}
                         {isInstalling
-                          ? 'Installing...'
-                          : `Install ${missingCount} missing skill${missingCount > 1 ? 's' : ''}`}
+                          ? t('chat:experts.installing')
+                          : t('chat:experts.installSkills', { count: missingCount })}
                       </button>
                     )}
 
@@ -365,7 +375,7 @@ export function Experts() {
                         className="flex items-center gap-1.5 text-[12px] font-medium text-[#3964F2] mt-auto pt-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => handleStartExpert(runtime)}
                       >
-                        <span>Start conversation</span>
+                        <span>{t('chat:experts.startConversation')}</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </div>
                     )}
@@ -380,7 +390,7 @@ export function Experts() {
             <>
               <div className={cn('mb-4', enabledExperts.length > 0 ? 'mt-8' : 'mt-0')}>
                 <h2 className="text-[13px] uppercase tracking-wider text-foreground/40 font-medium">
-                  市场分析工具
+                  {t('chat:experts.templatesSectionTitle')}
                 </h2>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -401,7 +411,7 @@ export function Experts() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-[16px] font-semibold text-foreground truncate">
-                          {template.name}
+                          {getTemplateName(t, template)}
                         </h3>
                         <Badge
                           variant="secondary"
@@ -414,17 +424,17 @@ export function Experts() {
 
                     {/* Description */}
                     <p className="text-[13px] text-foreground/60 leading-relaxed line-clamp-2">
-                      {template.description}
+                      {getTemplateDescription(t, template)}
                     </p>
 
                     {/* Suggested prompts */}
-                    {template.suggestedPrompts.length > 0 && (
+                    {getTemplateSuggestedPrompts(t, template).length > 0 && (
                       <div className="flex flex-col gap-1.5 mt-1">
                         <span className="text-[11px] uppercase tracking-wider text-foreground/40 font-medium">
                           {t('chat:experts.suggestedPrompts')}
                         </span>
                         <div className="flex flex-wrap gap-1.5">
-                          {template.suggestedPrompts.slice(0, 3).map((prompt) => (
+                          {getTemplateSuggestedPrompts(t, template).slice(0, 3).map((prompt) => (
                             <span
                               key={prompt}
                               className="inline-block text-[11px] text-foreground/50 bg-black/[0.03] dark:bg-white/[0.05] rounded-full px-2.5 py-0.5 truncate max-w-full"
@@ -438,7 +448,7 @@ export function Experts() {
 
                     {/* Start indicator */}
                     <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#3964F2] mt-auto pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span>Start conversation</span>
+                      <span>{t('chat:experts.startConversation')}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                   </div>

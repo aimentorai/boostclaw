@@ -75,12 +75,12 @@
     --panel-overlay: 223 32% 12%;
     --glow: 226 88% 59%;
     --grid-line: 222 21% 18%;
-    --sidebar-bg: 224 34% 11%;
+    --sidebar-bg: 224 28% 14%;
     --sidebar-text: 210 32% 96%;
     --sidebar-active-bg: 226 88% 59%;
     --sidebar-active-text: 0 0% 100%;
-    --sidebar-border: 0 0% 100% / 0.08;
-    --sidebar-history-bg: 224 34% 9%;
+    --sidebar-border: 0 0% 100% / 0.10;
+    --sidebar-history-bg: 224 28% 12%;
     --sidebar-history-text: 210 32% 80%;
     --sidebar-history-muted: 217 14% 55%;
     --sidebar-history-hover: 226 88% 59% / 0.12;

@@ -123,6 +123,46 @@
         "skillReady": "就绪",
         "skillPartial": "部分就绪",
         "suggestedPrompts": "建议",
-        "retrySetup": "重试"
+        "retrySetup": "重试",
+        "installing": "安装中...",
+        "installSkills": "安装 {{count}} 个缺失技能",
+        "startConversation": "开始对话",
+        "templatesSectionTitle": "市场分析工具",
+        "toastRateLimited": "触发频率限制 — 请稍候重试，或从技能页面手动安装。",
+        "toastInstalled": "已安装 {{count}} 个技能",
+        "toastPartialInstall": "已安装 {{installed}} 个，{{failed}} 个失败",
+        "toastInstallFailed": "技能安装失败"
+    },
+    "templates": {
+        "product-market-scout": {
+            "name": "选品分析",
+            "description": "分析产品在 Amazon 和 TikTok Shop 的销售趋势、竞争强度、利润空间和工厂切入机会。",
+            "welcomeMessage": "你好！我是选品分析助手 📊\n\n给我一个产品名称、链接或图片，我会帮你分析：\n• Amazon / TikTok Shop 的销量趋势\n• 竞争激烈程度和利润空间\n• 工厂适不适合切入\n\n直接发产品名就行，比如「蓝牙耳机在美国卖得怎么样」",
+            "suggestedPrompts": [
+                "蓝牙耳机在美国亚马逊卖得怎么样",
+                "猫抓板在 TikTok 美区有没有机会",
+                "这个1688链接适合做跨境电商吗"
+            ]
+        },
+        "amz-product-select0427": {
+            "name": "Amazon 选品",
+            "description": "用卖家视角判断 Amazon 关键词、竞品 ASIN 和产品方向是否值得做。",
+            "welcomeMessage": "你好！我是 Amazon 选品助手 🧭\n\n给我一个关键词、竞品 ASIN、产品方向或你的供应链条件，我会帮你判断：\n• 需求和趋势是否够\n• 竞争、评价和价格带是否健康\n• 认证、重量、季节性等风险\n• 卖家下一步该测还是该避开\n\n直接说「帮我看这个关键词能不能做」就行。",
+            "suggestedPrompts": [
+                "帮我看这个关键词能不能做",
+                "拆一下这个竞品 ASIN 值不值得跟",
+                "按我的预算和供应链条件找几个产品方向"
+            ]
+        },
+        "listing-generator0428": {
+            "name": "Listing 生成",
+            "description": "基于源 ASIN 和竞品数据生成或优化 Amazon Listing，保持产品事实一致并嵌入关键词。",
+            "welcomeMessage": "你好！我是 Listing 生成助手 📝\n\n给我一个源 ASIN，我会帮你：\n• 拉取源产品和竞品信息\n• 扩展并筛选关键词\n• 生成标题、五点、描述和 Search Terms\n• 导出适合上架使用的表格\n\n直接发源 ASIN 就可以开始。",
+            "suggestedPrompts": [
+                "根据这个源 ASIN 生成 Amazon Listing",
+                "帮我优化这个 Listing 的标题和五点",
+                "用竞品关键词重写一版英文 Listing"
+            ]
+        }
     }
 }

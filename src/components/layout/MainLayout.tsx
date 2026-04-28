@@ -15,15 +15,15 @@ export function MainLayout() {
   const sidebarStripWidth = sidebarCollapsed || !isOnChat ? 72 : 286;
 
   return (
-    <div data-testid="main-layout" className="app-shell flex h-screen flex-col overflow-hidden bg-[#f8f9fb]">
+    <div data-testid="main-layout" className="app-shell flex h-screen flex-col overflow-hidden bg-[#f8f9fb] dark:bg-[#0d1117]">
       {/* Title bar: drag region on macOS, icon + controls on Windows */}
       <TitleBar sidebarStripWidth={sidebarStripWidth} />
 
       {/* Below the title bar: sidebar + content */}
       <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
         <Sidebar />
-        <main data-testid="main-content" className="min-h-0 flex-1 overflow-auto bg-[#f8f9fb]">
-          <div className="h-full bg-[#f8f9fb]">
+        <main data-testid="main-content" className="min-h-0 flex-1 overflow-auto bg-[#f8f9fb] dark:bg-[#0d1117]">
+          <div className="h-full bg-[#f8f9fb] dark:bg-[#0d1117]">
             <Outlet />
           </div>
         </main>

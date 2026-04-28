@@ -10,20 +10,25 @@ import { useChatStore } from '@/stores/chat';
 import { useTemplatesStore } from '@/stores/templates';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  getTemplateName,
+  getTemplateSuggestedPrompts,
+  getTemplateWelcomeMessage,
+} from '@/lib/template-i18n';
 import type { ExpertRuntime } from '@/types/expert';
+import { useTranslation } from 'react-i18next';
 
 interface ExpertWelcomeProps {
   onPromptClick: (prompt: string) => void;
 }
 
 export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
+  const { t } = useTranslation('chat');
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const currentSessionKey = useChatStore((s) => s.currentSessionKey);
   const getExpertByAgentId = useExpertsStore((s) => s.getExpertByAgentId);
   const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
   const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
-
-  const runtime = getExpertByAgentId(currentAgentId);
 
   // Clear active template when session no longer matches
   useEffect(() => {
@@ -32,17 +37,18 @@ export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
     }
   }, [activeTemplate, currentSessionKey, setActiveTemplate]);
 
-  if (!runtime) return null;
-
   // Template welcome takes priority
   if (activeTemplate) {
+    const welcomeMessage = getTemplateWelcomeMessage(t, activeTemplate);
+    const suggestedPrompts = getTemplateSuggestedPrompts(t, activeTemplate);
+
     return (
       <div className="w-full max-w-2xl px-4 text-center mb-8">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-3xl">
           {activeTemplate.icon}
         </div>
         <h1 className="text-2xl font-semibold text-foreground leading-snug">
-          {activeTemplate.name}
+          {getTemplateName(t, activeTemplate)}
         </h1>
         <Badge
           variant="secondary"
@@ -50,18 +56,18 @@ export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
         >
           {activeTemplate.category}
         </Badge>
-        {activeTemplate.welcomeMessage && (
+        {welcomeMessage && (
           <p className="mt-4 text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
-            {activeTemplate.welcomeMessage}
+            {welcomeMessage}
           </p>
         )}
-        {activeTemplate.suggestedPrompts.length > 0 && (
+        {suggestedPrompts.length > 0 && (
           <div className="mt-6 flex flex-col gap-2">
             <span className="text-[11px] uppercase tracking-wider text-foreground/40 font-medium">
               Try asking
             </span>
             <div className="flex flex-col gap-2 mt-1">
-              {activeTemplate.suggestedPrompts.map((prompt) => (
+              {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => {
@@ -86,6 +92,9 @@ export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
       </div>
     );
   }
+
+  const runtime = getExpertByAgentId(currentAgentId);
+  if (!runtime) return null;
 
   return (
     <div className="w-full max-w-2xl px-4 text-center mb-8">

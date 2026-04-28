@@ -77,14 +77,20 @@
       "autoEnable": true
     },
     {
-      "slug": "product-market-scout",
-      "localPath": "resources/local-skills/product-market-scout",
+      "slug": "listing-generator0428",
+      "localPath": "resources/local-skills/listing-generator0428",
       "version": "0.1.0",
       "autoEnable": true
     },
     {
-      "slug": "rising-seller-leads",
-      "localPath": "resources/local-skills/rising-seller-leads",
+      "slug": "amz-product-select0427",
+      "localPath": "resources/local-skills/amz-product-select0427",
+      "version": "0.1.0",
+      "autoEnable": true
+    },
+    {
+      "slug": "product-market-scout",
+      "localPath": "resources/local-skills/product-market-scout",
       "version": "0.1.0",
       "autoEnable": true
     }

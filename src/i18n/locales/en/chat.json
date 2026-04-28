@@ -123,6 +123,48 @@
         "skillReady": "Ready",
         "skillPartial": "Partial",
         "suggestedPrompts": "Suggested",
-        "retrySetup": "Retry"
+        "retrySetup": "Retry",
+        "installing": "Installing...",
+        "installSkills_one": "Install {{count}} missing skill",
+        "installSkills_other": "Install {{count}} missing skills",
+        "startConversation": "Start conversation",
+        "templatesSectionTitle": "Market Analysis Tools",
+        "toastRateLimited": "Rate limited — please wait a moment and retry, or install manually from the Skills page.",
+        "toastInstalled_one": "Installed {{count}} skill",
+        "toastInstalled_other": "Installed {{count}} skills",
+        "toastPartialInstall": "Installed {{installed}}, {{failed}} failed",
+        "toastInstallFailed": "Failed to install skills"
+    },
+    "templates": {
+        "product-market-scout": {
+            "name": "Product Analysis",
+            "description": "Analyze Amazon and TikTok Shop demand, trends, competition, margins, and entry fit.",
+            "welcomeMessage": "Hi, I am your product analysis assistant 📊\n\nSend me a product name, link, or image and I can help analyze:\n• Amazon / TikTok Shop sales trends\n• Competition and margin space\n• Whether it is worth entering\n\nYou can start with something like “How are Bluetooth earbuds selling in the US?”",
+            "suggestedPrompts": [
+                "How are Bluetooth earbuds selling on Amazon US?",
+                "Is there an opportunity for cat scratchers on TikTok US?",
+                "Is this 1688 link suitable for cross-border ecommerce?"
+            ]
+        },
+        "amz-product-select0427": {
+            "name": "Amazon Product Selection",
+            "description": "Evaluate Amazon keywords, competitor ASINs, and product ideas from a seller's perspective.",
+            "welcomeMessage": "Hi, I am your Amazon product selection assistant 🧭\n\nSend me a keyword, competitor ASIN, product idea, or supply-chain constraints and I can help judge:\n• Demand and trend quality\n• Competition, reviews, and price bands\n• Certification, weight, and seasonality risks\n• Whether to test, list, or avoid it\n\nYou can start with “Help me check whether this keyword is worth doing.”",
+            "suggestedPrompts": [
+                "Help me check whether this keyword is worth doing",
+                "Break down whether this competitor ASIN is worth following",
+                "Find product directions based on my budget and supply chain"
+            ]
+        },
+        "listing-generator0428": {
+            "name": "Listing Generator",
+            "description": "Generate or optimize an Amazon listing from a source ASIN and competitor data while preserving product facts.",
+            "welcomeMessage": "Hi, I am your Listing Generator assistant 📝\n\nSend me a source ASIN and I can help:\n• Fetch source product and competitor information\n• Expand and screen keywords\n• Generate title, bullets, description, and Search Terms\n• Export a listing workbook for publishing\n\nSend the source ASIN to begin.",
+            "suggestedPrompts": [
+                "Generate an Amazon listing from this source ASIN",
+                "Optimize this listing title and bullet points",
+                "Rewrite an English listing using competitor keywords"
+            ]
+        }
     }
 }
