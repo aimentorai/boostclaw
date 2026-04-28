@@ -18,6 +18,7 @@ import { handleCronRoutes } from './routes/cron';
 import { handleAuthRoutes } from './routes/auth';
 import { handleExpertRoutes } from './routes/experts';
 import { handleTemplateRoutes } from './routes/templates';
+import { handleMcpRoutes } from './routes/mcp';
 import { sendJson, setCorsHeaders, requireJsonContentType } from './route-utils';
 
 type RouteHandler = (
@@ -43,6 +44,7 @@ const routeHandlers: RouteHandler[] = [
   handleTemplateRoutes,
   handleLogRoutes,
   handleUsageRoutes,
+  handleMcpRoutes,
 ];
 
 /**

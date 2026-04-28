@@ -3,7 +3,7 @@
  * Navigation sidebar with menu items.
  * No longer fixed - sits inside the flex layout below the title bar.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle,
@@ -17,6 +17,7 @@ import {
   Plus,
   Trash2,
   Box,
+  Server,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings';
@@ -26,6 +27,7 @@ import { useAgentsStore } from '@/stores/agents';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useTranslation } from 'react-i18next';
 import logoSvg from '@/assets/logo.svg';
 
@@ -49,7 +51,7 @@ interface NavItemProps {
 }
 
 function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId }: NavItemProps) {
-  return (
+  const link = (
     <NavLink
       to={to}
       onClick={onClick}
@@ -93,6 +95,17 @@ function NavItem({ to, icon, label, badge, collapsed, hideLabel, onClick, testId
       )}
     </NavLink>
   );
+
+  if (hideLabel && label) {
+    return (
+      <Tooltip delayDuration={500}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return link;
 }
 
 function getSessionBucket(activityMs: number, nowMs: number): SessionBucketKey {
@@ -242,14 +255,57 @@ export function Sidebar() {
       label: t('sidebar.channels'),
       testId: 'sidebar-nav-channels',
     },
+    {
+      to: '/mcp',
+      icon: <Server className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.mcp'),
+      testId: 'sidebar-nav-mcp',
+    },
   ];
+
+  // ── History pane drag-to-resize ──────────────────────────────────
+  const [historyWidth, setHistoryWidth] = useState(210);
+  const [isDragging, setIsDragging] = useState(false);
+  const draggingRef = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
+
+  const onDragMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    setIsDragging(true);
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = historyWidth;
+  }, [historyWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!draggingRef.current) return;
+      const delta = e.clientX - dragStartX.current;
+      const next = Math.max(160, Math.min(400, dragStartWidth.current + delta));
+      setHistoryWidth(next);
+    };
+    const onMouseUp = () => {
+      draggingRef.current = false;
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   return (
     <aside
       data-testid="sidebar"
+      style={{
+        width: sidebarCollapsed || !isOnChat ? 72 : 76 + historyWidth,
+      }}
       className={cn(
-        'flex min-h-0 shrink-0 overflow-hidden border-r border-[#e8edf5] bg-[#eef3ff] transition-all duration-300',
-        sidebarCollapsed || !isOnChat ? 'w-[72px]' : 'w-[286px]'
+        'flex min-h-0 shrink-0 overflow-hidden border-r border-[#e8edf5] bg-[#eef3ff]',
+        !isDragging && 'transition-[width] duration-300',
       )}
     >
       <div className="flex min-h-0 flex-1">
@@ -279,20 +335,27 @@ export function Sidebar() {
             {bottomNavItems.map((item) => (
               <NavItem key={item.to} {...item} collapsed={false} hideLabel />
             ))}
-            <NavLink
-              to="/settings"
-              data-testid="sidebar-nav-settings"
-              aria-label={t('common:sidebar.settings')}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all',
-                  'text-[#535d6c] hover:bg-white/70 hover:text-[#20242d]',
-                  isActive && 'bg-white text-[#20242d] shadow-[0_8px_22px_rgba(80,92,120,0.10)]'
-                )
-              }
-            >
-              <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
-            </NavLink>
+            <div className="flex justify-center">
+              <Tooltip delayDuration={500}>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to="/settings"
+                    data-testid="sidebar-nav-settings"
+                    aria-label={t('common:sidebar.settings')}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-all',
+                        'text-[#535d6c] hover:bg-white/70 hover:text-[#20242d]',
+                        isActive && 'bg-white text-[#20242d] shadow-[0_8px_22px_rgba(80,92,120,0.10)]'
+                      )
+                    }
+                  >
+                    <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">{t('common:sidebar.settings')}</TooltipContent>
+              </Tooltip>
+            </div>
             {sidebarCollapsed && (
               <Button
                 variant="ghost"
@@ -308,7 +371,10 @@ export function Sidebar() {
 
         {/* Right history pane */}
         {!sidebarCollapsed && isOnChat && (
-          <div className="flex min-h-0 w-[210px] min-w-0 shrink-0 flex-col bg-white">
+          <div
+            className="flex min-h-0 min-w-0 shrink-0 flex-col bg-white relative"
+            style={{ width: historyWidth }}
+          >
             <div className="px-2.5 py-2">
               <button
                 data-testid="sidebar-new-chat"
@@ -402,6 +468,12 @@ export function Sidebar() {
                 <PanelLeftClose className="h-[16px] w-[16px]" />
               </Button>
             </div>
+
+            {/* Drag handle for resizing history pane */}
+            <div
+              onMouseDown={onDragMouseDown}
+              className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-[#0a84ff]/30 transition-colors z-10"
+            />
           </div>
         )}
       </div>

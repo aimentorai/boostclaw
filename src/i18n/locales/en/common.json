@@ -11,6 +11,7 @@
         "settings": "Settings",
         "devConsole": "Developer Console",
         "models": "Models",
+        "mcp": "MCP",
         "agentWorkspace": "Agent Workspace",
         "runtimeTitle": "Runtime",
         "runtimeOnline": "Online",

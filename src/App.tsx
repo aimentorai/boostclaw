@@ -26,6 +26,7 @@ const Skills = lazy(() => import('./pages/Skills'));
 const Cron = lazy(() => import('./pages/Cron'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Setup = lazy(() => import('./pages/Setup'));
+const McpServers = lazy(() => import('./pages/McpServers'));
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 
 /**
@@ -290,6 +291,7 @@ function App() {
               <Route path="/channels" element={<Channels />} />
               <Route path="/skills" element={<Skills />} />
               <Route path="/cron" element={<Cron />} />
+              <Route path="/mcp" element={<McpServers />} />
               <Route path="/settings/*" element={<Settings />} />
             </Route>
           </Routes>
