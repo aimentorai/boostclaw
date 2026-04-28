@@ -251,11 +251,13 @@ export function ChatInput({
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const switchSession = useChatStore((s) => s.switchSession);
   const currentSessionKey = useChatStore((s) => s.currentSessionKey);
+  const messages = useChatStore((s) => s.messages);
   const currentAgent = useMemo(
     () => (agents ?? []).find((agent) => agent.id === currentAgentId) ?? null,
     [agents, currentAgentId]
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
+  const currentSessionHasMessages = messages.length > 0;
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
   const currentModelRef = useMemo(
     () =>
@@ -906,7 +908,11 @@ export function ChatInput({
                                 selected={!currentTemplateId && currentAgentId === item.agentId}
                                 onSelect={() => {
                                   if (activeTemplate) setActiveTemplate(null);
-                                  if (item.sessionKey && item.agentId !== currentAgentId) {
+                                  if (
+                                    item.sessionKey &&
+                                    item.agentId !== currentAgentId &&
+                                    currentSessionHasMessages
+                                  ) {
                                     switchSession(item.sessionKey);
                                   }
                                   setExpertPickerOpen(false);
@@ -925,7 +931,9 @@ export function ChatInput({
                                       const tpl = templates.find((t) => t.id === item.templateId);
                                       if (tpl && item.sessionKey) {
                                         setActiveTemplate(tpl);
-                                        switchSession(item.sessionKey);
+                                        if (currentSessionHasMessages) {
+                                          switchSession(item.sessionKey);
+                                        }
                                       }
                                       setExpertPickerOpen(false);
                                       textareaRef.current?.focus();
