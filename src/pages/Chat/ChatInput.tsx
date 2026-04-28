@@ -284,34 +284,37 @@ export function ChatInput({
   }, [currentSessionKey]);
 
   const templateSkill = useMemo<Skill | null>(() => {
-    if (!currentTemplateId) return null;
-    const tpl = templates.find((t) => t.id === currentTemplateId);
+    const tplId = currentTemplateId ?? activeTemplate?.id;
+    if (!tplId) return null;
+    const tpl = templates.find((t) => t.id === tplId);
     if (!tpl?.requiredSkills?.length) return null;
     const skillId = tpl.requiredSkills[0];
     return skills.find((s) => s.id === skillId || s.slug === skillId || s.name === skillId) ?? null;
-  }, [currentTemplateId, templates, skills]);
+  }, [currentTemplateId, activeTemplate, templates, skills]);
 
   const currentExpertRuntime = useMemo(() => {
-    if (currentTemplateId) return null;
+    if (currentTemplateId || activeTemplate) return null;
     return Object.values(expertRuntimes).find((r) => r.agentId === currentAgentId) ?? null;
-  }, [expertRuntimes, currentAgentId, currentTemplateId]);
+  }, [expertRuntimes, currentAgentId, currentTemplateId, activeTemplate]);
 
   const effectiveTargetLabel = useMemo(() => {
     if (currentTemplateId) {
       const tpl = templates.find((t) => t.id === currentTemplateId);
       if (tpl) return getTemplateName(t, tpl);
     }
+    if (activeTemplate) return getTemplateName(t, activeTemplate);
     if (currentExpertRuntime) return currentExpertRuntime.config.name;
     return currentAgentName;
-  }, [currentTemplateId, templates, currentExpertRuntime, currentAgentName, t]);
+  }, [currentTemplateId, activeTemplate, templates, currentExpertRuntime, currentAgentName, t]);
 
   const effectiveTargetIcon = useMemo(() => {
     if (currentTemplateId) {
       const tpl = templates.find((t) => t.id === currentTemplateId);
       if (tpl?.icon) return tpl.icon;
     }
+    if (activeTemplate?.icon) return activeTemplate.icon;
     return currentExpertRuntime?.config.icon || null;
-  }, [currentTemplateId, templates, currentExpertRuntime]);
+  }, [currentTemplateId, activeTemplate, templates, currentExpertRuntime]);
 
   // Keep AgentSummary in sync with chat session: expert switch updates currentAgentId before
   // the agents list may be populated — without this, the model row stays hidden until another
@@ -456,7 +459,8 @@ export function ChatInput({
         (currentModelRef && currentModelRef.length > 0) ||
         modelOptions.length > 0 ||
         currentExpertRuntime ||
-        currentTemplateId
+        currentTemplateId ||
+        activeTemplate
       ),
     [
       currentModelDisplay,
@@ -464,6 +468,7 @@ export function ChatInput({
       modelOptions.length,
       currentExpertRuntime,
       currentTemplateId,
+      activeTemplate,
     ]
   );
 
@@ -905,7 +910,11 @@ export function ChatInput({
                               <ExpertPickerItem
                                 key={item.id}
                                 item={item}
-                                selected={!currentTemplateId && currentAgentId === item.agentId}
+                                selected={
+                                  !currentTemplateId &&
+                                  !activeTemplate &&
+                                  currentAgentId === item.agentId
+                                }
                                 onSelect={() => {
                                   if (activeTemplate) setActiveTemplate(null);
                                   if (
@@ -926,14 +935,16 @@ export function ChatInput({
                                   <ExpertPickerItem
                                     key={item.id}
                                     item={item}
-                                    selected={currentTemplateId === item.templateId}
+                                    selected={
+                                      currentTemplateId === item.templateId ||
+                                      activeTemplate?.id === item.templateId
+                                    }
                                     onSelect={() => {
                                       const tpl = templates.find((t) => t.id === item.templateId);
-                                      if (tpl && item.sessionKey) {
+                                      if (tpl) {
+                                        // Keep the current session/messages; template only affects
+                                        // composer context (skills, welcome) until user sends.
                                         setActiveTemplate(tpl);
-                                        if (currentSessionHasMessages) {
-                                          switchSession(item.sessionKey);
-                                        }
                                       }
                                       setExpertPickerOpen(false);
                                       textareaRef.current?.focus();

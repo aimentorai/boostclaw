@@ -30,9 +30,14 @@ export function ExpertWelcome({ onPromptClick }: ExpertWelcomeProps) {
   const activeTemplate = useTemplatesStore((s) => s.activeTemplate);
   const setActiveTemplate = useTemplatesStore((s) => s.setActiveTemplate);
 
-  // Clear active template when session no longer matches
+  // Drop overlay template only when navigating to a session keyed to a different template.
+  // Choosing a template no longer switches session, so we must not clear activeTemplate
+  // just because the URL key lacks :tpl-... .
   useEffect(() => {
-    if (activeTemplate && !currentSessionKey.includes(`:tpl-${activeTemplate.id}`)) {
+    if (!activeTemplate) return;
+    const match = currentSessionKey.match(/:tpl-(.+)$/);
+    const sessionTplId = match?.[1];
+    if (sessionTplId && sessionTplId !== activeTemplate.id) {
       setActiveTemplate(null);
     }
   }, [activeTemplate, currentSessionKey, setActiveTemplate]);
