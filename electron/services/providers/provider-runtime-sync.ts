@@ -229,43 +229,29 @@ export async function syncAllProviderAuthToRuntime(): Promise<void> {
   const accounts = await listProviderAccounts();
 
   for (const account of accounts) {
-    const runtimeProviderKey = await resolveRuntimeProviderKey({
+    const config: ProviderConfig = {
       id: account.id,
       name: account.label,
       type: account.vendorId,
       baseUrl: account.baseUrl,
+      apiProtocol: account.apiProtocol,
+      headers: account.headers,
       model: account.model,
       fallbackModels: account.fallbackModels,
       fallbackProviderIds: account.fallbackAccountIds,
       enabled: account.enabled,
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
-    });
+    };
+    const context = await syncProviderToRuntime(config, undefined);
 
-    const secret = await getProviderSecret(account.id);
-    if (!secret) {
-      continue;
-    }
+    if (!context) continue;
+  }
 
-    if (secret.type === 'api_key') {
-      await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
-      continue;
-    }
-
-    if (secret.type === 'local' && secret.apiKey) {
-      await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
-      continue;
-    }
-
-    if (secret.type === 'oauth') {
-      await saveOAuthTokenToOpenClaw(runtimeProviderKey, {
-        access: secret.accessToken,
-        refresh: secret.refreshToken,
-        expires: secret.expiresAt,
-        email: secret.email,
-        projectId: secret.subject,
-      });
-    }
+  try {
+    await syncAgentModelsToRuntime();
+  } catch (err) {
+    logger.warn('[provider-runtime] Failed to sync per-agent model registries:', err);
   }
 }
 

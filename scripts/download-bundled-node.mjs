@@ -33,25 +33,33 @@ async function setupTarget(id) {
   const tempDir = path.join(ROOT_DIR, 'temp_node_extract');
   const archivePath = path.join(ROOT_DIR, target.filename);
   const downloadUrl = `${BASE_URL}/${target.filename}`;
+  const hasLocalArchive = await fs.pathExists(archivePath);
+  const outputNode = path.join(targetDir, 'node.exe');
 
   echo(chalk.blue`\n📦 Setting up Node.js for ${id}...`);
 
+  if (await fs.pathExists(outputNode)) {
+    echo`✅ Existing Node.js binary found, skipping download: ${outputNode}`;
+    return;
+  }
+
   // Only remove the target binary, not the entire directory,
   // to avoid deleting uv.exe or other binaries placed by other download scripts.
-  const outputNode = path.join(targetDir, 'node.exe');
-  if (await fs.pathExists(outputNode)) {
-    await fs.remove(outputNode);
-  }
+  await fs.remove(outputNode);
   await fs.remove(tempDir);
   await fs.ensureDir(targetDir);
   await fs.ensureDir(tempDir);
 
   try {
-    echo`⬇️ Downloading: ${downloadUrl}`;
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(archivePath, Buffer.from(buffer));
+    if (hasLocalArchive) {
+      echo`📦 Using local archive: ${archivePath}`;
+    } else {
+      echo`⬇️ Downloading: ${downloadUrl}`;
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
+      const buffer = await response.arrayBuffer();
+      await fs.writeFile(archivePath, Buffer.from(buffer));
+    }
 
     echo`📂 Extracting...`;
     if (os.platform() === 'win32') {
@@ -77,7 +85,9 @@ async function setupTarget(id) {
 
     echo(chalk.green`✅ Success: ${outputNode}`);
   } finally {
-    await fs.remove(archivePath);
+    if (!hasLocalArchive) {
+      await fs.remove(archivePath);
+    }
     await fs.remove(tempDir);
   }
 }

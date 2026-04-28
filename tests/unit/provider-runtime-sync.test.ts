@@ -72,6 +72,7 @@ vi.mock('@electron/utils/logger', () => ({
 
 import {
   syncAgentModelOverrideToRuntime,
+  syncAllProviderAuthToRuntime,
   syncDefaultProviderToRuntime,
   syncDeletedProviderApiKeyToRuntime,
   syncDeletedProviderToRuntime,
@@ -132,6 +133,51 @@ describe('provider-runtime-sync refresh strategy', () => {
 
     expect(gateway.debouncedReload).toHaveBeenCalledTimes(1);
     expect(gateway.debouncedRestart).not.toHaveBeenCalled();
+  });
+
+  it('syncs stored custom provider config during startup auth sync', async () => {
+    mocks.listProviderAccounts.mockResolvedValue([
+      {
+        id: 'boostclaw-system-default',
+        vendorId: 'custom',
+        label: 'boostmodel',
+        authMode: 'api_key',
+        baseUrl: 'https://model.microdata-inc.com/v1/chat/completions',
+        apiProtocol: 'openai-completions',
+        model: 'qwen-plus',
+        enabled: true,
+        isDefault: false,
+        createdAt: '2026-04-28T00:00:00.000Z',
+        updatedAt: '2026-04-28T00:00:00.000Z',
+      },
+    ]);
+    mocks.getProviderSecret.mockResolvedValue({ type: 'api_key', apiKey: 'sk-system' });
+    mocks.getApiKey.mockResolvedValue('sk-system');
+    mocks.getProviderConfig.mockReturnValue(undefined);
+
+    await syncAllProviderAuthToRuntime();
+
+    expect(mocks.saveProviderKeyToOpenClaw).toHaveBeenCalledWith(
+      'custom-boostcla',
+      'sk-system',
+    );
+    expect(mocks.syncProviderConfigToOpenClaw).toHaveBeenCalledWith(
+      'custom-boostcla',
+      'qwen-plus',
+      expect.objectContaining({
+        baseUrl: 'https://model.microdata-inc.com/v1',
+        api: 'openai-completions',
+      }),
+    );
+    expect(mocks.updateAgentModelProvider).toHaveBeenCalledWith(
+      'custom-boostcla',
+      expect.objectContaining({
+        baseUrl: 'https://model.microdata-inc.com/v1',
+        api: 'openai-completions',
+        models: [{ id: 'qwen-plus', name: 'qwen-plus' }],
+        apiKey: 'sk-system',
+      }),
+    );
   });
 
   it('uses debouncedRestart after deleting provider config', async () => {
