@@ -339,9 +339,7 @@ describe('ChatInput agent targeting', () => {
         updatedAt: '2026-01-02T00:00:00.000Z',
       },
     ];
-    providersState.statuses = [
-      { id: 'acc-anthropic', hasKey: true },
-    ];
+    providersState.statuses = [{ id: 'acc-anthropic', hasKey: true }];
 
     render(<ChatInput onSend={vi.fn()} />);
 
@@ -350,7 +348,10 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByTitle('Select model'));
     fireEvent.click(screen.getByText('claude-sonnet-4'));
 
-    expect(agentsState.updateAgentModel).toHaveBeenCalledWith('research', 'anthropic/claude-sonnet-4');
+    expect(agentsState.updateAgentModel).toHaveBeenCalledWith(
+      'research',
+      'anthropic/claude-sonnet-4'
+    );
   });
 
   it('offers vendor default models when the provider account has no explicit model id', () => {
@@ -359,8 +360,8 @@ describe('ChatInput agent targeting', () => {
         id: 'main',
         name: 'Main',
         isDefault: true,
-        modelDisplay: 'qwen-plus',
-        modelRef: 'custom/qwen-plus',
+        modelDisplay: 'qwen3.5-plus',
+        modelRef: 'custom/qwen3.5-plus',
         overrideModelRef: null,
         inheritedModel: true,
         workspace: '~/.openclaw/workspace',
@@ -379,9 +380,7 @@ describe('ChatInput agent targeting', () => {
         updatedAt: '2026-01-02T00:00:00.000Z',
       },
     ];
-    providersState.statuses = [
-      { id: 'acc-openai', hasKey: true },
-    ];
+    providersState.statuses = [{ id: 'acc-openai', hasKey: true }];
     providersState.vendors = [
       {
         id: 'openai',
@@ -404,8 +403,8 @@ describe('ChatInput agent targeting', () => {
         id: 'main',
         name: 'Main',
         isDefault: true,
-        modelDisplay: 'qwen-plus',
-        modelRef: 'qwen/qwen-plus',
+        modelDisplay: 'qwen3.5-plus',
+        modelRef: 'qwen/qwen3.5-plus',
         overrideModelRef: null,
         inheritedModel: true,
         workspace: '~/.openclaw/workspace',
@@ -420,21 +419,19 @@ describe('ChatInput agent targeting', () => {
         vendorId: 'qwen',
         label: 'Qwen Primary',
         authMode: 'api_key',
-        model: 'qwen-plus',
-        fallbackModels: ['qwen-turbo'],
+        model: 'qwen3.5-plus',
+        fallbackModels: ['qwen3-coder-plus'],
         enabled: true,
         updatedAt: '2026-01-02T00:00:00.000Z',
       },
     ];
-    providersState.statuses = [
-      { id: 'acc-qwen', hasKey: true },
-    ];
+    providersState.statuses = [{ id: 'acc-qwen', hasKey: true }];
     providersState.vendors = [
       {
         id: 'qwen',
         name: 'Qwen',
-        defaultModelId: 'qwen-plus',
-        availableModels: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
+        defaultModelId: 'qwen3.5-plus',
+        availableModels: ['qwen3.5-plus', 'qwen3.6-plus', 'qwen3-coder-next', 'qwen3-coder-plus'],
       },
     ];
 
@@ -442,8 +439,8 @@ describe('ChatInput agent targeting', () => {
 
     fireEvent.click(screen.getByTitle('Select model'));
 
-    expect(screen.getAllByText('qwen-plus').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('qwen-turbo')).toBeInTheDocument();
-    expect(screen.getByText('qwen-max')).toBeInTheDocument();
+    expect(screen.getAllByText('qwen3.5-plus').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('qwen3-coder-plus')).toBeInTheDocument();
+    expect(screen.getByText('qwen3.6-plus')).toBeInTheDocument();
   });
 });

@@ -12,7 +12,11 @@ import {
   updateAgentProfile,
 } from '../../utils/agent-config';
 import { deleteChannelAccountConfig } from '../../utils/channel-config';
-import { syncAgentModelOverrideToRuntime, syncAllProviderAuthToRuntime } from '../../services/providers/provider-runtime-sync';
+import {
+  syncAgentModelOverrideToRuntime,
+  syncAllProviderAuthToRuntime,
+  syncModelProviderConfigToOpenClaw,
+} from '../../services/providers/provider-runtime-sync';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
@@ -44,7 +48,10 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
     const status = ctx.gatewayManager.getStatus();
     const pid = status.pid;
     const port = status.port;
-    console.log('[agents] Triggering Gateway restart (kill+respawn) after agent deletion', { pid, port });
+    console.log('[agents] Triggering Gateway restart (kill+respawn) after agent deletion', {
+      pid,
+      port,
+    });
 
     // Force-kill the Gateway process by PID.  The manager's stop() only
     // kills "owned" processes; if the manager connected to an already-
@@ -58,7 +65,12 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
           process.kill(pid, 'SIGTERM');
           // Give it a moment to die
           await new Promise((resolve) => setTimeout(resolve, 500));
-          try { process.kill(pid, 0); process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+          try {
+            process.kill(pid, 0);
+            process.kill(pid, 'SIGKILL');
+          } catch {
+            /* already dead */
+          }
         }
       } catch {
         // process already gone – that's fine
@@ -68,16 +80,24 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
       // a previous pnpm dev run), forcefully kill whatever is on the port.
       try {
         if (process.platform === 'darwin' || process.platform === 'linux') {
-          // MUST use -sTCP:LISTEN. Otherwise lsof returns the client process (BoostClaw itself) 
+          // MUST use -sTCP:LISTEN. Otherwise lsof returns the client process (BoostClaw itself)
           // that has an ESTABLISHED WebSocket connection to the port, causing us to kill ourselves.
           const { stdout } = await execAsync(`lsof -t -i :${port} -sTCP:LISTEN`);
           const pids = stdout.trim().split('\n').filter(Boolean);
           for (const p of pids) {
-            try { process.kill(parseInt(p, 10), 'SIGTERM'); } catch { /* ignore */ }
+            try {
+              process.kill(parseInt(p, 10), 'SIGTERM');
+            } catch {
+              /* ignore */
+            }
           }
           await new Promise((resolve) => setTimeout(resolve, 500));
           for (const p of pids) {
-            try { process.kill(parseInt(p, 10), 'SIGKILL'); } catch { /* ignore */ }
+            try {
+              process.kill(parseInt(p, 10), 'SIGKILL');
+            } catch {
+              /* ignore */
+            }
           }
         } else if (process.platform === 'win32') {
           // Find PID listening on the port
@@ -91,7 +111,11 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
             }
           }
           for (const p of pids) {
-            try { await execAsync(`taskkill /F /PID ${p} /T`); } catch { /* ignore */ }
+            try {
+              await execAsync(`taskkill /F /PID ${p} /T`);
+            } catch {
+              /* ignore */
+            }
           }
         }
       } catch {
@@ -110,7 +134,7 @@ export async function handleAgentRoutes(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  ctx: HostApiContext,
+  ctx: HostApiContext
 ): Promise<boolean> {
   if (url.pathname === '/api/agents' && req.method === 'GET') {
     sendJson(res, 200, { success: true, ...(await listAgentsSnapshot()) });
@@ -119,7 +143,11 @@ export async function handleAgentRoutes(
 
   if (url.pathname === '/api/agents' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<{ name: string; description?: string; inheritWorkspace?: boolean }>(req);
+      const body = await parseJsonBody<{
+        name: string;
+        description?: string;
+        inheritWorkspace?: boolean;
+      }>(req);
       const snapshot = await createAgent(body.name, {
         inheritWorkspace: body.inheritWorkspace,
         description: body.description,
@@ -168,6 +196,10 @@ export async function handleAgentRoutes(
           await syncAllProviderAuthToRuntime();
           // Ensure this agent's runtime model registry reflects the new model override.
           await syncAgentModelOverrideToRuntime(agentId);
+          // Sync the provider config to models.providers so the Gateway can resolve the model.
+          if (body.modelRef) {
+            await syncModelProviderConfigToOpenClaw(body.modelRef);
+          }
         } catch (syncError) {
           console.warn('[agents] Failed to sync runtime after updating agent model:', syncError);
         }
@@ -239,11 +271,15 @@ export async function handleAgentRoutes(
             if (owner !== ownerId) return false;
             return channelAccountKey.startsWith(`${channelType}:`);
           })
-          .map(([channelAccountKey]) => channelAccountKey.slice(channelAccountKey.indexOf(':') + 1));
+          .map(([channelAccountKey]) =>
+            channelAccountKey.slice(channelAccountKey.indexOf(':') + 1)
+          );
         // Backward compatibility for legacy agentId->accountId mapping.
         if (ownedAccountIds.length === 0) {
           const legacyAccountId = resolveAccountIdForAgent(agentId);
-          if (snapshotBefore.channelAccountOwners[`${channelType}:${legacyAccountId}`] === ownerId) {
+          if (
+            snapshotBefore.channelAccountOwners[`${channelType}:${legacyAccountId}`] === ownerId
+          ) {
             ownedAccountIds.push(legacyAccountId);
           }
         }

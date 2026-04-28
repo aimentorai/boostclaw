@@ -156,7 +156,11 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     showModelIdInDevModeOnly: true,
     modelIdPlaceholder: 'deepseek-ai/DeepSeek-V3',
     defaultModelId: 'deepseek-ai/DeepSeek-V3',
-    availableModels: ['deepseek-ai/deepseek-r1', 'deepseek-ai/DeepSeek-V3', 'siliconflow/deepseek-v3.2'],
+    availableModels: [
+      'deepseek-ai/deepseek-r1',
+      'deepseek-ai/DeepSeek-V3',
+      'siliconflow/deepseek-v3.2',
+    ],
     category: 'compatible',
     envVar: 'SILICONFLOW_API_KEY',
     supportedAuthModes: ['api_key'],
@@ -179,7 +183,14 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     defaultModelId: 'deepseek-v4-pro',
     showModelId: true,
     modelIdPlaceholder: 'deepseek-v4-pro',
-    availableModels: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-r1', 'deepseek-v3.2', 'deepseek-chat', 'deepseek-reasoner'],
+    availableModels: [
+      'deepseek-v4-pro',
+      'deepseek-v4-flash',
+      'deepseek-r1',
+      'deepseek-v3.2',
+      'deepseek-chat',
+      'deepseek-reasoner',
+    ],
     category: 'official',
     envVar: 'DEEPSEEK_API_KEY',
     supportedAuthModes: ['api_key'],
@@ -199,11 +210,17 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     model: 'Qwen',
     requiresApiKey: true,
     defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    defaultModelId: 'qwen-plus',
+    defaultModelId: 'qwen3.5-plus',
     showBaseUrl: true,
     showModelId: true,
-    modelIdPlaceholder: 'qwen-plus',
-    availableModels: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
+    modelIdPlaceholder: 'qwen3.5-plus',
+    availableModels: [
+      'qwen3.5-plus',
+      'qwen3.6-plus',
+      'qwen3-max-2026-01-23',
+      'qwen3-coder-next',
+      'qwen3-coder-plus',
+    ],
     category: 'official',
     envVar: 'QWEN_API_KEY',
     supportedAuthModes: ['api_key'],
@@ -324,18 +341,14 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
 ];
 
 const PROVIDER_DEFINITION_MAP = new Map(
-  PROVIDER_DEFINITIONS.map((definition) => [definition.id, definition]),
+  PROVIDER_DEFINITIONS.map((definition) => [definition.id, definition])
 );
 
-export function getProviderDefinition(
-  type: ProviderType | string,
-): ProviderDefinition | undefined {
+export function getProviderDefinition(type: ProviderType | string): ProviderDefinition | undefined {
   return PROVIDER_DEFINITION_MAP.get(type as ProviderType);
 }
 
-export function getProviderTypeInfo(
-  type: ProviderType,
-): ProviderTypeInfo | undefined {
+export function getProviderTypeInfo(type: ProviderType): ProviderTypeInfo | undefined {
   return getProviderDefinition(type);
 }
 
@@ -347,9 +360,7 @@ export function getProviderDefaultModel(type: string): string | undefined {
   return getProviderDefinition(type)?.defaultModelId;
 }
 
-export function getProviderBackendConfig(
-  type: string,
-): ProviderBackendConfig | undefined {
+export function getProviderBackendConfig(type: string): ProviderBackendConfig | undefined {
   return getProviderDefinition(type)?.providerConfig;
 }
 
@@ -359,6 +370,6 @@ export function getProviderUiInfoList(): ProviderTypeInfo[] {
 
 export function getKeyableProviderTypes(): string[] {
   return PROVIDER_DEFINITIONS.filter((definition) => definition.envVar).map(
-    (definition) => definition.id,
+    (definition) => definition.id
   );
 }

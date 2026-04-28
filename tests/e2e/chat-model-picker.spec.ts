@@ -1,7 +1,9 @@
 import { closeElectronApp, expect, getStableWindow, test } from './fixtures/electron';
 
 test.describe('BoostClaw chat model picker', () => {
-  test('lists configured provider models and vendor model presets', async ({ launchElectronApp }) => {
+  test('lists configured provider models and vendor model presets', async ({
+    launchElectronApp,
+  }) => {
     const previousAuthEnabled = process.env.BoostClaw_APP_AUTH_ENABLED;
     process.env.BoostClaw_APP_AUTH_ENABLED = '0';
     const app = await launchElectronApp({ skipSetup: true });
@@ -21,8 +23,8 @@ test.describe('BoostClaw chat model picker', () => {
               vendorId: 'qwen',
               label: 'Qwen Primary',
               authMode: 'api_key',
-              model: 'qwen-plus',
-              fallbackModels: ['qwen-turbo'],
+              model: 'qwen3.5-plus',
+              fallbackModels: ['qwen3-coder-plus'],
               enabled: true,
               isDefault: false,
               createdAt: now,
@@ -32,7 +34,6 @@ test.describe('BoostClaw chat model picker', () => {
           }),
           headers: { 'Content-Type': 'application/json' },
         });
-
       });
 
       await page.reload();
@@ -42,12 +43,12 @@ test.describe('BoostClaw chat model picker', () => {
       await expect(modelPickerButton).toBeEnabled();
       await modelPickerButton.click();
 
-      await expect(page.getByTestId('chat-model-option-qwen-qwen-plus')).toBeVisible();
-      await expect(page.getByTestId('chat-model-option-qwen-qwen-turbo')).toBeVisible();
-      await expect(page.getByTestId('chat-model-option-qwen-qwen-max')).toBeVisible();
-      await page.getByTestId('chat-model-option-qwen-qwen-max').click();
+      await expect(page.getByTestId('chat-model-option-qwen-qwen3.5-plus')).toBeVisible();
+      await expect(page.getByTestId('chat-model-option-qwen-qwen3-coder-plus')).toBeVisible();
+      await expect(page.getByTestId('chat-model-option-qwen-qwen3.6-plus')).toBeVisible();
+      await page.getByTestId('chat-model-option-qwen-qwen3.6-plus').click();
 
-      await expect(modelPickerButton).toContainText('qwen-max');
+      await expect(modelPickerButton).toContainText('qwen3.6-plus');
       const snapshot = await page.evaluate(async () => {
         const response = await window.electron.ipcRenderer.invoke('hostapi:fetch', {
           path: '/api/agents',
@@ -56,8 +57,12 @@ test.describe('BoostClaw chat model picker', () => {
         });
         return response.data?.json ?? response.json;
       });
-      const agents = (snapshot as { agents: Array<{ id: string; overrideModelRef?: string | null }> }).agents;
-      expect(agents.find((agent) => agent.id === 'main')?.overrideModelRef).toBe('qwen/qwen-max');
+      const agents = (
+        snapshot as { agents: Array<{ id: string; overrideModelRef?: string | null }> }
+      ).agents;
+      expect(agents.find((agent) => agent.id === 'main')?.overrideModelRef).toBe(
+        'qwen/qwen3.6-plus'
+      );
     } finally {
       await closeElectronApp(app);
       if (previousAuthEnabled === undefined) {
