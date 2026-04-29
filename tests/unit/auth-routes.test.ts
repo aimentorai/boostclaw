@@ -141,7 +141,7 @@ describe('handleAuthRoutes', () => {
     getSystemDefaultModelProviderInfoMock.mockResolvedValueOnce({
       available: true,
       accountId: 'boostclaw-system-default',
-      label: 'boostmodel',
+      label: 'microdata',
       baseUrl: 'https://model.microdata-inc.com/v1/chat/completions',
       apiProtocol: 'openai-completions',
       keyMasked: 'sk-s***1234',

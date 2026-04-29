@@ -405,7 +405,7 @@ describe('AppAuthManager.getSubscriptionQuotaSummary', () => {
     expect(result).toEqual(expect.objectContaining({
       available: true,
       accountId: 'boostclaw-system-default',
-      label: 'boostmodel',
+      label: 'microdata',
       baseUrl: 'https://model.microdata-inc.com/v1/chat/completions',
       keyMasked: 'sk-s***1234',
       userId: 'model-user-123',

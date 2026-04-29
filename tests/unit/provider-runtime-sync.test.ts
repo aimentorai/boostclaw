@@ -140,7 +140,7 @@ describe('provider-runtime-sync refresh strategy', () => {
       {
         id: 'boostclaw-system-default',
         vendorId: 'custom',
-        label: 'boostmodel',
+        label: 'microdata',
         authMode: 'api_key',
         baseUrl: 'https://model.microdata-inc.com/v1/chat/completions',
         apiProtocol: 'openai-completions',
