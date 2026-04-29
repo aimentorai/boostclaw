@@ -14,7 +14,7 @@ import {
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { getOpenClawDir, getOpenClawEntryPath } from './paths';
+import { getOpenClawConfigDir, getOpenClawDir, getOpenClawEntryPath } from './paths';
 import { logger } from './logger';
 
 // ── Quoting helpers ──────────────────────────────────────────────────────────
@@ -356,12 +356,15 @@ export function generateCompletionCache(): void {
   if (!existsSync(entryPath)) return;
 
   const execPath = getNodeExecForCli();
+  const openclawDir = getOpenClawDir();
 
   const child = spawn(execPath, [entryPath, 'completion', '--write-state'], {
+    cwd: openclawDir,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: '1',
       OPENCLAW_NO_RESPAWN: '1',
+      OPENCLAW_STATE_DIR: getOpenClawConfigDir(),
       OPENCLAW_EMBEDDED_IN: 'BoostClaw',
     },
     stdio: 'ignore',
@@ -390,12 +393,15 @@ export function installCompletionToProfile(): void {
   if (!existsSync(entryPath)) return;
 
   const execPath = getNodeExecForCli();
+  const openclawDir = getOpenClawDir();
 
   const child = spawn(execPath, [entryPath, 'completion', '--install', '-y'], {
+    cwd: openclawDir,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: '1',
       OPENCLAW_NO_RESPAWN: '1',
+      OPENCLAW_STATE_DIR: getOpenClawConfigDir(),
       OPENCLAW_EMBEDDED_IN: 'BoostClaw',
     },
     stdio: 'ignore',
