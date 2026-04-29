@@ -74,6 +74,10 @@ interface RuntimeProviderOption {
   availableModels?: string[];
 }
 
+function getDefaultModelIdForRuntimeProvider(option: RuntimeProviderOption | undefined): string {
+  return option?.availableModels?.[0] || option?.configuredModelId || '';
+}
+
 function resolveRuntimeProviderKey(account: ProviderAccount): string {
   if (account.authMode === 'oauth_browser') {
     if (account.vendorId === 'google') return 'google-gemini-cli';
@@ -868,8 +872,9 @@ function AgentModelModal({ agent, onClose }: { agent: AgentSummary; onClose: () 
       return;
     }
 
-    setSelectedRuntimeProviderKey(runtimeProviderOptions[0]?.runtimeProviderKey || '');
-    setModelIdInput('');
+    const firstOption = runtimeProviderOptions[0];
+    setSelectedRuntimeProviderKey(firstOption?.runtimeProviderKey || '');
+    setModelIdInput(getDefaultModelIdForRuntimeProvider(firstOption));
   }, [agent.modelRef, agent.overrideModelRef, defaultModelRef, runtimeProviderOptions]);
 
   const selectedProvider =
@@ -975,7 +980,7 @@ function AgentModelModal({ agent, onClose }: { agent: AgentSummary; onClose: () 
                   const option = runtimeProviderOptions.find(
                     (candidate) => candidate.runtimeProviderKey === nextProvider
                   );
-                  setModelIdInput(option?.configuredModelId || '');
+                  setModelIdInput(getDefaultModelIdForRuntimeProvider(option));
                 }
               }}
               className={selectClasses}

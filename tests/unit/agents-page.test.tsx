@@ -242,6 +242,63 @@ describe('Agents page status refresh', () => {
     expect(useDefaultButton).toBeDisabled();
   });
 
+  it('selects the first available model when opening the model dialog without an existing model', async () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: '',
+        modelRef: null,
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:desk',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'qwen-default',
+        label: 'Qwen',
+        vendorId: 'qwen',
+        authMode: 'api_key',
+        enabled: true,
+        createdAt: '2026-03-24T00:00:00.000Z',
+        updatedAt: '2026-03-24T00:00:00.000Z',
+      },
+    ];
+    providersState.statuses = [{ id: 'qwen-default', hasKey: true }];
+    providersState.vendors = [
+      {
+        id: 'qwen',
+        name: 'Qwen',
+        modelIdPlaceholder: 'qwen3.5-plus',
+        availableModels: ['qwen3.5-plus', 'qwen3.6-plus'],
+      },
+    ];
+    providersState.defaultAccountId = 'qwen-default';
+
+    render(<Agents />);
+
+    await waitFor(() => {
+      expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByTitle('settings'));
+    fireEvent.click(
+      screen.getByText('settingsDialog.modelLabel').closest('button') as HTMLButtonElement
+    );
+
+    expect(
+      await screen.findByText((_, element) =>
+        Boolean(element?.textContent === 'settingsDialog.modelPreview: qwen/qwen3.5-plus')
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common:actions.save' })).toBeEnabled();
+  });
+
   it('keeps the last agent snapshot visible while a refresh is in flight', async () => {
     agentsState.agents = [
       {

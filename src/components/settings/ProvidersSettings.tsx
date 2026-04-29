@@ -91,6 +91,12 @@ function getProtocolBaseUrlPlaceholder(apiProtocol: ProviderAccount['apiProtocol
   return 'https://api.example.com/v1';
 }
 
+function getDefaultModelIdForProviderType(
+  typeInfo: (typeof PROVIDER_TYPE_INFO)[number] | undefined
+): string {
+  return typeInfo?.availableModels?.[0] || typeInfo?.defaultModelId || '';
+}
+
 function fallbackProviderIdsEqual(a?: string[], b?: string[]): boolean {
   const left = normalizeFallbackProviderIds(a).sort();
   const right = normalizeFallbackProviderIds(b).sort();
@@ -814,7 +820,7 @@ function ProviderCard({
                         setArkMode('apikey');
                         setBaseUrl(typeInfo?.defaultBaseUrl || '');
                         if (modelId.trim() === codePlanPreset.modelId) {
-                          setModelId(typeInfo?.defaultModelId || '');
+                          setModelId(getDefaultModelIdForProviderType(typeInfo));
                         }
                       }}
                       className={cn(
@@ -1501,7 +1507,7 @@ function AddProviderDialog({
                     setSelectedType(type.id);
                     setName(type.id === 'custom' ? t('aiProviders.custom') : type.name);
                     setBaseUrl(type.defaultBaseUrl || '');
-                    setModelId(type.defaultModelId || '');
+                    setModelId(getDefaultModelIdForProviderType(type));
                     setUserAgent('');
                     setShowAdvancedConfig(false);
                     setArkMode('apikey');
@@ -1693,17 +1699,43 @@ function AddProviderDialog({
                     <Label htmlFor="modelId" className={labelClasses}>
                       {t('aiProviders.dialog.modelId')}
                     </Label>
-                    <Input
-                      data-testid="add-provider-model-id-input"
-                      id="modelId"
-                      placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
-                      value={modelId}
-                      onChange={(e) => {
-                        setModelId(e.target.value);
-                        setValidationError(null);
-                      }}
-                      className={inputClasses}
-                    />
+                    {typeInfo?.availableModels && typeInfo.availableModels.length > 0 ? (
+                      <Select
+                        value={modelId}
+                        onValueChange={(value) => {
+                          setModelId(value);
+                          setValidationError(null);
+                        }}
+                      >
+                        <SelectTrigger
+                          data-testid="add-provider-model-id-select"
+                          className={cn(inputClasses, 'h-[44px]')}
+                        >
+                          <SelectValue
+                            placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {typeInfo.availableModels.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        data-testid="add-provider-model-id-input"
+                        id="modelId"
+                        placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
+                        value={modelId}
+                        onChange={(e) => {
+                          setModelId(e.target.value);
+                          setValidationError(null);
+                        }}
+                        className={inputClasses}
+                      />
+                    )}
                   </div>
                 )}
                 {selectedType === 'ark' && codePlanPreset && (
@@ -1732,7 +1764,7 @@ function AddProviderDialog({
                           setArkMode('apikey');
                           setBaseUrl(typeInfo?.defaultBaseUrl || '');
                           if (modelId.trim() === codePlanPreset.modelId) {
-                            setModelId(typeInfo?.defaultModelId || '');
+                            setModelId(getDefaultModelIdForProviderType(typeInfo));
                           }
                           setValidationError(null);
                         }}
