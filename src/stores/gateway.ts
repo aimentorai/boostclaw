@@ -142,20 +142,41 @@ function handleGatewayNotification(
     return;
   }
 
-  const p = payload.params;
+  let p = payload.params;
+  // Some Gateway builds send protocol events as:
+  // { method: 'agent', params: { method: 'agent', params: {...actual event...} } }.
+  // Unwrap that shape so phase/error completion events do not get lost.
+  if (
+    p.method === 'agent' &&
+    p.params &&
+    typeof p.params === 'object' &&
+    !Array.isArray(p.params)
+  ) {
+    p = p.params as Record<string, unknown>;
+  }
   const data = p.data && typeof p.data === 'object' ? (p.data as Record<string, unknown>) : {};
   const phase = data.phase ?? p.phase;
-  const hasChatData = (p.state ?? data.state) || (p.message ?? data.message);
+  const errorMessage =
+    p.errorMessage ??
+    data.errorMessage ??
+    p.error ??
+    data.error ??
+    p.rawError ??
+    data.rawError;
+  const isError = p.isError === true || data.isError === true || Boolean(errorMessage);
+  const hasChatData = (p.state ?? data.state) || (p.message ?? data.message) || isError;
 
   if (hasChatData) {
+    const state = p.state ?? data.state ?? (isError ? 'error' : undefined);
     const normalizedEvent: Record<string, unknown> = {
       ...data,
       runId: p.runId ?? data.runId,
       sessionKey: p.sessionKey ?? data.sessionKey,
       stream: p.stream ?? data.stream,
       seq: p.seq ?? data.seq,
-      state: p.state ?? data.state,
+      state,
       message: p.message ?? data.message,
+      errorMessage: errorMessage != null ? String(errorMessage) : undefined,
     };
     if (shouldProcessGatewayEvent(normalizedEvent)) {
       withChatStore((useChatStore) => {
@@ -211,7 +232,7 @@ function handleGatewayNotification(
           activeRunId: null,
           pendingFinal: false,
           lastUserMessageAt: null,
-          error: null,
+          error: isError && errorMessage != null ? String(errorMessage) : null,
         });
       }
     });

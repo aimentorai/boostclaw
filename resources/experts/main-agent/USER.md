@@ -1,0 +1,6 @@
+- 时区: Asia/Shanghai
+- 语言: zh-CN
+- 业务: TikTok 跨境电商
+- 核心需求: 视频营销自动化、选品分析、卖家建联
+- 沟通偏好: 简洁中文、数据驱动
+- 初始化验证: USER_BOOTSTRAP_TEST_MARKER: 2026-04-29-v16

@@ -25,6 +25,10 @@ export interface ExpertManifestEntry {
   category: string;
   systemPrompt: string;
   identityPrompt: string;
+  agentsPrompt?: string;
+  toolsPrompt?: string;
+  userPrompt?: string;
+  heartbeatPrompt?: string;
   welcomeMessage: string;
   suggestedPrompts: string[];
   requiredSkills: string[];
@@ -76,17 +80,54 @@ export async function readExpertManifest(): Promise<ExpertManifest> {
   }
 }
 
-/** Bundled overrides for the primary (main) agent workspace — SOUL.md / IDENTITY.md source. */
+/** Bundled overrides for the primary (main) agent workspace prompt files. */
 export interface MainAgentBootstrapFile {
   /** Bump when changing prompts so main workspace bootstrap files are rewritten. */
   version: number;
+  /** Inline SOUL.md content, or use systemPromptFile for an editable Markdown file. */
   systemPrompt: string;
+  systemPromptFile?: string;
   identityPrompt?: string;
+  identityPromptFile?: string;
+  /** Optional AGENTS.md content for the main workspace. */
+  agentsPrompt?: string;
+  agentsPromptFile?: string;
+  /** Optional TOOLS.md content for the main workspace. */
+  toolsPrompt?: string;
+  toolsPromptFile?: string;
+  /** Optional USER.md content for the main workspace. */
+  userPrompt?: string;
+  userPromptFile?: string;
+  /** Optional HEARTBEAT.md content for the main workspace. */
+  heartbeatPrompt?: string;
+  heartbeatPromptFile?: string;
   /** Drives SparkBoost TOOLS.md; omit or leave empty to inherit from the merge manifest row. */
   requiredSkills?: string[];
 }
 
 const MAIN_AGENT_BOOTSTRAP_FILENAME = 'main-agent-bootstrap.json';
+
+async function resolveBootstrapPromptFile(
+  bootstrapDir: string,
+  filePath: unknown,
+  fieldName: string
+): Promise<string | undefined> {
+  if (typeof filePath !== 'string' || !filePath.trim()) return undefined;
+  const normalized = filePath.trim();
+  if (normalized.startsWith('/') || normalized.includes('..')) {
+    logger.warn(`main-agent-bootstrap.json: ignoring unsafe ${fieldName}`, { filePath: normalized });
+    return undefined;
+  }
+  try {
+    return await readFile(join(bootstrapDir, normalized), 'utf-8');
+  } catch (err) {
+    logger.warn(`main-agent-bootstrap.json: failed to read ${fieldName}`, {
+      filePath: normalized,
+      error: String(err),
+    });
+    return undefined;
+  }
+}
 
 /**
  * Read optional `resources/experts/main-agent-bootstrap.json`.
@@ -97,13 +138,51 @@ export async function readMainAgentBootstrap(): Promise<MainAgentBootstrapFile |
   try {
     const raw = await readFile(path, 'utf-8');
     const data = JSON.parse(raw) as MainAgentBootstrapFile;
-    if (typeof data.systemPrompt !== 'string' || !data.systemPrompt.trim()) {
+    const bootstrapDir = join(getResourcesDir(), 'experts');
+    const systemPrompt =
+      typeof data.systemPrompt === 'string'
+        ? data.systemPrompt
+        : await resolveBootstrapPromptFile(bootstrapDir, data.systemPromptFile, 'systemPromptFile');
+    const identityPrompt =
+      typeof data.identityPrompt === 'string'
+        ? data.identityPrompt
+        : await resolveBootstrapPromptFile(bootstrapDir, data.identityPromptFile, 'identityPromptFile');
+    const agentsPrompt =
+      typeof data.agentsPrompt === 'string'
+        ? data.agentsPrompt
+        : await resolveBootstrapPromptFile(bootstrapDir, data.agentsPromptFile, 'agentsPromptFile');
+    const toolsPrompt =
+      typeof data.toolsPrompt === 'string'
+        ? data.toolsPrompt
+        : await resolveBootstrapPromptFile(bootstrapDir, data.toolsPromptFile, 'toolsPromptFile');
+    const userPrompt =
+      typeof data.userPrompt === 'string'
+        ? data.userPrompt
+        : await resolveBootstrapPromptFile(bootstrapDir, data.userPromptFile, 'userPromptFile');
+    const heartbeatPrompt =
+      typeof data.heartbeatPrompt === 'string'
+        ? data.heartbeatPrompt
+        : await resolveBootstrapPromptFile(
+            bootstrapDir,
+            data.heartbeatPromptFile,
+            'heartbeatPromptFile'
+          );
+    if (!systemPrompt?.trim()) {
       logger.warn('main-agent-bootstrap.json: missing or empty systemPrompt');
       return null;
     }
     const version =
       typeof data.version === 'number' && Number.isFinite(data.version) ? data.version : 1;
-    return { ...data, version };
+    return {
+      ...data,
+      version,
+      systemPrompt,
+      identityPrompt,
+      agentsPrompt,
+      toolsPrompt,
+      userPrompt,
+      heartbeatPrompt,
+    };
   } catch (err) {
     logger.warn('main-agent-bootstrap.json not found or invalid:', err);
     return null;
@@ -127,6 +206,15 @@ function mergeMainBootstrapOverrides(
     systemPrompt: bootstrap.systemPrompt,
     identityPrompt:
       typeof bootstrap.identityPrompt === 'string' ? bootstrap.identityPrompt : expert.identityPrompt,
+    agentsPrompt:
+      typeof bootstrap.agentsPrompt === 'string' ? bootstrap.agentsPrompt : expert.agentsPrompt,
+    toolsPrompt:
+      typeof bootstrap.toolsPrompt === 'string' ? bootstrap.toolsPrompt : expert.toolsPrompt,
+    userPrompt: typeof bootstrap.userPrompt === 'string' ? bootstrap.userPrompt : expert.userPrompt,
+    heartbeatPrompt:
+      typeof bootstrap.heartbeatPrompt === 'string'
+        ? bootstrap.heartbeatPrompt
+        : expert.heartbeatPrompt,
     requiredSkills: Array.isArray(bootstrap.requiredSkills)
       ? bootstrap.requiredSkills
       : expert.requiredSkills,
@@ -255,19 +343,37 @@ async function writeExpertBootstrapFiles(
   if (expert.identityPrompt) {
     await writeFile(join(workspace, 'IDENTITY.md'), expert.identityPrompt, 'utf-8');
   }
-  // TOOLS.md — for any expert using SparkBoost skills
-  if (expertUsesSparkBoost(expert)) {
+  // Long-lived prompt files can be overridden from main-agent-bootstrap.json:
+  // AGENTS.md, SOUL.md, TOOLS.md, USER.md, HEARTBEAT.md. BOOTSTRAP.md is
+  // intentionally not handled here because it is a one-shot startup task file.
+  if (expert.toolsPrompt && expert.toolsPrompt.trim()) {
+    await writeFile(join(workspace, 'TOOLS.md'), expert.toolsPrompt, 'utf-8');
+  } else if (expertUsesSparkBoost(expert)) {
     const toolsMd = await readPluginToolsMd('sparkboost');
     if (toolsMd) {
       await writeFile(join(workspace, 'TOOLS.md'), toolsMd, 'utf-8');
     }
   }
   // USER.md — all experts
-  await writeFile(join(workspace, 'USER.md'), generateUserMd(), 'utf-8');
+  await writeFile(
+    join(workspace, 'USER.md'),
+    expert.userPrompt && expert.userPrompt.trim() ? expert.userPrompt : generateUserMd(),
+    'utf-8'
+  );
   // AGENTS.md — workspace guide
-  await writeFile(join(workspace, 'AGENTS.md'), AGENTS_MD, 'utf-8');
+  await writeFile(
+    join(workspace, 'AGENTS.md'),
+    expert.agentsPrompt && expert.agentsPrompt.trim() ? expert.agentsPrompt : AGENTS_MD,
+    'utf-8'
+  );
   // HEARTBEAT.md — periodic checks
-  await writeFile(join(workspace, 'HEARTBEAT.md'), HEARTBEAT_MD, 'utf-8');
+  await writeFile(
+    join(workspace, 'HEARTBEAT.md'),
+    expert.heartbeatPrompt && expert.heartbeatPrompt.trim()
+      ? expert.heartbeatPrompt
+      : HEARTBEAT_MD,
+    'utf-8'
+  );
 }
 
 /**
