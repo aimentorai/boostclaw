@@ -286,15 +286,6 @@ export function ProvidersSettings() {
     }
   };
 
-  const handleSetDefault = async (providerId: string) => {
-    try {
-      await setDefaultAccount(providerId);
-      toast.success(t('aiProviders.toast.defaultUpdated'));
-    } catch (error) {
-      toast.error(`${t('aiProviders.toast.failedDefault')}: ${error}`);
-    }
-  };
-
   return (
     <div data-testid="providers-settings" className="space-y-6">
       {systemDefaultProviderInfo && !systemDefaultProviderInfo.available && (
@@ -359,7 +350,6 @@ export function ProvidersSettings() {
               onEdit={() => setEditingProvider(item.account.id)}
               onCancelEdit={() => setEditingProvider(null)}
               onDelete={() => handleDeleteProvider(item.account.id)}
-              onSetDefault={() => handleSetDefault(item.account.id)}
               onSaveEdits={async (payload) => {
                 const updates: Partial<ProviderAccount> = {};
                 if (payload.updates) {
@@ -409,7 +399,6 @@ interface ProviderCardProps {
   onEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
-  onSetDefault: () => void;
   onSaveEdits: (payload: {
     newApiKey?: string;
     updates?: Partial<ProviderConfig>;
@@ -429,7 +418,6 @@ function ProviderCard({
   onEdit,
   onCancelEdit,
   onDelete,
-  onSetDefault,
   onSaveEdits,
   onValidateKey,
   devModeUnlocked,
@@ -711,18 +699,6 @@ function ProviderCard({
 
         {!isEditing && (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {!isDefault && (
-              <Button
-                data-testid={`provider-set-default-${account.id}`}
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600 hover:bg-white dark:hover:bg-card shadow-sm"
-                onClick={onSetDefault}
-                title={t('aiProviders.card.setDefault')}
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-            )}
             <>
               <Button
                 data-testid={`provider-edit-${account.id}`}
