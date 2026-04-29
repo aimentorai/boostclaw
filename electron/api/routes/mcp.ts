@@ -2,7 +2,7 @@
  * MCP Server API Routes
  *
  * REST endpoints for managing MCP server configurations stored in
- * ~/.openclaw/openclaw.json under mcp.servers.
+ * ~/.boostclaw/openclaw/openclaw.json under mcp.servers.
  */
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { HostApiContext } from '../context';

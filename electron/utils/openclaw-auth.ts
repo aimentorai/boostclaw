@@ -660,7 +660,7 @@ export function buildProviderEnvVars(
 
 /**
  * Update the OpenClaw config to use the given provider and model
- * Writes to ~/.openclaw/openclaw.json
+ * Writes to ~/.boostclaw/openclaw/openclaw.json
  */
 export async function setOpenClawDefaultModel(
   provider: string,
@@ -1140,7 +1140,7 @@ export async function getOpenClawProvidersConfig(): Promise<{
 }
 
 /**
- * Write the BoostClaw gateway token into ~/.openclaw/openclaw.json.
+ * Write the BoostClaw gateway token into ~/.boostclaw/openclaw/openclaw.json.
  */
 export async function syncGatewayTokenToConfig(token: string): Promise<void> {
   return withConfigLock(async () => {
@@ -1188,7 +1188,7 @@ export async function syncGatewayTokenToConfig(token: string): Promise<void> {
 }
 
 /**
- * Ensure browser automation is enabled in ~/.openclaw/openclaw.json.
+ * Ensure browser automation is enabled in ~/.boostclaw/openclaw/openclaw.json.
  */
 export async function syncBrowserConfigToOpenClaw(): Promise<void> {
   return withConfigLock(async () => {
@@ -1221,7 +1221,7 @@ export async function syncBrowserConfigToOpenClaw(): Promise<void> {
 }
 
 /**
- * Ensure session idle-reset is configured in ~/.openclaw/openclaw.json.
+ * Ensure session idle-reset is configured in ~/.boostclaw/openclaw/openclaw.json.
  *
  * By default OpenClaw resets the "main" session daily at 04:00 local time,
  * which means conversations disappear after roughly one day.  BoostClaw sets
@@ -1302,7 +1302,7 @@ function inferCacheRetention(provider: string, modelRef: string): string | undef
 const ANTHROPIC_PROVIDERS = new Set(['anthropic', 'anthropic-vertex']);
 
 /**
- * Sync performance-optimized defaults into `~/.openclaw/openclaw.json`.
+ * Sync performance-optimized defaults into `~/.boostclaw/openclaw/openclaw.json`.
  *
  * Injects two layers of defaults (only when the user hasn't configured them):
  *
@@ -1503,7 +1503,7 @@ export async function updateSingleAgentModelProvider(
 }
 
 /**
- * Sanitize ~/.openclaw/openclaw.json before Gateway start.
+ * Sanitize ~/.boostclaw/openclaw/openclaw.json before Gateway start.
  *
  * Removes known-invalid keys that cause OpenClaw's strict Zod validation
  * to reject the entire config on startup.  Uses a conservative **blocklist**
@@ -1724,7 +1724,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     // BoostClaw is a local desktop app where the user is the trusted operator.
     // Exec approval prompts add unnecessary friction in this context, so we
     // set security="full" (allow all commands) and ask="off" (never prompt).
-    // If a user has manually configured a stricter ~/.openclaw/exec-approvals.json,
+    // If a user has manually configured a stricter ~/.boostclaw/openclaw/exec-approvals.json,
     // OpenClaw's minSecurity/maxAsk merge will still respect their intent.
     const execConfig = (toolsConfig.exec as Record<string, unknown> | undefined) || {};
     if (execConfig.security !== 'full' || execConfig.ask !== 'off') {

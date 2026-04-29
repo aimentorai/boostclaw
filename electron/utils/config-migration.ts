@@ -74,8 +74,9 @@ export function runFirstLaunchMigration(): boolean {
     const legacyConfig = JSON.parse(raw) as Record<string, unknown>;
 
     // Only import provider/API key settings and gateway config.
-    // Do NOT import: agents (workspace paths bound to ~/.openclaw),
-    // channels (plugin state in ~/.openclaw), sessions, skills.
+    // Do NOT import: agents (workspace paths bound to the legacy global
+    // OpenClaw directory), channels (plugin state in that legacy directory),
+    // sessions, skills.
     const migrated: Record<string, unknown> = {};
 
     if (legacyConfig.providers && typeof legacyConfig.providers === 'object') {

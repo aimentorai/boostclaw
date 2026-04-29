@@ -1,6 +1,6 @@
 /**
  * Skill Config Utilities
- * Direct read/write access to skill configuration in ~/.openclaw/openclaw.json
+ * Direct read/write access to skill configuration in ~/.boostclaw/openclaw/openclaw.json
  * This bypasses the Gateway RPC for faster and more reliable config updates.
  *
  * All file I/O uses async fs/promises to avoid blocking the main thread.
@@ -193,13 +193,13 @@ export async function getAllSkillConfigs(): Promise<Record<string, SkillEntry>> 
 
 /**
  * Built-in skills bundled with BoostClaw that should be pre-deployed to
- * ~/.openclaw/skills/ on first launch.  These come from the openclaw package's
+ * ~/.boostclaw/openclaw/skills/ on first launch.  These come from the openclaw package's
  * extensions directory and are available in both dev and packaged builds.
  */
 const BUILTIN_SKILLS = [] as const;
 
 /**
- * Ensure built-in skills are deployed to ~/.openclaw/skills/<slug>/.
+ * Ensure built-in skills are deployed to ~/.boostclaw/openclaw/skills/<slug>/.
  * Skips any skill that already has a SKILL.md present (idempotent).
  * Runs at app startup; all errors are logged and swallowed so they never
  * block the normal startup flow.
@@ -312,7 +312,7 @@ async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | n
 
 /**
  * Ensure third-party preinstalled skills (bundled in app resources) are
- * deployed to ~/.openclaw/skills/<slug>/ as full directories.
+ * deployed to ~/.boostclaw/openclaw/skills/<slug>/ as full directories.
  *
  * Policy:
  * - If skill is missing locally, install it.

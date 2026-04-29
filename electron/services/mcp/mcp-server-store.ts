@@ -1,7 +1,7 @@
 /**
  * MCP Server Config Store
  *
- * Manages MCP server entries in ~/.openclaw/openclaw.json under `mcp.servers`.
+ * Manages MCP server entries in ~/.boostclaw/openclaw/openclaw.json under `mcp.servers`.
  * Uses the shared config mutex (`withConfigLock`) to prevent races with other
  * writers (subscription sync, skill-config, channel-config, etc.).
  *

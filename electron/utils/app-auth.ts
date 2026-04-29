@@ -178,9 +178,10 @@ const SUBSCRIPTION_AUTO_TRIAL_BASE_URL = 'https://open.microdata-inc.com/subscri
 const SUBSCRIPTION_MCP_CONFIG_URL = 'https://open.microdata-inc.com/subscription/mcp-config';
 const SUBSCRIPTION_INTERNAL_TOKEN = '1234567890';
 const AUTH_MASK_TIMEOUT_MS = 15_000;
-// MCP server names that must never be written into ~/.openclaw/openclaw.json
-// regardless of what the subscription endpoint returns. Operators can extend
-// the list via env (comma-separated) without shipping a new build.
+// MCP server names that must never be written into the BoostClaw-managed
+// OpenClaw config, regardless of what the subscription endpoint returns.
+// Operators can extend the list via env (comma-separated) without shipping a
+// new build.
 const DEFAULT_MCP_BLOCKED_SERVER_NAMES = ['proboost-patent-mcp'];
 const MCP_BLOCKED_SERVER_NAMES = new Set<string>([
   ...DEFAULT_MCP_BLOCKED_SERVER_NAMES,

@@ -437,7 +437,8 @@ async function initialize(): Promise<void> {
   // Note: Auto-check for updates is driven by the renderer (update store init)
   // so it respects the user's "Auto-check for updates" setting.
 
-  // Migrate config from legacy ~/.openclaw/ to isolated ~/.boostclaw/openclaw/
+  // Migrate config from the legacy global OpenClaw directory to BoostClaw's
+  // isolated OpenClaw directory.
   if (!isE2EMode) {
     try {
       runFirstLaunchMigration();
@@ -461,7 +462,7 @@ async function initialize(): Promise<void> {
   }
 
   // Pre-deploy built-in skills (feishu-doc, feishu-drive, feishu-perm, feishu-wiki)
-  // to ~/.openclaw/skills/ so they are immediately available without manual install.
+  // to ~/.boostclaw/openclaw/skills/ so they are immediately available without manual install.
   if (!isE2EMode) {
     startupTimer.mark('skills_start');
     void ensureBuiltinSkillsInstalled().catch((error) => {
@@ -498,7 +499,7 @@ async function initialize(): Promise<void> {
   }
 
   // Pre-deploy/upgrade bundled OpenClaw plugins (dingtalk, wecom, feishu, wechat)
-  // to ~/.openclaw/extensions/ so they are always up-to-date after an app update.
+  // to ~/.boostclaw/openclaw/extensions/ so they are always up-to-date after an app update.
   // Note: qqbot was moved to a built-in channel in OpenClaw 3.31.
   if (!isE2EMode) {
     startupTimer.mark('plugins_start');

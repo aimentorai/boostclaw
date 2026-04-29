@@ -70,7 +70,59 @@ describe('expert-init', () => {
       const result = generateUserMd();
       expect(result).toContain('时区:');
       expect(result).toContain('语言:');
-      expect(result).toContain('业务场景: TikTok 跨境电商营销');
+      expect(result).toContain('业务: TikTok 跨境电商');
+    });
+  });
+
+  describe('readMainAgentBootstrap', () => {
+    it('reads optional prompt overrides', async () => {
+      const { readMainAgentBootstrap } = await import('@electron/utils/expert-init');
+      const { mkdirSync } = await import('fs');
+      const expertsDir = join(resourcesDir, 'experts');
+      mkdirSync(expertsDir, { recursive: true });
+      writeFileSync(
+        join(expertsDir, 'main-agent-bootstrap.json'),
+        JSON.stringify({
+          version: 14,
+          systemPrompt: 'system',
+          identityPrompt: 'identity',
+          agentsPrompt: '# Custom AGENTS',
+          toolsPrompt: '# Custom TOOLS',
+          userPrompt: '# Custom USER',
+          heartbeatPrompt: '# Custom HEARTBEAT',
+        }),
+        'utf-8'
+      );
+
+      const result = await readMainAgentBootstrap();
+      expect(result?.version).toBe(14);
+      expect(result?.agentsPrompt).toBe('# Custom AGENTS');
+      expect(result?.toolsPrompt).toBe('# Custom TOOLS');
+      expect(result?.userPrompt).toBe('# Custom USER');
+      expect(result?.heartbeatPrompt).toBe('# Custom HEARTBEAT');
+    });
+
+    it('loads prompt overrides from referenced files', async () => {
+      const { readMainAgentBootstrap } = await import('@electron/utils/expert-init');
+      const { mkdirSync } = await import('fs');
+      const expertsDir = join(resourcesDir, 'experts');
+      const promptsDir = join(expertsDir, 'main-agent');
+      mkdirSync(promptsDir, { recursive: true });
+      writeFileSync(join(promptsDir, 'SOUL.md'), '# File SOUL', 'utf-8');
+      writeFileSync(join(promptsDir, 'AGENTS.md'), '# File AGENTS', 'utf-8');
+      writeFileSync(
+        join(expertsDir, 'main-agent-bootstrap.json'),
+        JSON.stringify({
+          version: 16,
+          systemPromptFile: 'main-agent/SOUL.md',
+          agentsPromptFile: 'main-agent/AGENTS.md',
+        }),
+        'utf-8'
+      );
+
+      const result = await readMainAgentBootstrap();
+      expect(result?.systemPrompt).toBe('# File SOUL');
+      expect(result?.agentsPrompt).toBe('# File AGENTS');
     });
   });
 

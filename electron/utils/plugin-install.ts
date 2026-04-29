@@ -134,8 +134,9 @@ const MANIFEST_ID_FIXES: Record<string, string> = {
 };
 
 /**
- * After a plugin has been copied to ~/.openclaw/extensions/<dir>, fix any
- * known manifest-ID mismatches so the Gateway can load the plugin.
+ * After a plugin has been copied to the BoostClaw-managed OpenClaw extensions
+ * directory, fix any known manifest-ID mismatches so the Gateway can load the
+ * plugin.
  * Also patches package.json fields that the Gateway uses as "entry hints".
  */
 export function fixupPluginManifest(targetDir: string): void {
@@ -655,8 +656,9 @@ export function ensureSparkBoostPluginInstalled(): { installed: boolean; warning
  * Ensure the SparkBoost plugin is registered in openclaw.json plugins.entries.
  *
  * The file-copy step (`ensureSparkBoostPluginInstalled`) installs the plugin
- * to ~/.openclaw/extensions/sparkboost/, but the Gateway only loads plugins
- * that appear in `plugins.entries` with `enabled: true`.  Channel plugins
+ * to the BoostClaw-managed OpenClaw extensions directory, but the Gateway only
+ * loads plugins that appear in `plugins.entries` with `enabled: true`.
+ * Channel plugins
  * (dingtalk, weixin, etc.) are registered by channel-config.ts during setup,
  * but SparkBoost is a tool plugin with no equivalent registration path.
  */
@@ -729,9 +731,9 @@ const ALL_BUNDLED_PLUGINS = [
 ] as const;
 
 /**
- * Ensure all bundled OpenClaw plugins are installed/upgraded in
- * `~/.openclaw/extensions/`.  Designed to be called once at app startup
- * as a fire-and-forget task — errors are logged but never thrown.
+ * Ensure all bundled OpenClaw plugins are installed/upgraded in the
+ * BoostClaw-managed OpenClaw extensions directory.  Designed to be called once
+ * at app startup as a fire-and-forget task — errors are logged but never thrown.
  */
 export async function ensureAllBundledPluginsInstalled(): Promise<void> {
   for (const { fn, label } of ALL_BUNDLED_PLUGINS) {

@@ -1,6 +1,6 @@
 /**
  * Async mutex for serializing read-modify-write operations on
- * ~/.openclaw/openclaw.json.
+ * ~/.boostclaw/openclaw/openclaw.json.
  *
  * Multiple code paths (channel-config, openclaw-auth, openclaw-proxy,
  * skill-config, agent-config) perform async read → modify → write against

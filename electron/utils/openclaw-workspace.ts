@@ -53,7 +53,7 @@ export function mergeBoostClawSection(existing: string, section: string): string
 /**
  * Collect all unique workspace directories from the openclaw config:
  * the defaults workspace, each agent's workspace, and any workspace-*
- * directories that already exist under ~/.openclaw/.
+ * directories that already exist under ~/.boostclaw/openclaw/.
  */
 async function resolveAllWorkspaceDirs(): Promise<string[]> {
   const openclawDir = getOpenClawConfigDir();
@@ -83,7 +83,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
     // ignore config parse errors
   }
 
-  // We intentionally do NOT scan ~/.openclaw/ for any directory starting
+  // We intentionally do NOT scan ~/.boostclaw/openclaw/ for any directory starting
   // with 'workspace'. Doing so causes a race condition where a recently deleted
   // agent's workspace (e.g., workspace-code23) is found and resuscitated by
   // the context merge routine before its deletion finishes. Only workspaces

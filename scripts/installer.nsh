@@ -283,9 +283,9 @@
 
   _cu_pathDone:
 
-  ; Ask user if they want to remove AppData (preserves .openclaw)
+  ; Ask user if they want to remove AppData (preserves managed OpenClaw data)
   MessageBox MB_YESNO|MB_ICONQUESTION \
-    "Do you want to remove BoostClaw application data?$\r$\n$\r$\nThis will delete:$\r$\n  • AppData\Local\BoostClaw (local app data)$\r$\n  • AppData\Roaming\BoostClaw (roaming app data)$\r$\n$\r$\nYour .openclaw folder (configuration & skills) will be preserved.$\r$\nSelect 'No' to keep all data for future reinstallation." \
+    "Do you want to remove BoostClaw application data?$\r$\n$\r$\nThis will delete:$\r$\n  • AppData\Local\BoostClaw (local app data)$\r$\n  • AppData\Roaming\BoostClaw (roaming app data)$\r$\n$\r$\nYour BoostClaw-managed OpenClaw data under the user profile (configuration & skills) will be preserved.$\r$\nSelect 'No' to keep all data for future reinstallation." \
     /SD IDNO IDYES _cu_removeData IDNO _cu_skipRemove
 
   _cu_removeData:
@@ -303,7 +303,8 @@
     Sleep 2000
 
     ; --- Always remove current user's AppData first ---
-    ; NOTE: .openclaw directory is intentionally preserved (user configuration & skills)
+    ; NOTE: BoostClaw's managed OpenClaw directory is intentionally preserved
+    ; (user configuration & skills)
     RMDir /r "$LOCALAPPDATA\BoostClaw"
     RMDir /r "$APPDATA\BoostClaw"
 
@@ -354,7 +355,7 @@
     ExpandEnvStrings $R3 $R2
     StrCmp $R3 $PROFILE _cu_enumNext
 
-    ; NOTE: .openclaw directory is intentionally preserved for all users
+    ; NOTE: BoostClaw's managed OpenClaw directory is intentionally preserved for all users
     RMDir /r "$R3\AppData\Local\BoostClaw"
     RMDir /r "$R3\AppData\Roaming\BoostClaw"
 

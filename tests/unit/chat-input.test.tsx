@@ -5,6 +5,8 @@ import { ChatInput } from '@/pages/Chat/ChatInput';
 const { agentsState, chatState, gatewayState, skillsState, providersState } = vi.hoisted(() => ({
   agentsState: {
     agents: [] as Array<Record<string, unknown>>,
+    loading: false,
+    fetchAgents: vi.fn(async () => undefined),
     updateAgentModel: vi.fn(async () => undefined),
     defaultModelRef: null as string | null,
   },
@@ -31,7 +33,13 @@ const { agentsState, chatState, gatewayState, skillsState, providersState } = vi
 }));
 
 vi.mock('@/stores/agents', () => ({
-  useAgentsStore: (selector: (state: typeof agentsState) => unknown) => selector(agentsState),
+  useAgentsStore: Object.assign(
+    (selector: (state: typeof agentsState) => unknown) => selector(agentsState),
+    {
+      getState: () => agentsState,
+      subscribe: vi.fn(() => vi.fn()),
+    }
+  ),
 }));
 
 vi.mock('@/stores/chat', () => ({
@@ -43,7 +51,13 @@ vi.mock('@/stores/gateway', () => ({
 }));
 
 vi.mock('@/stores/skills', () => ({
-  useSkillsStore: (selector: (state: typeof skillsState) => unknown) => selector(skillsState),
+  useSkillsStore: Object.assign(
+    (selector: (state: typeof skillsState) => unknown) => selector(skillsState),
+    {
+      getState: () => skillsState,
+      subscribe: vi.fn(() => vi.fn()),
+    }
+  ),
 }));
 
 vi.mock('@/stores/providers', () => ({
@@ -71,6 +85,14 @@ function translate(key: string, vars?: Record<string, unknown>): string {
       return `Chat agent: ${String(vars?.agent ?? '')}`;
     case 'composer.clearTarget':
       return 'Clear target agent';
+    case 'composer.selectModel':
+      return 'Select model';
+    case 'composer.selectSkill':
+      return 'Skills';
+    case 'composer.skill':
+      return 'Skills';
+    case 'composer.searchSkill':
+      return '搜索 Skill';
     case 'composer.targetChip':
       return `@${String(vars?.agent ?? '')}`;
     case 'composer.agentPickerTitle':
@@ -114,6 +136,7 @@ describe('ChatInput agent targeting', () => {
     chatState.messages = [];
     gatewayState.status = { state: 'running', port: 18789 };
     agentsState.defaultModelRef = null;
+    agentsState.fetchAgents.mockClear();
     agentsState.updateAgentModel.mockClear();
     skillsState.skills = [];
     skillsState.fetchSkills.mockClear();
@@ -196,7 +219,7 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByTitle('Skills'));
     fireEvent.click(screen.getByText('SQL Toolkit'));
 
-    expect(screen.getByTestId('chat-skill-chip')).toHaveTextContent('SQL Toolkit');
+    expect(screen.getByTestId('chat-skill-picker-button')).toHaveTextContent('SQL Toolkit');
   });
 
   it('filters skills by keyword in the skill picker', () => {
@@ -309,8 +332,8 @@ describe('ChatInput agent targeting', () => {
         modelRef: 'openai/gpt-5.4',
         overrideModelRef: null,
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
@@ -322,8 +345,8 @@ describe('ChatInput agent targeting', () => {
         modelRef: 'openai/gpt-5.4',
         overrideModelRef: null,
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace-research',
-        agentDir: '~/.openclaw/agents/research/agent',
+        workspace: '~/.boostclaw/openclaw/workspace-research',
+        agentDir: '~/.boostclaw/openclaw/agents/research/agent',
         mainSessionKey: 'agent:research:main',
         channelTypes: [],
       },
@@ -365,8 +388,8 @@ describe('ChatInput agent targeting', () => {
         modelRef: 'custom/qwen3.5-plus',
         overrideModelRef: null,
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
@@ -408,8 +431,8 @@ describe('ChatInput agent targeting', () => {
         modelRef: 'qwen/qwen3.5-plus',
         overrideModelRef: null,
         inheritedModel: true,
-        workspace: '~/.openclaw/workspace',
-        agentDir: '~/.openclaw/agents/main/agent',
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
         mainSessionKey: 'agent:main:main',
         channelTypes: [],
       },
