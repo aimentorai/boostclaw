@@ -656,7 +656,16 @@ export class AppAuthManager extends EventEmitter {
 </body>
 </html>`;
 
-    await mask.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    try {
+      await mask.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    } catch (error) {
+      if (mask.isDestroyed() || String(error).includes('ERR_FAILED')) {
+        logger.debug('[AppAuth] Auth mask load cancelled because the window was closed');
+        return;
+      }
+      logger.warn('[AppAuth] Failed to load auth mask window:', error);
+      return;
+    }
     if (!mask.isDestroyed()) {
       mask.showInactive();
       mask.moveTop();
@@ -2363,7 +2372,9 @@ export class AppAuthManager extends EventEmitter {
         return;
       }
       if (this.pendingFlow && !this.pendingFlow.completed) {
-        void this.showAuthMaskWindow();
+        void this.showAuthMaskWindow().catch((error) => {
+          logger.warn('[AppAuth] Failed to show auth mask window:', error);
+        });
       }
     };
 
