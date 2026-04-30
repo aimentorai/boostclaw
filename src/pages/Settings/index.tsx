@@ -106,8 +106,6 @@ type SubscriptionMcpConfigResponse = {
   error?: string;
 };
 
-const DISPLAY_VERSION = '0.1.0';
-
 export function Settings() {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
@@ -140,6 +138,7 @@ export function Settings() {
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
+  const [appVersion, setAppVersion] = useState('0.0.0');
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(null);
   const [openclawCliCommand, setOpenclawCliCommand] = useState('');
   const [openclawCliError, setOpenclawCliError] = useState<string | null>(null);
@@ -190,6 +189,22 @@ export function Settings() {
   const [subscriptionMcpConfig, setSubscriptionMcpConfig] =
     useState<SubscriptionMcpConfigResponse | null>(null);
   const [subscriptionMcpConfigLoading, setSubscriptionMcpConfigLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void invokeIpc<string>('app:version')
+      .then((version) => {
+        if (!cancelled && version) {
+          setAppVersion(version);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to get app version:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshSubscriptionQuotaSummary = async (): Promise<SubscriptionQuotaSummary> => {
     const result = await hostApiFetch<SubscriptionQuotaSummary>('/api/auth/subscription-quotas');
@@ -1659,7 +1674,7 @@ export function Settings() {
                 {t('about.tagline')}
               </p>
               <p>{t('about.basedOn')}</p>
-              <p>{t('about.version', { version: DISPLAY_VERSION })}</p>
+              <p>{t('about.version', { version: appVersion })}</p>
               <div className="flex gap-4 pt-3">
                 <Button
                   variant="link"
