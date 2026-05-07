@@ -12,8 +12,8 @@ import { logger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { setQuitting } from './app-state';
 
-/** Base CDN URL (without trailing channel path) */
-const OSS_BASE_URL = 'https://oss.intelli-spectrum.com';
+/** Base CDN URL. Stable release metadata lives at the bucket root. */
+const OSS_BASE_URL = 'https://boost-claw.oss-cn-hangzhou.aliyuncs.com';
 
 export interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
@@ -75,7 +75,7 @@ export class AppUpdater extends EventEmitter {
     // electron-builder always generates latest-*.yml regardless of channel.
     const version = app.getVersion();
     const channel = detectChannel(version);
-    const feedUrl = `${OSS_BASE_URL}/${channel}`;
+    const feedUrl = channel === 'latest' ? OSS_BASE_URL : `${OSS_BASE_URL}/${channel}`;
 
     logger.info(`[Updater] Version: ${version}, channel: ${channel}, feedUrl: ${feedUrl}`);
 

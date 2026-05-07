@@ -55,7 +55,7 @@ npmRebuild: false
 # Fallback: GitHub Releases (backup, used when OSS is unavailable)
 publish:
   - provider: generic
-    url: https://oss.intelli-spectrum.com/latest
+    url: https://boost-claw.oss-cn-hangzhou.aliyuncs.com
     useMultipleRangeRequest: false
   - provider: github
     owner: BoostClaw
