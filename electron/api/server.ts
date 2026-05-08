@@ -19,6 +19,7 @@ import { handleAuthRoutes } from './routes/auth';
 import { handleExpertRoutes } from './routes/experts';
 import { handleTemplateRoutes } from './routes/templates';
 import { handleMcpRoutes } from './routes/mcp';
+import { handleDiagnosticsRoutes } from './routes/diagnostics';
 import { sendJson, setCorsHeaders, requireJsonContentType } from './route-utils';
 
 type RouteHandler = (
@@ -45,6 +46,7 @@ const routeHandlers: RouteHandler[] = [
   handleLogRoutes,
   handleUsageRoutes,
   handleMcpRoutes,
+  handleDiagnosticsRoutes,
 ];
 
 /**

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  Activity,
   MessageCircle,
   Monitor,
   Sparkles,
@@ -234,6 +235,12 @@ export function Sidebar() {
       icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={1.8} />,
       label: t('sidebar.skills'),
       testId: 'sidebar-nav-skills',
+    },
+    {
+      to: '/diagnostics',
+      icon: <Activity className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      label: t('sidebar.diagnostics'),
+      testId: 'sidebar-nav-diagnostics',
     },
     {
       to: '/cron',

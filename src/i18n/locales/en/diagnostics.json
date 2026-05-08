@@ -1,0 +1,93 @@
+{
+  "title": "Health Dashboard",
+  "desc": "Local Gateway and log diagnostics with actionable issue summaries.",
+  "refreshed": "Diagnostics refreshed",
+  "failed": "Failed to load diagnostics",
+  "gateway": "Gateway",
+  "errors": "Errors",
+  "warnings": "Warnings",
+  "sampledLines": "{{count}} sampled lines",
+  "checkedAt": "Checked at {{time}}",
+  "notRun": "Not checked yet",
+  "issues": "Detected issues",
+  "noIssues": "No issues detected in the current snapshot.",
+  "evidence": "Evidence",
+  "status": {
+    "healthy": "Healthy",
+    "degraded": "Degraded",
+    "critical": "Critical",
+    "unknown": "Unknown"
+  },
+  "statusDesc": {
+    "healthy": "All monitored systems are operating normally.",
+    "degraded": "Some non-critical issues detected. The app is still usable but may have reduced functionality.",
+    "critical": "Critical issues detected. Core functionality may be unavailable or unstable.",
+    "unknown": "Diagnostics have not been run yet. Click \"Run Diagnostics\" to check system health."
+  },
+  "severity": {
+    "info": "Info",
+    "warning": "Warning",
+    "critical": "Critical"
+  },
+  "fixAction": {
+    "restartGateway": "Restart Gateway",
+    "runDoctor": "Run Doctor",
+    "runDoctorFix": "Run Doctor Fix",
+    "openLogs": "Open Logs",
+    "openProviderSettings": "Configure Providers",
+    "openChannelSettings": "Configure Channels",
+    "openProxySettings": "Proxy Settings",
+    "openMcpSettings": "MCP Settings"
+  },
+  "fixApplied": "Fix action applied",
+  "fixFailed": "Fix action failed",
+  "fixConfirmTitle": "Confirm Action",
+  "fixConfirmRestartGateway": "This will restart the Gateway process. Active chat sessions may be interrupted. Continue?",
+  "fixConfirmRunDoctorFix": "This will run OpenClaw Doctor Fix, which may modify configuration files. Continue?",
+  "fixRemainingIssues": "{{count}} issue(s) remaining after fix.",
+  "fixAllResolved": "All issues resolved!",
+  "export": "Export Report",
+  "exported": "Diagnostic report exported",
+  "exportFailed": "Failed to export report",
+  "logs": "Diagnostic Logs",
+  "logsCopy": "Copy",
+  "logsCopied": "Logs copied to clipboard",
+  "logsCopyFailed": "Failed to copy logs",
+  "logsFailed": "Failed to fetch logs",
+  "logsEmpty": "No log entries match the current filter.",
+  "logsSearch": "Search logs...",
+  "logsRedact": "Redact",
+  "logsLevelAll": "ALL",
+  "section": {
+    "gateway": "Gateway",
+    "app": "Application Logs",
+    "provider": "AI Providers",
+    "channel": "Channels",
+    "security": "Security",
+    "mcp": "MCP Servers",
+    "network": "Network",
+    "storage": "Storage",
+    "usage": "Usage"
+  },
+  "runDiagnostics": "Run Diagnostics",
+  "runDoctor": "Run Doctor",
+  "runDoctorFix": "Run Doctor Fix",
+  "lastChecked": "Last checked",
+  "overallStatus": "Overall Status",
+  "provider": {
+    "enabled": "Enabled",
+    "missingCredentials": "Missing Credentials",
+    "total": "Total Providers"
+  },
+  "channel": {
+    "connected": "Connected",
+    "error": "Error",
+    "connecting": "Connecting",
+    "disconnected": "Disconnected"
+  },
+  "security": {
+    "proxyEnabled": "Proxy",
+    "mcpServers": "MCP Servers",
+    "suspicious": "Suspicious"
+  }
+}

@@ -17,6 +17,7 @@ import enSkills from './locales/en/skills.json';
 import enCron from './locales/en/cron.json';
 import enSetup from './locales/en/setup.json';
 import enMcp from './locales/en/mcp.json';
+import enDiagnostics from './locales/en/diagnostics.json';
 
 // ZH
 import zhCommon from './locales/zh/common.json';
@@ -29,6 +30,7 @@ import zhSkills from './locales/zh/skills.json';
 import zhCron from './locales/zh/cron.json';
 import zhSetup from './locales/zh/setup.json';
 import zhMcp from './locales/zh/mcp.json';
+import zhDiagnostics from './locales/zh/diagnostics.json';
 
 // JA
 import jaCommon from './locales/ja/common.json';
@@ -41,6 +43,7 @@ import jaSkills from './locales/ja/skills.json';
 import jaCron from './locales/ja/cron.json';
 import jaSetup from './locales/ja/setup.json';
 import jaMcp from './locales/ja/mcp.json';
+import jaDiagnostics from './locales/ja/diagnostics.json';
 
 export const SUPPORTED_LANGUAGES = [
     { code: 'en', label: 'English' },
@@ -60,6 +63,7 @@ const resources = {
         cron: enCron,
         setup: enSetup,
         mcp: enMcp,
+        diagnostics: enDiagnostics,
     },
     zh: {
         common: zhCommon,
@@ -72,6 +76,7 @@ const resources = {
         cron: zhCron,
         setup: zhSetup,
         mcp: zhMcp,
+        diagnostics: zhDiagnostics,
     },
     ja: {
         common: jaCommon,
@@ -84,6 +89,7 @@ const resources = {
         cron: jaCron,
         setup: jaSetup,
         mcp: jaMcp,
+        diagnostics: jaDiagnostics,
     },
 };
 
@@ -95,7 +101,7 @@ i18n
         fallbackLng: 'en',
         supportedLngs: [...SUPPORTED_LANGUAGE_CODES],
         defaultNS: 'common',
-        ns: ['common', 'settings', 'dashboard', 'chat', 'channels', 'agents', 'skills', 'cron', 'setup', 'mcp'],
+        ns: ['common', 'settings', 'dashboard', 'chat', 'channels', 'agents', 'skills', 'cron', 'setup', 'mcp', 'diagnostics'],
         interpolation: {
             escapeValue: false, // React already escapes
         },

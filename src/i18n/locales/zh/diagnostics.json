@@ -1,0 +1,93 @@
+{
+  "title": "健康仪表盘",
+  "desc": "本地网关与日志诊断，汇总可操作的问题建议。",
+  "refreshed": "诊断已刷新",
+  "failed": "加载诊断失败",
+  "gateway": "网关",
+  "errors": "错误",
+  "warnings": "警告",
+  "sampledLines": "采样 {{count}} 行",
+  "checkedAt": "检查于 {{time}}",
+  "notRun": "尚未检查",
+  "issues": "发现的问题",
+  "noIssues": "当前快照未发现问题。",
+  "evidence": "触发证据",
+  "status": {
+    "healthy": "健康",
+    "degraded": "降级",
+    "critical": "严重",
+    "unknown": "未知"
+  },
+  "statusDesc": {
+    "healthy": "所有受监控系统运行正常。",
+    "degraded": "检测到一些非关键问题，应用仍可使用但部分功能可能受影响。",
+    "critical": "检测到严重问题，核心功能可能不可用或不稳定。",
+    "unknown": "尚未运行诊断。点击「运行诊断」检查系统健康状态。"
+  },
+  "severity": {
+    "info": "提示",
+    "warning": "警告",
+    "critical": "严重"
+  },
+  "fixAction": {
+    "restartGateway": "重启网关",
+    "runDoctor": "运行诊断",
+    "runDoctorFix": "运行 Doctor Fix",
+    "openLogs": "打开日志",
+    "openProviderSettings": "配置提供商",
+    "openChannelSettings": "配置通道",
+    "openProxySettings": "代理设置",
+    "openMcpSettings": "MCP 设置"
+  },
+  "fixApplied": "修复操作已执行",
+  "fixFailed": "修复操作失败",
+  "fixConfirmTitle": "确认操作",
+  "fixConfirmRestartGateway": "这将重启 Gateway 进程。正在进行的聊天会话可能会中断。是否继续？",
+  "fixConfirmRunDoctorFix": "这将运行 OpenClaw Doctor Fix，可能会修改配置文件。是否继续？",
+  "fixRemainingIssues": "修复后仍有 {{count}} 个问题。",
+  "fixAllResolved": "所有问题已解决！",
+  "export": "导出报告",
+  "exported": "诊断报告已导出",
+  "exportFailed": "导出报告失败",
+  "logs": "诊断日志",
+  "logsCopy": "复制",
+  "logsCopied": "日志已复制到剪贴板",
+  "logsCopyFailed": "复制日志失败",
+  "logsFailed": "获取日志失败",
+  "logsEmpty": "没有匹配当前过滤条件的日志。",
+  "logsSearch": "搜索日志...",
+  "logsRedact": "脱敏",
+  "logsLevelAll": "全部",
+  "section": {
+    "gateway": "网关",
+    "app": "应用日志",
+    "provider": "AI 提供商",
+    "channel": "通道",
+    "security": "安全",
+    "mcp": "MCP 服务器",
+    "network": "网络",
+    "storage": "存储",
+    "usage": "用量"
+  },
+  "runDiagnostics": "运行诊断",
+  "runDoctor": "运行 Doctor",
+  "runDoctorFix": "运行 Doctor Fix",
+  "lastChecked": "上次检查",
+  "overallStatus": "整体状态",
+  "provider": {
+    "enabled": "已启用",
+    "missingCredentials": "缺少凭据",
+    "total": "提供商总数"
+  },
+  "channel": {
+    "connected": "已连接",
+    "error": "错误",
+    "connecting": "连接中",
+    "disconnected": "已断开"
+  },
+  "security": {
+    "proxyEnabled": "代理",
+    "mcpServers": "MCP 服务器",
+    "suspicious": "可疑"
+  }
+}

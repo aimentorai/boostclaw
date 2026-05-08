@@ -1,0 +1,93 @@
+{
+  "title": "ヘルスダッシュボード",
+  "desc": "ローカルGatewayとログ診断を集約し、対応可能な問題を表示します。",
+  "refreshed": "診断を更新しました",
+  "failed": "診断を読み込めませんでした",
+  "gateway": "Gateway",
+  "errors": "エラー",
+  "warnings": "警告",
+  "sampledLines": "{{count}} 行をサンプリング",
+  "checkedAt": "{{time}} に確認",
+  "notRun": "未確認",
+  "issues": "検出された問題",
+  "noIssues": "現在のスナップショットに問題はありません。",
+  "evidence": "根拠",
+  "status": {
+    "healthy": "正常",
+    "degraded": "低下",
+    "critical": "重大",
+    "unknown": "不明"
+  },
+  "statusDesc": {
+    "healthy": "すべての監視対象システムが正常に動作しています。",
+    "degraded": "一部の非重大な問題が検出されました。アプリは引き続き使用できますが、機能が制限される可能性があります。",
+    "critical": "重大な問題が検出されました。コア機能が利用できないか不安定な可能性があります。",
+    "unknown": "診断がまだ実行されていません。「診断を実行」をクリックしてシステムの状態を確認してください。"
+  },
+  "severity": {
+    "info": "情報",
+    "warning": "警告",
+    "critical": "重大"
+  },
+  "fixAction": {
+    "restartGateway": "Gateway を再起動",
+    "runDoctor": "診断を実行",
+    "runDoctorFix": "Doctor Fix を実行",
+    "openLogs": "ログを開く",
+    "openProviderSettings": "プロバイダーを設定",
+    "openChannelSettings": "チャンネルを設定",
+    "openProxySettings": "プロキシ設定",
+    "openMcpSettings": "MCP 設定"
+  },
+  "fixApplied": "修正アクションを適用しました",
+  "fixFailed": "修正アクションに失敗しました",
+  "fixConfirmTitle": "操作の確認",
+  "fixConfirmRestartGateway": "Gateway プロセスを再起動します。実行中のチャットセッションが中断される可能性があります。続行しますか？",
+  "fixConfirmRunDoctorFix": "OpenClaw Doctor Fix を実行します。設定ファイルが変更される可能性があります。続行しますか？",
+  "fixRemainingIssues": "修正後も {{count}} 件の問題が残っています。",
+  "fixAllResolved": "すべての問題が解決されました！",
+  "export": "エクスポート",
+  "exported": "診断レポートをエクスポートしました",
+  "exportFailed": "レポートのエクスポートに失敗しました",
+  "logs": "診断ログ",
+  "logsCopy": "コピー",
+  "logsCopied": "ログをクリップボードにコピーしました",
+  "logsCopyFailed": "ログのコピーに失敗しました",
+  "logsFailed": "ログの取得に失敗しました",
+  "logsEmpty": "現在のフィルターに一致するログはありません。",
+  "logsSearch": "ログを検索...",
+  "logsRedact": "マスク",
+  "logsLevelAll": "すべて",
+  "section": {
+    "gateway": "Gateway",
+    "app": "アプリケーションログ",
+    "provider": "AI プロバイダー",
+    "channel": "チャンネル",
+    "security": "セキュリティ",
+    "mcp": "MCP サーバー",
+    "network": "ネットワーク",
+    "storage": "ストレージ",
+    "usage": "使用量"
+  },
+  "runDiagnostics": "診断を実行",
+  "runDoctor": "Doctor を実行",
+  "runDoctorFix": "Doctor Fix を実行",
+  "lastChecked": "最終確認",
+  "overallStatus": "全体ステータス",
+  "provider": {
+    "enabled": "有効",
+    "missingCredentials": "認証情報なし",
+    "total": "プロバイダー数"
+  },
+  "channel": {
+    "connected": "接続済み",
+    "error": "エラー",
+    "connecting": "接続中",
+    "disconnected": "切断"
+  },
+  "security": {
+    "proxyEnabled": "プロキシ",
+    "mcpServers": "MCP サーバー",
+    "suspicious": "要注意"
+  }
+}
