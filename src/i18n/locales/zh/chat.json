@@ -1,6 +1,13 @@
 {
     "gatewayNotRunning": "网关未运行",
     "gatewayRequired": "聊天需要网关运行。网关会自动启动，也可在设置中手动启动",
+    "gatewayNotice": {
+        "title": "网关未连接，暂时不能发送消息",
+        "desc": "可以等待自动启动，或手动启动网关；若持续失败，请打开诊断查看原因。",
+        "start": "启动网关",
+        "starting": "启动中",
+        "diagnostics": "打开诊断"
+    },
     "welcome": {
         "title": "BoostClaw 控制台",
         "greeting": "HI，我是BoostClaw 你的跨境智能助手",

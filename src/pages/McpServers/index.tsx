@@ -3,7 +3,7 @@
  * Manage Model Context Protocol server configurations.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, RefreshCw, AlertCircle, Server, ExternalLink, Pencil } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, AlertCircle, Server, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -76,16 +76,12 @@ interface KvPair {
 function KvEditor({
   items,
   onChange,
-  keyLabel,
-  valueLabel,
   keyPlaceholder,
   valuePlaceholder,
   addLabel,
 }: {
   items: KvPair[];
   onChange: (items: KvPair[]) => void;
-  keyLabel: string;
-  valueLabel: string;
   keyPlaceholder: string;
   valuePlaceholder: string;
   addLabel: string;
@@ -664,8 +660,6 @@ export function McpServers() {
                   <KvEditor
                     items={formEnv}
                     onChange={isSubscriptionEdit ? () => {} : setFormEnv}
-                    keyLabel={t('envKey')}
-                    valueLabel={t('envValue')}
                     keyPlaceholder="KEY"
                     valuePlaceholder="value"
                     addLabel={t('envAdd')}
@@ -699,8 +693,6 @@ export function McpServers() {
                   <KvEditor
                     items={formHeaders}
                     onChange={isSubscriptionEdit ? () => {} : setFormHeaders}
-                    keyLabel={t('headersKey')}
-                    valueLabel={t('headersValue')}
                     keyPlaceholder="Authorization"
                     valuePlaceholder="Bearer sk-..."
                     addLabel={t('headersAdd')}

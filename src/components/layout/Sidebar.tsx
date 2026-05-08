@@ -6,7 +6,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Activity,
   MessageCircle,
   Monitor,
   Sparkles,
@@ -17,6 +16,10 @@ import {
   PanelLeft,
   Plus,
   Trash2,
+  Pencil,
+  Check,
+  X,
+  Search,
   Box,
   Server,
 } from 'lucide-react';
@@ -146,6 +149,7 @@ export function Sidebar() {
   const sessionLastActivity = useChatStore((s) => s.sessionLastActivity);
   const switchSession = useChatStore((s) => s.switchSession);
   const newSession = useChatStore((s) => s.newSession);
+  const renameSession = useChatStore((s) => s.renameSession);
   const deleteSession = useChatStore((s) => s.deleteSession);
   const loadSessions = useChatStore((s) => s.loadSessions);
   const loadHistory = useChatStore((s) => s.loadHistory);
@@ -179,6 +183,8 @@ export function Sidebar() {
   const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(
     null
   );
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [editingSession, setEditingSession] = useState<{ key: string; label: string } | null>(null);
   const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
 
   useEffect(() => {
@@ -217,6 +223,21 @@ export function Sidebar() {
     sessionBucketMap[bucketKey].sessions.push(session);
   }
 
+  const normalizedSessionSearch = sessionSearch.trim().toLowerCase();
+  const visibleSessionBuckets = normalizedSessionSearch
+    ? sessionBuckets
+        .map((bucket) => ({
+          ...bucket,
+          sessions: bucket.sessions.filter((session) => {
+            const label = getSessionLabel(session.key, session.displayName, session.label);
+            const agentId = getAgentIdFromSessionKey(session.key);
+            const agentName = agentNameById[agentId] || agentId;
+            return `${label} ${agentName} ${session.key}`.toLowerCase().includes(normalizedSessionSearch);
+          }),
+        }))
+        .filter((bucket) => bucket.sessions.length > 0)
+    : sessionBuckets;
+
   const topNavItems = [
     {
       to: '/',
@@ -235,12 +256,6 @@ export function Sidebar() {
       icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={1.8} />,
       label: t('sidebar.skills'),
       testId: 'sidebar-nav-skills',
-    },
-    {
-      to: '/diagnostics',
-      icon: <Activity className="h-[18px] w-[18px]" strokeWidth={1.8} />,
-      label: t('sidebar.diagnostics'),
-      testId: 'sidebar-nav-diagnostics',
     },
     {
       to: '/cron',
@@ -395,11 +410,23 @@ export function Sidebar() {
                 <Plus className="h-4 w-4 shrink-0 text-[#20242d]" strokeWidth={2} />
                 <span className="min-w-0 truncate text-center">{t('sidebar.newChat')}</span>
               </button>
+              {sessions.length > 0 && (
+                <div className="relative mt-2">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9aa2b0]" />
+                  <input
+                    data-testid="sidebar-session-search"
+                    value={sessionSearch}
+                    onChange={(event) => setSessionSearch(event.target.value)}
+                    placeholder={t('common:sidebar.searchSessions')}
+                    className="h-8 w-full rounded-lg border border-[#edf0f5] bg-white pl-7 pr-2 text-[12px] text-[#20242d] outline-none transition focus:border-[#c8d7ef] dark:border-[#252b38] dark:bg-[#181d28] dark:text-[#e2e6ed]"
+                  />
+                </div>
+              )}
             </div>
 
             {sessions.length > 0 && (
               <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1">
-                {sessionBuckets.map((bucket) =>
+                {visibleSessionBuckets.map((bucket) =>
                   bucket.sessions.length > 0 ? (
                     <div key={bucket.key} className="pt-1">
                       <div className="px-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-[#a8afb9] dark:text-[#6b7280]">
@@ -409,49 +436,107 @@ export function Sidebar() {
                         const agentId = getAgentIdFromSessionKey(s.key);
                         const agentName = agentNameById[agentId] || agentId;
                         const isActiveSession = isOnChat && currentSessionKey === s.key;
+                        const sessionLabel = getSessionLabel(s.key, s.displayName, s.label);
+                        const isEditing = editingSession?.key === s.key;
                         return (
                           <div key={s.key} className="group relative flex items-center">
-                            <button
-                              onClick={() => {
-                                switchSession(s.key);
-                                navigate('/');
-                              }}
-                              className={cn(
-                                'w-full min-w-0 rounded-sm px-2 py-1.5 pr-6 text-left text-[12px] transition-all',
-                                'hover:bg-[#f6f7f9] dark:hover:bg-[#1e2433]',
-                                isActiveSession
-                                  ? 'bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff] dark:bg-[#1a2740] dark:text-[#e2e6ed] dark:hover:bg-[#1a2740]'
-                                  : 'text-[#68717f] dark:text-[#9aa2b0]'
-                              )}
-                            >
-                              <div className="flex min-w-0 items-center gap-1">
-                                <span
-                                  className={cn(
-                                    'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[12px] font-medium',
-                                    isActiveSession
-                                      ? 'border-[#d9e2f3] bg-white text-[#20242d] dark:border-[#2a3a5a] dark:bg-[#222d42] dark:text-[#e2e6ed]'
-                                      : 'border-[#e4e8ef] bg-white text-[#77808d] dark:border-[#252b38] dark:bg-[#181d28] dark:text-[#9aa2b0]'
-                                  )}
+                            {isEditing ? (
+                              <form
+                                className="flex w-full items-center gap-1 rounded-sm bg-[#eef3ff] px-1 py-1 dark:bg-[#1a2740]"
+                                onSubmit={(event) => {
+                                  event.preventDefault();
+                                  if (!editingSession) return;
+                                  void renameSession(s.key, editingSession.label);
+                                  setEditingSession(null);
+                                }}
+                              >
+                                <input
+                                  data-testid="sidebar-session-rename-input"
+                                  value={editingSession.label}
+                                  autoFocus
+                                  onChange={(event) =>
+                                    setEditingSession({ key: s.key, label: event.target.value })
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Escape') setEditingSession(null);
+                                  }}
+                                  className="h-7 min-w-0 flex-1 rounded border border-[#c8d7ef] bg-white px-2 text-[12px] text-[#20242d] outline-none dark:border-[#2a3a5a] dark:bg-[#11161f] dark:text-[#e2e6ed]"
+                                />
+                                <button
+                                  type="submit"
+                                  aria-label={t('common:sidebar.renameSave')}
+                                  className="flex h-7 w-7 items-center justify-center rounded text-[#34785c] hover:bg-white dark:text-[#76d39d] dark:hover:bg-white/10"
                                 >
-                                  {agentName}
-                                </span>
-                                <span className="min-w-0 flex-1 truncate">
-                                  {getSessionLabel(s.key, s.displayName, s.label)}
-                                </span>
-                              </div>
-                            </button>
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={t('common:actions.cancel')}
+                                  onClick={() => setEditingSession(null)}
+                                  className="flex h-7 w-7 items-center justify-center rounded text-[#a0a7b2] hover:bg-white hover:text-[#20242d] dark:hover:bg-white/10 dark:hover:text-[#e2e6ed]"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </form>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  switchSession(s.key);
+                                  navigate('/');
+                                }}
+                                className={cn(
+                                  'w-full min-w-0 rounded-sm px-2 py-1.5 pr-12 text-left text-[12px] transition-all',
+                                  'hover:bg-[#f6f7f9] dark:hover:bg-[#1e2433]',
+                                  isActiveSession
+                                    ? 'bg-[#eef3ff] text-[#20242d] hover:bg-[#eef3ff] dark:bg-[#1a2740] dark:text-[#e2e6ed] dark:hover:bg-[#1a2740]'
+                                    : 'text-[#68717f] dark:text-[#9aa2b0]'
+                                )}
+                              >
+                                <div className="flex min-w-0 items-center gap-1">
+                                  {agentId !== 'main' && (
+                                    <span
+                                      className={cn(
+                                        'max-w-[44px] shrink-0 truncate rounded-full border px-1 py-0.5 text-[12px] font-medium',
+                                        isActiveSession
+                                          ? 'border-[#d9e2f3] bg-white text-[#20242d] dark:border-[#2a3a5a] dark:bg-[#222d42] dark:text-[#e2e6ed]'
+                                          : 'border-[#e4e8ef] bg-white text-[#77808d] dark:border-[#252b38] dark:bg-[#181d28] dark:text-[#9aa2b0]'
+                                      )}
+                                    >
+                                      {agentName}
+                                    </span>
+                                  )}
+                                  <span className="min-w-0 flex-1 truncate">{sessionLabel}</span>
+                                </div>
+                              </button>
+                            )}
+                            {!isEditing && (
+                              <button
+                                aria-label={t('common:sidebar.renameSession')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingSession({ key: s.key, label: sessionLabel });
+                                }}
+                                className={cn(
+                                  'absolute right-6 flex items-center justify-center rounded p-0.5 transition-opacity',
+                                  'opacity-0 group-hover:opacity-100',
+                                  'text-[#a0a7b2] hover:text-[#20242d] hover:bg-[#eef3ff] dark:text-[#6b7280] dark:hover:text-[#e2e6ed] dark:hover:bg-white/10'
+                                )}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             <button
-                              aria-label="Delete session"
+                              aria-label={t('common:sidebar.deleteSession')}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSessionToDelete({
                                   key: s.key,
-                                  label: getSessionLabel(s.key, s.displayName, s.label),
+                                  label: sessionLabel,
                                 });
                               }}
                               className={cn(
                                 'absolute right-1 flex items-center justify-center rounded p-0.5 transition-opacity',
-                                'opacity-0 group-hover:opacity-100',
+                                isEditing ? 'hidden' : 'opacity-0 group-hover:opacity-100',
                                 'text-[#a0a7b2] hover:text-[#20242d] hover:bg-[#eef3ff] dark:text-[#6b7280] dark:hover:text-[#e2e6ed] dark:hover:bg-white/10'
                               )}
                             >

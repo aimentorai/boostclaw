@@ -2,20 +2,15 @@
  * Settings Page
  * Application configuration
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
   Copy,
-  Download,
   ExternalLink,
   FileText,
   Monitor,
   Moon,
   RefreshCw,
-  Search,
   Sun,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -116,56 +111,6 @@ type SubscriptionMcpConfigResponse = {
   error?: string;
 };
 
-type DiagnosticSnapshot = {
-  generatedAt: string;
-  overallStatus: 'healthy' | 'degraded' | 'critical' | 'unknown';
-  sections: Array<{
-    area: string;
-    status: 'healthy' | 'degraded' | 'critical' | 'unknown';
-    summary: string;
-  }>;
-  issues: Array<{
-    id: string;
-    severity: 'info' | 'warning' | 'critical';
-    area: string;
-    title: string;
-    detail: string;
-    suggestion: string;
-    fixAction?: string;
-    evidence?: string[];
-  }>;
-  metrics: {
-    gateway: {
-      state: string;
-      port?: number;
-      uptime?: number;
-      lastError?: string;
-    };
-    logs: {
-      errorCount: number;
-      warnCount: number;
-      sampledLines: number;
-    };
-    providers?: {
-      enabled: number;
-      missingCredentials: number;
-      totalProviders: number;
-    };
-    channels?: {
-      connected: number;
-      error: number;
-      connecting: number;
-      disconnected: number;
-    };
-    security?: {
-      proxyEnabled: boolean;
-      proxyServer?: string;
-      mcpServerCount: number;
-      suspiciousMcpConfigs: number;
-    };
-  };
-};
-
 export function Settings() {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
@@ -212,16 +157,6 @@ export function Settings() {
   const [wsDiagnosticEnabled, setWsDiagnosticEnabled] = useState(false);
   const [showTelemetryViewer, setShowTelemetryViewer] = useState(false);
   const [telemetryEntries, setTelemetryEntries] = useState<UiTelemetryEntry[]>([]);
-  const [diagnosticSnapshot, setDiagnosticSnapshot] = useState<DiagnosticSnapshot | null>(null);
-  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
-  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
-  const [showDiagnosticLogs, setShowDiagnosticLogs] = useState(false);
-  const [diagnosticLogLines, setDiagnosticLogLines] = useState<string[]>([]);
-  const [diagnosticLogLevel, setDiagnosticLogLevel] = useState('all');
-  const [diagnosticLogQuery, setDiagnosticLogQuery] = useState('');
-  const [diagnosticLogRedact, setDiagnosticLogRedact] = useState(true);
-  const [diagnosticLogLoading, setDiagnosticLogLoading] = useState(false);
-  const [exportingReport, setExportingReport] = useState(false);
 
   const isWindows = (window as any).electron?.platform === 'win32';
   const showCliTools = true;
@@ -424,127 +359,6 @@ export function Settings() {
     }
   };
 
-  const refreshDiagnostics = async (options?: { silent?: boolean }) => {
-    setDiagnosticsLoading(true);
-    setDiagnosticsError(null);
-    try {
-      const result = await hostApiFetch<DiagnosticSnapshot>('/api/diagnostics/snapshot');
-      setDiagnosticSnapshot(result);
-      if (!options?.silent) {
-        toast.success(t('developer.diagnosticsRefreshed'));
-      }
-    } catch (error) {
-      const message = toUserMessage(error) || t('developer.diagnosticsFailed');
-      setDiagnosticsError(message);
-      if (!options?.silent) {
-        toast.error(message);
-      }
-    } finally {
-      setDiagnosticsLoading(false);
-    }
-  };
-
-  const handleDiagnosticsFix = async (action: string) => {
-    if (action === 'openLogs') {
-      setShowDiagnosticLogs(true);
-      if (diagnosticLogLines.length === 0) void fetchDiagnosticLogs();
-      return;
-    }
-    if (action === 'openProviderSettings' || action === 'openProxySettings') {
-      navigate('/settings');
-      return;
-    }
-    if (action === 'openChannelSettings') {
-      navigate('/channels');
-      return;
-    }
-    if (action === 'openMcpSettings') {
-      navigate('/mcp');
-      return;
-    }
-
-    setDiagnosticsLoading(true);
-    try {
-      const result = await hostApiFetch<{ ok: boolean; detail?: string; error?: string }>(
-        '/api/diagnostics/fix',
-        {
-          method: 'POST',
-          body: JSON.stringify({ action }),
-        }
-      );
-      if (result.ok) {
-        toast.success(result.detail ?? t('developer.diagnosticsFixApplied'));
-        await refreshDiagnostics({ silent: true });
-      } else {
-        toast.error(result.error ?? t('developer.diagnosticsFixFailed'));
-      }
-    } catch (error) {
-      toast.error(toUserMessage(error) || t('developer.diagnosticsFixFailed'));
-    } finally {
-      setDiagnosticsLoading(false);
-    }
-  };
-
-  const diagnosticLogLevelRef = useRef(diagnosticLogLevel);
-  const diagnosticLogQueryRef = useRef(diagnosticLogQuery);
-  const diagnosticLogRedactRef = useRef(diagnosticLogRedact);
-
-  useEffect(() => { diagnosticLogLevelRef.current = diagnosticLogLevel; }, [diagnosticLogLevel]);
-  useEffect(() => { diagnosticLogQueryRef.current = diagnosticLogQuery; }, [diagnosticLogQuery]);
-  useEffect(() => { diagnosticLogRedactRef.current = diagnosticLogRedact; }, [diagnosticLogRedact]);
-
-  const fetchDiagnosticLogs = async () => {
-    setDiagnosticLogLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set('tailLines', '200');
-      if (diagnosticLogLevelRef.current !== 'all') params.set('level', diagnosticLogLevelRef.current);
-      if (diagnosticLogQueryRef.current.trim()) params.set('query', diagnosticLogQueryRef.current.trim());
-      params.set('redact', diagnosticLogRedactRef.current ? 'true' : 'false');
-
-      const result = await hostApiFetch<{ lines: string[]; count: number; filtered: boolean }>(
-        `/api/diagnostics/logs?${params.toString()}`
-      );
-      setDiagnosticLogLines(result.lines);
-    } catch (error) {
-      toast.error(toUserMessage(error) || t('developer.diagnosticsLogsFailed'));
-      setDiagnosticLogLines([]);
-    } finally {
-      setDiagnosticLogLoading(false);
-    }
-  };
-
-  const handleCopyDiagnosticLogs = async () => {
-    if (diagnosticLogLines.length === 0) return;
-    try {
-      await navigator.clipboard.writeText(diagnosticLogLines.join('\n'));
-      toast.success(t('developer.diagnosticsLogsCopied'));
-    } catch {
-      toast.error(t('developer.diagnosticsLogsCopyFailed'));
-    }
-  };
-
-  const handleExportReport = async () => {
-    setExportingReport(true);
-    try {
-      const report = await hostApiFetch<Record<string, unknown>>('/api/diagnostics/export');
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `boostclaw-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success(t('developer.diagnosticsExported'));
-    } catch (error) {
-      toast.error(toUserMessage(error) || t('developer.diagnosticsExportFailed'));
-    } finally {
-      setExportingReport(false);
-    }
-  };
-
   const handleRunOpenClawDoctor = async (mode: 'diagnose' | 'fix') => {
     setDoctorRunningMode(mode);
     try {
@@ -721,12 +535,6 @@ export function Settings() {
 
   useEffect(() => {
     setWsDiagnosticEnabled(getGatewayWsDiagnosticEnabled());
-  }, []);
-
-  useEffect(() => {
-    void refreshDiagnostics({ silent: true });
-    // Refresh once when Settings mounts; manual refresh handles user-facing errors.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -913,19 +721,6 @@ export function Settings() {
     );
   };
 
-  const diagnosticStatusLabel = diagnosticSnapshot
-    ? t(`developer.diagnosticsStatus.${diagnosticSnapshot.overallStatus}`)
-    : t('developer.diagnosticsStatus.unknown');
-  const diagnosticStatusClass = diagnosticSnapshot
-    ? diagnosticSnapshot.overallStatus === 'healthy'
-      ? 'bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20'
-      : diagnosticSnapshot.overallStatus === 'critical'
-        ? 'bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20'
-        : diagnosticSnapshot.overallStatus === 'degraded'
-          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
-          : 'bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent'
-    : 'bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent';
-
   // Settings account panel should render two fixed provider cards only.
   const accountProviders: Array<'tt' | 'amz'> = ['tt', 'amz'];
   const quotaSnapshotByProvider = new Map(
@@ -1049,6 +844,28 @@ export function Settings() {
                   </p>
                 </div>
                 <Switch checked={launchAtStartup} onCheckedChange={setLaunchAtStartup} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[15px] font-medium text-foreground/80">
+                    {t('appearance.resetSetupWizard')}
+                  </Label>
+                  <p className="text-[13px] text-muted-foreground mt-1">
+                    {t('appearance.resetSetupWizardDesc')}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    useSettingsStore.getState().resetSetupWizard();
+                    toast.success(t('appearance.resetSetupWizardSucceeded'));
+                    navigate('/setup');
+                  }}
+                  className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                >
+                  {t('appearance.resetSetupWizard')}
+                </Button>
               </div>
             </div>
           </div>
@@ -1326,291 +1143,18 @@ export function Settings() {
                       {t('developer.diagnosticsDesc')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={cn('rounded-full px-3 py-1 border', diagnosticStatusClass)}
-                      data-testid="settings-diagnostics-status"
-                    >
-                      {diagnosticSnapshot?.overallStatus === 'healthy' ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                      ) : diagnosticSnapshot?.overallStatus === 'critical' ? (
-                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
-                      ) : (
-                        <Activity className="h-3.5 w-3.5 mr-1.5" />
-                      )}
-                      {diagnosticStatusLabel}
-                    </Badge>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void refreshDiagnostics()}
-                      disabled={diagnosticsLoading}
-                      className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
-                      data-testid="settings-diagnostics-refresh"
-                    >
-                      <RefreshCw
-                        className={cn('h-3.5 w-3.5 mr-1.5', diagnosticsLoading && 'animate-spin')}
-                      />
-                      {t('common:actions.refresh')}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleExportReport()}
-                      disabled={exportingReport}
-                      className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
-                      data-testid="settings-diagnostics-export"
-                    >
-                      <Download
-                        className={cn('h-3.5 w-3.5 mr-1.5', exportingReport && 'animate-spin')}
-                      />
-                      {t('developer.diagnosticsExport')}
-                    </Button>
-                  </div>
-                </div>
-
-                {diagnosticsError && (
-                  <div
-                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[13px] text-red-600 dark:text-red-400"
-                    data-testid="settings-diagnostics-error"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/diagnostics')}
+                    className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                    data-testid="settings-open-diagnostics"
                   >
-                    {diagnosticsError}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="space-y-1 rounded-xl bg-black/5 dark:bg-white/5 px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                      {t('developer.diagnosticsGateway')}
-                    </p>
-                    <p className="text-[18px] font-semibold text-foreground">
-                      {diagnosticSnapshot?.metrics.gateway.state ?? gatewayStatus.state}
-                    </p>
-                    <p className="text-[12px] text-muted-foreground">
-                      {t('gateway.port')}: {diagnosticSnapshot?.metrics.gateway.port ?? gatewayStatus.port}
-                    </p>
-                  </div>
-                  <div className="space-y-1 rounded-xl bg-black/5 dark:bg-white/5 px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                      {t('developer.diagnosticsErrors')}
-                    </p>
-                    <p className="text-[18px] font-semibold text-foreground">
-                      {diagnosticSnapshot?.metrics.logs.errorCount ?? '-'}
-                    </p>
-                    <p className="text-[12px] text-muted-foreground">
-                      {t('developer.diagnosticsSampledLines', {
-                        count: diagnosticSnapshot?.metrics.logs.sampledLines ?? 0,
-                      })}
-                    </p>
-                  </div>
-                  <div className="space-y-1 rounded-xl bg-black/5 dark:bg-white/5 px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                      {t('developer.diagnosticsWarnings')}
-                    </p>
-                    <p className="text-[18px] font-semibold text-foreground">
-                      {diagnosticSnapshot?.metrics.logs.warnCount ?? '-'}
-                    </p>
-                    <p className="text-[12px] text-muted-foreground">
-                      {diagnosticSnapshot
-                        ? t('developer.diagnosticsCheckedAt', {
-                            time: new Date(diagnosticSnapshot.generatedAt).toLocaleTimeString(),
-                          })
-                        : t('developer.diagnosticsNotRun')}
-                    </p>
-                  </div>
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    {t('developer.openDiagnostics')}
+                  </Button>
                 </div>
-
-                {diagnosticSnapshot && (
-                  <div className="space-y-3" data-testid="settings-diagnostics-issues">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[13px] font-medium text-foreground">
-                        {t('developer.diagnosticsIssues')}
-                      </p>
-                      <Badge variant="outline" className="rounded-full px-3 py-1">
-                        {diagnosticSnapshot.issues.length}
-                      </Badge>
-                    </div>
-                    {diagnosticSnapshot.issues.length === 0 ? (
-                      <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-[13px] text-green-600 dark:text-green-500">
-                        {t('developer.diagnosticsNoIssues')}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {diagnosticSnapshot.issues.slice(0, 5).map((issue) => (
-                          <div
-                            key={issue.id}
-                            className="rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card px-3 py-3"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge
-                                variant={
-                                  issue.severity === 'critical'
-                                    ? 'destructive'
-                                    : issue.severity === 'warning'
-                                      ? 'secondary'
-                                      : 'outline'
-                                }
-                                className="rounded-full px-2.5 py-0.5"
-                              >
-                                {t(`developer.diagnosticsSeverity.${issue.severity}`)}
-                              </Badge>
-                              <p className="text-[13px] font-semibold text-foreground">
-                                {issue.title}
-                              </p>
-                            </div>
-                            <p className="mt-2 text-[12px] text-muted-foreground">
-                              {issue.detail}
-                            </p>
-                            <p className="mt-1 text-[12px] text-foreground/80">
-                              {issue.suggestion}
-                            </p>
-                            {issue.evidence && issue.evidence.length > 0 && (
-                              <div className="mt-3 space-y-2">
-                                <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                                  {t('developer.diagnosticsEvidence')}
-                                </p>
-                                <pre className="max-h-36 overflow-auto rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-2 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words">
-                                  {issue.evidence.join('\n')}
-                                </pre>
-                              </div>
-                            )}
-                            {issue.fixAction && (
-                              <div className="mt-3">
-                                <Button
-                                  type="button"
-                                  variant={
-                                    issue.severity === 'critical' ? 'destructive' : 'outline'
-                                  }
-                                  size="sm"
-                                  onClick={() => void handleDiagnosticsFix(issue.fixAction!)}
-                                  disabled={diagnosticsLoading}
-                                  className="rounded-full h-7 px-3 text-[12px]"
-                                >
-                                  {t(`developer.diagnosticsFixAction.${issue.fixAction}`)}
-                                </Button>
-                  </div>
-                )}
-
-                <div className="border-t border-black/5 dark:border-white/5 pt-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !showDiagnosticLogs;
-                        setShowDiagnosticLogs(next);
-                        if (next && diagnosticLogLines.length === 0) {
-                          void fetchDiagnosticLogs();
-                        }
-                      }}
-                      className="flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-foreground/70"
-                      data-testid="settings-diagnostics-logs-toggle"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      {t('developer.diagnosticsLogs')}
-                      <span className="text-[11px] text-muted-foreground">
-                        {showDiagnosticLogs ? '▲' : '▼'}
-                      </span>
-                    </button>
-                    {showDiagnosticLogs && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleCopyDiagnosticLogs()}
-                        disabled={diagnosticLogLines.length === 0}
-                        className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                        data-testid="settings-diagnostics-logs-copy"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        {t('developer.diagnosticsLogsCopy')}
-                      </Button>
-                    )}
-                  </div>
-                  {showDiagnosticLogs && (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {(['all', 'debug', 'info', 'warn', 'error'] as const).map((level) => (
-                          <button
-                            key={level}
-                            type="button"
-                            onClick={() => {
-                              setDiagnosticLogLevel(level);
-                              void fetchDiagnosticLogs();
-                            }}
-                            className={cn(
-                              'rounded-full px-3 py-1 text-[11px] font-medium border transition-colors',
-                              diagnosticLogLevel === level
-                                ? 'bg-foreground text-background border-foreground'
-                                : 'border-black/10 dark:border-white/10 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
-                            )}
-                            data-testid={`settings-diagnostics-logs-level-${level}`}
-                          >
-                            {level === 'all' ? t('developer.diagnosticsLogsLevelAll') : level.toUpperCase()}
-                          </button>
-                        ))}
-                        <div className="flex-1 min-w-[140px]">
-                          <Input
-                            placeholder={t('developer.diagnosticsLogsSearch')}
-                            value={diagnosticLogQuery}
-                            onChange={(e) => setDiagnosticLogQuery(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') void fetchDiagnosticLogs();
-                            }}
-                            className="h-7 text-[12px] rounded-lg px-2.5"
-                            data-testid="settings-diagnostics-logs-search"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDiagnosticLogRedact((prev) => !prev);
-                            void fetchDiagnosticLogs();
-                          }}
-                          className={cn(
-                            'rounded-full px-3 py-1 text-[11px] font-medium border transition-colors',
-                            diagnosticLogRedact
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                              : 'border-black/10 dark:border-white/10 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5'
-                          )}
-                          data-testid="settings-diagnostics-logs-redact"
-                        >
-                          {t('developer.diagnosticsLogsRedact')}
-                        </button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void fetchDiagnosticLogs()}
-                          disabled={diagnosticLogLoading}
-                          className="rounded-full h-7 px-3 text-[12px] border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5"
-                          data-testid="settings-diagnostics-logs-refresh"
-                        >
-                          <Search className={cn('h-3 w-3 mr-1', diagnosticLogLoading && 'animate-spin')} />
-                          {t('common:actions.search')}
-                        </Button>
-                      </div>
-                      <pre
-                        className="text-[11px] text-muted-foreground bg-black/5 dark:bg-white/5 p-3 rounded-xl max-h-72 overflow-auto whitespace-pre-wrap font-mono border border-black/5 dark:border-white/5"
-                        data-testid="settings-diagnostics-logs-output"
-                      >
-                        {diagnosticLogLoading
-                          ? t('common:status.loading')
-                          : diagnosticLogLines.length > 0
-                            ? diagnosticLogLines.join('\n')
-                            : t('developer.diagnosticsLogsEmpty')}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="flex items-center justify-between">

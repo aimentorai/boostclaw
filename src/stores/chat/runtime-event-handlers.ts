@@ -18,6 +18,34 @@ import {
 import type { AttachedFileMeta, RawMessage } from './types';
 import type { ChatGet, ChatSet } from './store-api';
 
+let _deltaFlushId: ReturnType<typeof requestAnimationFrame> | null = null;
+let _pendingDeltas: Array<{ event: Record<string, unknown>; resolvedState: string }> = [];
+
+function flushDeltas(set: ChatSet) {
+  _deltaFlushId = null;
+  const deltas = _pendingDeltas;
+  _pendingDeltas = [];
+  const lastDelta = deltas[deltas.length - 1];
+  if (!lastDelta) return;
+
+  const updates = collectToolUpdates(lastDelta.event.message, lastDelta.resolvedState);
+  set((s) => ({
+    streamingMessage: (() => {
+      const event = lastDelta.event;
+      if (event.message && typeof event.message === 'object') {
+        const msgRole = (event.message as RawMessage).role;
+        if (isToolResultRole(msgRole)) return s.streamingMessage;
+        const msgObj = event.message as RawMessage;
+        if (s.streamingMessage && msgObj.content === undefined) {
+          return s.streamingMessage;
+        }
+      }
+      return event.message ?? s.streamingMessage;
+    })(),
+    streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
+  }));
+}
+
 export function handleRuntimeEventState(
   set: ChatSet,
   get: ChatGet,
@@ -25,6 +53,15 @@ export function handleRuntimeEventState(
   resolvedState: string,
   runId: string,
 ): void {
+      // Flush any pending delta batch before processing a terminal event
+      // so the last streaming content is committed before final/error/aborted.
+      if (resolvedState !== 'delta' && _deltaFlushId !== null) {
+        cancelAnimationFrame(_deltaFlushId);
+        _deltaFlushId = null;
+        flushDeltas(set);
+        _pendingDeltas = [];
+      }
+
       switch (resolvedState) {
         case 'started': {
           // Run just started (e.g. from console); show loading immediately.
@@ -42,33 +79,12 @@ export function handleRuntimeEventState(
             clearErrorRecoveryTimer();
             set({ error: null });
           }
-          const updates = collectToolUpdates(event.message, resolvedState);
-          set((s) => ({
-            streamingMessage: (() => {
-              if (event.message && typeof event.message === 'object') {
-                const msgRole = (event.message as RawMessage).role;
-                if (isToolResultRole(msgRole)) return s.streamingMessage;
-                // During multi-model fallback the Gateway may emit a delta with an
-                // empty or role-only message (e.g. `{}` or `{ role: 'assistant' }`)
-                // to signal a model switch.  Accepting such a value would silently
-                // discard all content accumulated so far in streamingMessage.
-                // Only replace when the incoming message carries actual payload.
-                const msgObj = event.message as RawMessage;
-                // During multi-model fallback the Gateway may emit an empty or
-                // role-only delta (e.g. `{}` or `{ role: 'assistant' }`) to signal
-                // a model switch.  If we already have accumulated streaming content,
-                // accepting such a message would silently discard it.  Only guard
-                // when there IS existing content to protect; when streamingMessage
-                // is still null, let any delta through so the UI can start showing
-                // the typing indicator immediately.
-                if (s.streamingMessage && msgObj.content === undefined) {
-                  return s.streamingMessage;
-                }
-              }
-              return event.message ?? s.streamingMessage;
-            })(),
-            streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
-          }));
+          // Batch delta updates per animation frame to avoid flooding React
+          // with re-renders (50-100+/sec during token-by-token streaming).
+          _pendingDeltas.push({ event, resolvedState });
+          if (_deltaFlushId === null) {
+            _deltaFlushId = requestAnimationFrame(() => flushDeltas(set));
+          }
           break;
         }
         case 'final': {

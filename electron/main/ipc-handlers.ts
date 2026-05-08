@@ -2570,6 +2570,61 @@ function registerFileHandlers(): void {
  * Renaming to <suffix>.deleted.jsonl hides it from sessions.list.
  */
 function registerSessionHandlers(): void {
+  ipcMain.handle('session:rename', async (_, sessionKey: string, nextLabel: string) => {
+    try {
+      const label = String(nextLabel ?? '').trim().slice(0, 80);
+      if (!sessionKey || !sessionKey.startsWith('agent:')) {
+        return { success: false, error: `Invalid sessionKey: ${sessionKey}` };
+      }
+      if (!label) {
+        return { success: false, error: 'label is required' };
+      }
+
+      const parts = sessionKey.split(':');
+      if (parts.length < 3) {
+        return { success: false, error: `sessionKey has too few parts: ${sessionKey}` };
+      }
+
+      const agentId = parts[1];
+      const sessionsDir = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions');
+      const sessionsJsonPath = join(sessionsDir, 'sessions.json');
+      const fsP = await import('fs/promises');
+      const raw = await fsP.readFile(sessionsJsonPath, 'utf8');
+      const sessionsJson = JSON.parse(raw) as Record<string, unknown>;
+      let updated = false;
+
+      if (Array.isArray(sessionsJson.sessions)) {
+        sessionsJson.sessions = (sessionsJson.sessions as Array<Record<string, unknown>>).map(
+          (entry) => {
+            if (entry.key !== sessionKey && entry.sessionKey !== sessionKey) return entry;
+            updated = true;
+            return { ...entry, label, displayName: label };
+          }
+        );
+      } else if (sessionsJson[sessionKey]) {
+        const value = sessionsJson[sessionKey];
+        if (typeof value === 'object' && value !== null) {
+          sessionsJson[sessionKey] = {
+            ...(value as Record<string, unknown>),
+            label,
+            displayName: label,
+          };
+          updated = true;
+        }
+      }
+
+      if (!updated) {
+        return { success: false, error: `Session not found: ${sessionKey}` };
+      }
+
+      await fsP.writeFile(sessionsJsonPath, JSON.stringify(sessionsJson, null, 2), 'utf8');
+      return { success: true };
+    } catch (err) {
+      logger.error(`[session:rename] Unexpected error for ${sessionKey}:`, err);
+      return { success: false, error: String(err) };
+    }
+  });
+
   ipcMain.handle('session:delete', async (_, sessionKey: string) => {
     try {
       if (!sessionKey || !sessionKey.startsWith('agent:')) {

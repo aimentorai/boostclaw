@@ -17,6 +17,10 @@
         "runtimeTitle": "ランタイム",
         "runtimeOnline": "オンライン",
         "runtimeReadyDesc": "現在のワークスペースは準備完了です。Agent、セッション、モデル統計を管理できます。",
+        "searchSessions": "チャットを検索",
+        "renameSession": "チャット名を変更",
+        "renameSave": "名前を保存",
+        "deleteSession": "チャットを削除",
         "deleteSessionConfirm": "セッション \"{{label}}\" を削除してもよろしいですか？",
         "openClawPage": "OpenClaw ページ"
     },

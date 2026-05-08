@@ -17,6 +17,10 @@
         "runtimeTitle": "运行态",
         "runtimeOnline": "在线",
         "runtimeReadyDesc": "当前工作区已就绪，可用于管理 Agent、会话和模型统计。",
+        "searchSessions": "搜索对话",
+        "renameSession": "重命名对话",
+        "renameSave": "保存名称",
+        "deleteSession": "删除对话",
         "deleteSessionConfirm": "确定要删除对话 \"{{label}}\" 吗？",
         "openClawPage": "OpenClaw 页面"
     },

@@ -22,7 +22,7 @@ function parseSessionUpdatedAtMs(value: unknown): number | undefined {
   return undefined;
 }
 
-const SIDEBAR_LABEL_HISTORY_LIMIT = 50;
+const SIDEBAR_LABEL_HISTORY_LIMIT = 3;
 const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 8_000;
 const SIDEBAR_LABEL_HISTORY_CONCURRENCY = 2;
 
@@ -91,7 +91,7 @@ async function hydrateSidebarSessionMetadata(
 export function createSessionActions(
   set: ChatSet,
   get: ChatGet,
-): Pick<SessionHistoryActions, 'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'cleanupEmptySession'> {
+): Pick<SessionHistoryActions, 'loadSessions' | 'switchSession' | 'newSession' | 'renameSession' | 'deleteSession' | 'cleanupEmptySession'> {
   return {
     loadSessions: async () => {
       try {
@@ -218,6 +218,35 @@ export function createSessionActions(
         } : {}),
       }));
       get().loadHistory();
+    },
+
+    // ── Rename session ──
+
+    renameSession: async (key: string, label: string) => {
+      const trimmed = label.trim().slice(0, 80);
+      if (!trimmed) return;
+
+      set((state) => ({
+        sessionLabels: {
+          ...state.sessionLabels,
+          [key]: trimmed,
+        },
+        sessions: state.sessions.map((session) =>
+          session.key === key ? { ...session, label: trimmed, displayName: trimmed } : session
+        ),
+      }));
+
+      try {
+        const result = await invokeIpc('session:rename', key, trimmed) as {
+          success: boolean;
+          error?: string;
+        };
+        if (!result.success) {
+          console.warn(`[renameSession] IPC reported failure for ${key}:`, result.error);
+        }
+      } catch (err) {
+        console.warn(`[renameSession] IPC call failed for ${key}:`, err);
+      }
     },
 
     // ── Delete session ──

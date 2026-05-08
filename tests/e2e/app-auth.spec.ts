@@ -26,31 +26,29 @@ test.describe('BoostClaw app auth', () => {
       await window.waitForLoadState('domcontentloaded');
       await expect(window.getByTestId('login-page')).toBeVisible();
 
-      await app.evaluate(async () => {
-        const { join } = process.mainModule!.require('node:path') as typeof import('node:path');
-        const appAuthModulePath = join(process.cwd(), 'dist-electron', 'main', 'utils', 'app-auth.js');
-        const { appAuthManager } = process.mainModule!.require(appAuthModulePath) as {
-          appAuthManager: {
-            pendingFlow: Record<string, unknown> | null;
-            syncAuthMaskByUrl: (url: string) => Promise<void>;
-            closeAuthMaskWindow: () => void;
-          };
-        };
+      await expect.poll(() => app.windows().filter((candidate) => !candidate.isClosed()).length).toBe(1);
+    } finally {
+      await closeElectronApp(app);
+    }
+  });
 
-        appAuthManager.pendingFlow = {
-          state: 'test-state',
-          codeVerifier: 'test-code-verifier',
-          webRetryCount: 0,
-          cookiePollMisses: 0,
-          redirectPageAutoClickCount: 0,
-        };
+  test('enters the main app after auth success', async ({ launchElectronApp }) => {
+    const app = await launchElectronApp({ enableAppAuth: true, skipSetup: true });
+    try {
+      const window = await app.firstWindow();
+      await window.waitForLoadState('domcontentloaded');
+      await expect(window.getByTestId('login-page')).toBeVisible();
 
-        await appAuthManager.syncAuthMaskByUrl('https://open.microdata-inc.com/');
-        appAuthManager.pendingFlow = null;
-        appAuthManager.closeAuthMaskWindow();
+      await app.evaluate(({ BrowserWindow }) => {
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        mainWindow?.webContents.send('auth:success', {
+          authenticated: true,
+          profile: { email: 'user@example.com' },
+        });
       });
 
-      await expect.poll(() => app.windows().filter((candidate) => !candidate.isClosed()).length).toBe(1);
+      await expect(window.getByTestId('main-layout')).toBeVisible();
+      await expect(window.getByTestId('chat-welcome-screen')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }

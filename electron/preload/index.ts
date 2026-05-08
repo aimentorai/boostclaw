@@ -136,6 +136,7 @@ const electronAPI = {
         // Chat send with media (reads staged files in main process)
         'chat:sendWithMedia',
         // Session management
+        'session:rename',
         'session:delete',
         // OpenClaw extras
         'openclaw:getDir',

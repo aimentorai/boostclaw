@@ -1,6 +1,13 @@
 {
     "gatewayNotRunning": "Gateway Not Running",
     "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings",
+    "gatewayNotice": {
+        "title": "Gateway is not connected, so messages cannot be sent yet",
+        "desc": "Wait for automatic startup or start the Gateway manually. If it keeps failing, open diagnostics.",
+        "start": "Start Gateway",
+        "starting": "Starting",
+        "diagnostics": "Open diagnostics"
+    },
     "welcome": {
         "title": "BoostClaw Console",
         "greeting": "Hi, I'm BoostClaw, your cross-border AI assistant",

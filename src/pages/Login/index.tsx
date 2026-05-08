@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { subscribeHostEvent } from '@/lib/host-events';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ type AuthEventPayload = {
 // Login renders the minimal unauthenticated entry screen and starts the OAuth flow.
 export function Login() {
   const { t } = useTranslation('common');
+  const navigate = useNavigate();
   const enabled = useAuthStore((state) => state.enabled);
   const authenticated = useAuthStore((state) => state.authenticated);
   const pendingLogin = useAuthStore((state) => state.pendingLogin);
@@ -24,8 +26,7 @@ export function Login() {
   useEffect(() => {
     const offSuccess = subscribeHostEvent<AuthEventPayload>('auth:success', async () => {
       await refreshStatus();
-      // Temporary: keep the user on the login page after app auth succeeds.
-      // This makes it easier to inspect the post-login state without an automatic redirect.
+      navigate('/', { replace: true });
     });
     const offError = subscribeHostEvent<AuthEventPayload>('auth:error', async (payload) => {
       await refreshStatus();
@@ -38,13 +39,13 @@ export function Login() {
       offSuccess();
       offError();
     };
-  }, [refreshStatus, t]);
+  }, [navigate, refreshStatus, t]);
 
   useEffect(() => {
     if (enabled && authenticated) {
-      // Temporary: do not auto-redirect authenticated users away from /login.
+      navigate('/', { replace: true });
     }
-  }, [enabled, authenticated]);
+  }, [enabled, authenticated, navigate]);
 
   return (
     <main

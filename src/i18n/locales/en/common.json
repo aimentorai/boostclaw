@@ -17,6 +17,10 @@
         "runtimeTitle": "Runtime",
         "runtimeOnline": "Online",
         "runtimeReadyDesc": "This workspace is ready for managing agents, sessions, and model metrics.",
+        "searchSessions": "Search chats",
+        "renameSession": "Rename chat",
+        "renameSave": "Save name",
+        "deleteSession": "Delete chat",
         "deleteSessionConfirm": "Are you sure you want to delete session \"{{label}}\"?",
         "openClawPage": "OpenClaw Page"
     },

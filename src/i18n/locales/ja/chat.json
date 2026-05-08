@@ -1,6 +1,13 @@
 {
     "gatewayNotRunning": "ゲートウェイが停止中",
     "gatewayRequired": "チャットを利用するには OpenClaw ゲートウェイが実行されている必要があります。自動的に起動するか、設定から起動できます。",
+    "gatewayNotice": {
+        "title": "ゲートウェイ未接続のため、まだ送信できません",
+        "desc": "自動起動を待つか、手動でゲートウェイを起動してください。失敗が続く場合は診断を開いてください。",
+        "start": "起動",
+        "starting": "起動中",
+        "diagnostics": "診断を開く"
+    },
     "welcome": {
         "title": "BoostClaw Console",
         "subtitle": "モデル、チャンネル、専門家を接続し、ここから次のタスクを始めます。",

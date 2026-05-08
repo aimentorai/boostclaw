@@ -10,7 +10,10 @@
     "system": "システム",
     "language": "言語",
     "launchAtStartup": "システム起動時に自動起動",
-    "launchAtStartupDesc": "ログイン時に自動起動"
+    "launchAtStartupDesc": "ログイン時に自動起動",
+    "resetSetupWizard": "セットアップウィザードを再実行",
+    "resetSetupWizardDesc": "次回起動時に初回セットアップガイドを再度表示",
+    "resetSetupWizardSucceeded": "セットアップウィザードをリセットしました。リダイレクト中..."
   },
   "account": {
     "title": "アカウント",
@@ -288,8 +291,9 @@
     "doctorStdout": "標準出力",
     "doctorStderr": "標準エラー",
     "doctorOutputEmpty": "（空）",
-    "diagnostics": "ヘルススナップショット",
-    "diagnosticsDesc": "ローカル Gateway とログ診断を集約し、対応可能な問題を表示します。",
+    "diagnostics": "診断",
+    "diagnosticsDesc": "専用の診断ページでヘルススナップショット、ログ、修復、レポート出力を確認します。",
+    "openDiagnostics": "診断を開く",
     "diagnosticsRefreshed": "診断を更新しました",
     "diagnosticsFailed": "診断を読み込めませんでした",
     "diagnosticsGateway": "Gateway",

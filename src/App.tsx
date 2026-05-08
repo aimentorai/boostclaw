@@ -167,7 +167,7 @@ function App() {
       return;
     }
     if (authenticated && onLoginPage) {
-      // Temporary: keep the renderer on /login after sign-in for debugging.
+      navigate('/', { replace: true });
     }
   }, [authLoading, authEnabled, authenticated, location.pathname, navigate]);
 
@@ -239,6 +239,7 @@ function App() {
       } finally {
         setLoginFlowActive(false);
       }
+      navigate('/', { replace: true });
     });
 
     const offError = subscribeHostEvent<{ reason?: string }>('auth:error', (payload) => {
@@ -253,7 +254,7 @@ function App() {
       offSuccess();
       offError();
     };
-  }, [refreshAuthStatus]);
+  }, [navigate, refreshAuthStatus]);
 
   useEffect(() => {
     const offAuthDebug = subscribeHostEvent<{

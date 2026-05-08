@@ -1203,24 +1203,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
             void get().loadHistory();
           }
 
-          // Background: fetch first user message for every non-main session to populate labels upfront.
-          // Uses a small limit so it's cheap; runs in parallel and doesn't block anything.
-          const sessionsToLabel = sessionsWithCurrent.filter((s) => !s.key.endsWith(':main'));
+          // Background: hydrate sidebar labels with bounded concurrency and a small
+          // limit. Each request fetches only the first few messages to extract the
+          // first user message as the sidebar label, plus the last message timestamp
+          // for activity sorting — no need to pull the full history.
+          const sessionsToLabel = sessionsWithCurrent.filter((s) => {
+            if (s.key.endsWith(':main')) return false;
+            if (get().sessionLabels[s.key] || s.label) return false;
+            return true;
+          });
           if (sessionsToLabel.length > 0) {
-            void Promise.all(
-              sessionsToLabel.map(async (session) => {
+            const LABEL_CONCURRENCY = 2;
+            const LABEL_TIMEOUT_MS = 8_000;
+            const LABEL_HISTORY_LIMIT = 3;
+            let nextIdx = 0;
+            const worker = async () => {
+              while (nextIdx < sessionsToLabel.length) {
+                const session = sessionsToLabel[nextIdx++];
+                if (!session) continue;
                 try {
-                  const r = await useGatewayStore
-                    .getState()
-                    .rpc<
-                      Record<string, unknown>
-                    >('chat.history', { sessionKey: session.key, limit: 1000 });
+                  const r = await Promise.race([
+                    useGatewayStore
+                      .getState()
+                      .rpc<Record<string, unknown>>(
+                        'chat.history',
+                        { sessionKey: session.key, limit: LABEL_HISTORY_LIMIT },
+                      ),
+                    new Promise<never>((_, reject) =>
+                      setTimeout(() => reject(new Error('label timeout')), LABEL_TIMEOUT_MS)
+                    ),
+                  ]);
                   const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
                   const firstUser = msgs.find((m) => m.role === 'user');
                   const lastMsg = msgs[msgs.length - 1];
+                  if (!firstUser && !lastMsg?.timestamp) continue;
                   set((s) => {
                     const next: Partial<typeof s> = {};
-                    if (firstUser) {
+                    if (firstUser && !s.sessionLabels[session.key]) {
                       const labelText = getMessageText(firstUser.content).trim();
                       if (labelText) {
                         const truncated =
@@ -1228,7 +1247,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
                       }
                     }
-                    if (lastMsg?.timestamp) {
+                    if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
                       next.sessionLastActivity = {
                         ...s.sessionLastActivity,
                         [session.key]: toMs(lastMsg.timestamp),
@@ -1237,9 +1256,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     return next;
                   });
                 } catch {
-                  // ignore per-session errors
+                  // Sidebar metadata is best-effort.
                 }
-              })
+              }
+            };
+            void Promise.all(
+              Array.from(
+                { length: Math.min(LABEL_CONCURRENCY, sessionsToLabel.length) },
+                () => worker(),
+              ),
             );
           }
         }
@@ -1267,6 +1292,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
     clearHistoryPoll();
     set((s) => buildSessionSwitchPatch(s, key));
     get().loadHistory();
+  },
+
+  // ── Rename session ──
+
+  renameSession: async (key: string, label: string) => {
+    const trimmed = label.trim().slice(0, 80);
+    if (!trimmed) return;
+
+    set((state) => ({
+      sessionLabels: {
+        ...state.sessionLabels,
+        [key]: trimmed,
+      },
+      sessions: state.sessions.map((session) =>
+        session.key === key ? { ...session, label: trimmed, displayName: trimmed } : session
+      ),
+    }));
+
+    try {
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        '/api/sessions/rename',
+        {
+          method: 'POST',
+          body: JSON.stringify({ sessionKey: key, label: trimmed }),
+        }
+      );
+      if (!result.success) {
+        console.warn(`[renameSession] Host API reported failure for ${key}:`, result.error);
+      }
+    } catch (err) {
+      console.warn(`[renameSession] Host API call failed for ${key}:`, err);
+    }
   },
 
   // ── Delete session ──

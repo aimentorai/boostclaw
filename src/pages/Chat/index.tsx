@@ -5,7 +5,8 @@
  * are in the toolbar; messages render with markdown + streaming.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw, Sparkles, Wrench } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useChatStore, type RawMessage } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
 import { useAgentsStore } from '@/stores/agents';
@@ -31,8 +32,10 @@ function isSimpleGreetingMessage(message: RawMessage | undefined): boolean {
 
 export function Chat() {
   const { t } = useTranslation('chat');
+  const navigate = useNavigate();
   const gatewayStatus = useGatewayStore((s) => s.status);
   const isGatewayRunning = gatewayStatus.state === 'running';
+  const startGateway = useGatewayStore((s) => s.start);
 
   const messages = useChatStore((s) => s.messages);
   const currentSessionKey = useChatStore((s) => s.currentSessionKey);
@@ -206,6 +209,13 @@ export function Chat() {
             </div>
           </div>
           <div className="mx-auto w-full max-w-3xl shrink-0 px-6 pb-4 pt-2">
+            {!isGatewayRunning && (
+              <GatewayNotice
+                state={gatewayStatus.state}
+                onStart={() => void startGateway()}
+                onDiagnostics={() => navigate('/diagnostics')}
+              />
+            )}
             <ChatInput
               onSend={sendMessage}
               onStop={abortRun}
@@ -288,6 +298,16 @@ export function Chat() {
             </div>
           )}
 
+          {!isGatewayRunning && (
+            <div className="relative z-10 mx-auto w-full max-w-4xl px-5 pb-2">
+              <GatewayNotice
+                state={gatewayStatus.state}
+                onStart={() => void startGateway()}
+                onDiagnostics={() => navigate('/diagnostics')}
+              />
+            </div>
+          )}
+
           {/* Input Area */}
           <ChatInput
             onSend={sendMessage}
@@ -307,6 +327,57 @@ export function Chat() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GatewayNotice({
+  state,
+  onStart,
+  onDiagnostics,
+}: {
+  state: string;
+  onStart: () => void;
+  onDiagnostics: () => void;
+}) {
+  const { t } = useTranslation('chat');
+  const starting = state === 'starting';
+
+  return (
+    <div
+      data-testid="chat-gateway-notice"
+      className="mb-2 flex flex-col gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{t('gatewayNotice.title')}</span>
+        </div>
+        <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
+          {t('gatewayNotice.desc')}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          data-testid="chat-gateway-start"
+          onClick={onStart}
+          disabled={starting}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-900 px-3 text-xs font-medium text-white transition hover:bg-amber-800 disabled:cursor-wait disabled:opacity-70 dark:bg-amber-300 dark:text-amber-950 dark:hover:bg-amber-200"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', starting && 'animate-spin')} />
+          {starting ? t('gatewayNotice.starting') : t('gatewayNotice.start')}
+        </button>
+        <button
+          type="button"
+          data-testid="chat-gateway-diagnostics"
+          onClick={onDiagnostics}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-400/70 px-3 text-xs font-medium text-amber-950 transition hover:bg-amber-100 dark:border-amber-300/25 dark:text-amber-100 dark:hover:bg-amber-300/10"
+        >
+          <Wrench className="h-3.5 w-3.5" />
+          {t('gatewayNotice.diagnostics')}
+        </button>
+      </div>
     </div>
   );
 }

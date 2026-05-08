@@ -10,7 +10,10 @@
     "system": "跟随系统",
     "language": "语言",
     "launchAtStartup": "开机自动启动",
-    "launchAtStartupDesc": "登录系统后自动启动 BoostClaw"
+    "launchAtStartupDesc": "登录系统后自动启动 BoostClaw",
+    "resetSetupWizard": "重新运行引导向导",
+    "resetSetupWizardDesc": "下次启动时再次显示首次设置引导",
+    "resetSetupWizardSucceeded": "引导向导已重置，正在跳转..."
   },
   "account": {
     "title": "账号",
@@ -291,8 +294,9 @@
     "doctorStdout": "标准输出",
     "doctorStderr": "标准错误",
     "doctorOutputEmpty": "（空）",
-    "diagnostics": "健康快照",
-    "diagnosticsDesc": "本地网关与日志诊断，汇总可操作的问题建议",
+    "diagnostics": "诊断",
+    "diagnosticsDesc": "打开独立诊断页，查看健康快照、日志、修复建议和报告导出。",
+    "openDiagnostics": "打开诊断",
     "diagnosticsRefreshed": "诊断已刷新",
     "diagnosticsFailed": "加载诊断失败",
     "diagnosticsGateway": "网关",

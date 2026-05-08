@@ -167,7 +167,7 @@ pnpm dev
 When you launch BoostClaw for the first time, the **Setup Wizard** will guide you through:
 
 1. **Language & Region** – Configure your preferred locale
-2. **AI Provider** – Add providers with API keys or OAuth (for providers that support browser/device login)
+2. **AI Provider** – Optionally add providers with API keys or OAuth, or skip and configure them later
 3. **Skill Bundles** – Select pre-configured skills for common use cases
 4. **Verification** – Test your configuration before entering the main interface
 

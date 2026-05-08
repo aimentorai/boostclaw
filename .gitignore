@@ -75,6 +75,7 @@ build/
 artifacts/
 docs/pr-session-notes-*.md
 
+.claude/
 .cursor/
 .pnpm-store/
 package-lock.json

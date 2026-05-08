@@ -330,7 +330,7 @@ function formatDuration(durationMs?: number): string | null {
   return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
-function ToolStatusBar({
+const ToolStatusBar = memo(function ToolStatusBar({
   tools,
 }: {
   tools: Array<{
@@ -378,11 +378,11 @@ function ToolStatusBar({
       })}
     </div>
   );
-}
+});
 
 // ── Message hover bar (timestamp + copy) ─
 
-function MessageHoverBar({
+const MessageHoverBar = memo(function MessageHoverBar({
   text,
   timestamp,
   role,
@@ -424,7 +424,7 @@ function MessageHoverBar({
       </Button>
     </div>
   );
-}
+});
 
 // ── Streaming Text Renderer ────────────────────────────────────
 // Lightweight text display for streaming — avoids O(n²) ReactMarkdown
@@ -666,7 +666,7 @@ const MessageBubble = memo(function MessageBubble({
 
 // ── Thinking Block ──────────────────────────────────────────────
 
-function ThinkingBlock({
+const ThinkingBlock = memo(function ThinkingBlock({
   content,
   expanded,
   onToggle,
@@ -711,7 +711,7 @@ function ThinkingBlock({
       )}
     </div>
   );
-}
+});
 
 // ── File Card (for user-uploaded non-image files) ───────────────
 
@@ -744,7 +744,7 @@ function FileIcon({ mimeType, className }: { mimeType: string; className?: strin
   return <File className={className} />;
 }
 
-function FileCard({ file }: { file: AttachedFileMeta }) {
+const FileCard = memo(function FileCard({ file }: { file: AttachedFileMeta }) {
   const { t } = useTranslation('chat');
   const handleOpen = useCallback(() => {
     if (file.filePath) {
@@ -770,9 +770,9 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
       </div>
     </div>
   );
-}
+});
 
-function VideoPreviewCard({
+const VideoPreviewCard = memo(function VideoPreviewCard({
   file,
   compact = false,
 }: {
@@ -893,11 +893,11 @@ function VideoPreviewCard({
       </button>
     </div>
   );
-}
+});
 
 // ── Image Thumbnail (user bubble — square crop with zoom hint) ──
 
-function ImageThumbnail({
+const ImageThumbnail = memo(function ImageThumbnail({
   src,
   fileName,
   filePath,
@@ -926,11 +926,11 @@ function ImageThumbnail({
       </div>
     </div>
   );
-}
+});
 
 // ── Image Preview Card (assistant bubble — natural size with overlay actions) ──
 
-function ImagePreviewCard({
+const ImagePreviewCard = memo(function ImagePreviewCard({
   src,
   fileName,
   filePath,
@@ -959,11 +959,11 @@ function ImagePreviewCard({
       </div>
     </div>
   );
-}
+});
 
 // ── Image Lightbox ───────────────────────────────────────────────
 
-function ImageLightbox({
+const ImageLightbox = memo(function ImageLightbox({
   src,
   fileName,
   filePath,
@@ -1038,11 +1038,11 @@ function ImageLightbox({
     </div>,
     document.body
   );
-}
+});
 
 // ── Tool Card ───────────────────────────────────────────────────
 
-function ToolCard({ name, input }: { name: string; input: unknown }) {
+const ToolCard = memo(function ToolCard({ name, input }: { name: string; input: unknown }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -1070,4 +1070,4 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
       )}
     </div>
   );
-}
+});
