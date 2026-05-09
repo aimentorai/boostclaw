@@ -184,6 +184,10 @@ export class GatewayManager extends EventEmitter {
     return this.stateController.getStatus();
   }
 
+  getOwnsProcess(): boolean {
+    return this.ownsProcess;
+  }
+
   /**
    * Check if Gateway is connected and ready
    */

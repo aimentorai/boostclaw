@@ -2570,22 +2570,31 @@ function registerFileHandlers(): void {
  * Renaming to <suffix>.deleted.jsonl hides it from sessions.list.
  */
 function registerSessionHandlers(): void {
+  const SAFE_SESSION_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+  const parseSafeAgentSessionKey = (sessionKey: unknown): { agentId: string } | null => {
+    if (typeof sessionKey !== 'string') return null;
+    const parts = sessionKey.split(':');
+    if (parts.length < 3 || parts[0] !== 'agent') return null;
+    const [, agentId, ...suffixParts] = parts;
+    if (!SAFE_SESSION_SEGMENT.test(agentId)) return null;
+    if (suffixParts.length === 0 || suffixParts.some((part) => !SAFE_SESSION_SEGMENT.test(part))) {
+      return null;
+    }
+    return { agentId };
+  };
+
   ipcMain.handle('session:rename', async (_, sessionKey: string, nextLabel: string) => {
     try {
       const label = String(nextLabel ?? '').trim().slice(0, 80);
-      if (!sessionKey || !sessionKey.startsWith('agent:')) {
-        return { success: false, error: `Invalid sessionKey: ${sessionKey}` };
+      const parsedSession = parseSafeAgentSessionKey(sessionKey);
+      if (!parsedSession) {
+        return { success: false, error: 'Invalid session key' };
       }
       if (!label) {
         return { success: false, error: 'label is required' };
       }
 
-      const parts = sessionKey.split(':');
-      if (parts.length < 3) {
-        return { success: false, error: `sessionKey has too few parts: ${sessionKey}` };
-      }
-
-      const agentId = parts[1];
+      const { agentId } = parsedSession;
       const sessionsDir = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions');
       const sessionsJsonPath = join(sessionsDir, 'sessions.json');
       const fsP = await import('fs/promises');
@@ -2614,35 +2623,30 @@ function registerSessionHandlers(): void {
       }
 
       if (!updated) {
-        return { success: false, error: `Session not found: ${sessionKey}` };
+        return { success: false, error: 'Session not found' };
       }
 
       await fsP.writeFile(sessionsJsonPath, JSON.stringify(sessionsJson, null, 2), 'utf8');
       return { success: true };
-    } catch (err) {
-      logger.error(`[session:rename] Unexpected error for ${sessionKey}:`, err);
-      return { success: false, error: String(err) };
+    } catch {
+      logger.error('[session:rename] Unexpected error');
+      return { success: false, error: 'Failed to rename session' };
     }
   });
 
   ipcMain.handle('session:delete', async (_, sessionKey: string) => {
     try {
-      if (!sessionKey || !sessionKey.startsWith('agent:')) {
-        return { success: false, error: `Invalid sessionKey: ${sessionKey}` };
+      const parsedSession = parseSafeAgentSessionKey(sessionKey);
+      if (!parsedSession) {
+        return { success: false, error: 'Invalid session key' };
       }
 
-      const parts = sessionKey.split(':');
-      if (parts.length < 3) {
-        return { success: false, error: `sessionKey has too few parts: ${sessionKey}` };
-      }
-
-      const agentId = parts[1];
+      const { agentId } = parsedSession;
       const openclawConfigDir = getOpenClawConfigDir();
       const sessionsDir = join(openclawConfigDir, 'agents', agentId, 'sessions');
       const sessionsJsonPath = join(sessionsDir, 'sessions.json');
 
-      logger.info(`[session:delete] key=${sessionKey} agentId=${agentId}`);
-      logger.info(`[session:delete] sessionsJson=${sessionsJsonPath}`);
+      logger.info(`[session:delete] agentId=${agentId}`);
 
       const fsP = await import('fs/promises');
 
@@ -2710,7 +2714,7 @@ function registerSessionHandlers(): void {
         logger.warn(
           `[session:delete] Cannot resolve file for "${sessionKey}". Raw value: ${JSON.stringify(rawVal)}`
         );
-        return { success: false, error: `Cannot resolve file for session: ${sessionKey}` };
+        return { success: false, error: 'Cannot resolve file for session' };
       }
 
       // Normalise: if we got a relative filename, resolve it against sessionsDir
@@ -2753,9 +2757,9 @@ function registerSessionHandlers(): void {
       }
 
       return { success: true };
-    } catch (err) {
-      logger.error(`[session:delete] Unexpected error for ${sessionKey}:`, err);
-      return { success: false, error: String(err) };
+    } catch {
+      logger.error('[session:delete] Unexpected error');
+      return { success: false, error: 'Failed to delete session' };
     }
   });
 }

@@ -4,7 +4,7 @@ import { app } from 'electron';
 import { getSetting, setSetting } from './store';
 import { logger } from './logger';
 
-const POSTHOG_API_KEY = 'phc_aGNegeJQP5FzNiF2rEoKqQbkuCpiiETMttplibXpB0n';
+const POSTHOG_API_KEY = 'phc_aGNegeJQP5FzNiF2rEoKqQbkuCpiiETMttplibXpB0n'; // gitleaks:allow
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 const TELEMETRY_SHUTDOWN_TIMEOUT_MS = 1500;
 

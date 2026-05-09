@@ -21,6 +21,7 @@ const DEFAULT_USAGE_FETCH_MAX_ATTEMPTS = 2;
 const WINDOWS_USAGE_FETCH_MAX_ATTEMPTS = 3;
 const USAGE_FETCH_RETRY_DELAY_MS = 1500;
 const USAGE_AUTO_REFRESH_INTERVAL_MS = 15_000;
+const USAGE_HISTORY_LIMIT = 1000;
 
 export function Models() {
   const { t } = useTranslation(['dashboard', 'settings']);
@@ -28,7 +29,7 @@ export function Models() {
   const devModeUnlocked = useSettingsStore((state) => state.devModeUnlocked);
   const isGatewayRunning = gatewayStatus.state === 'running';
   const usageFetchMaxAttempts =
-    (window as any).electron?.platform === 'win32'
+    window.electron?.platform === 'win32'
       ? WINDOWS_USAGE_FETCH_MAX_ATTEMPTS
       : DEFAULT_USAGE_FETCH_MAX_ATTEMPTS;
 
@@ -181,7 +182,9 @@ export function Models() {
         restartMarker,
       });
       try {
-        const entries = await hostApiFetch<UsageHistoryEntry[]>('/api/usage/recent-token-history');
+        const entries = await hostApiFetch<UsageHistoryEntry[]>(
+          `/api/usage/recent-token-history?limit=${USAGE_HISTORY_LIMIT}`
+        );
         if (usageFetchGenerationRef.current !== generation) return;
 
         const normalized = Array.isArray(entries) ? entries : [];

@@ -28,6 +28,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Detect secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --config .gitleaks.toml --source .
+
       - name: Run linter
         run: pnpm run lint
 

@@ -44,26 +44,20 @@ const execAsync = promisify(exec);
  */
 export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promise<void> {
   try {
-    // Capture the PID of the running Gateway BEFORE stop() clears it.
     const status = ctx.gatewayManager.getStatus();
-    const pid = status.pid;
+    const isOwned =
+      typeof ctx.gatewayManager.getOwnsProcess === 'function'
+        ? ctx.gatewayManager.getOwnsProcess()
+        : Boolean(status.pid);
+    const pid = isOwned ? status.pid : undefined;
     const port = status.port;
-    console.log('[agents] Triggering Gateway restart (kill+respawn) after agent deletion', {
-      pid,
-      port,
-    });
 
-    // Force-kill the Gateway process by PID.  The manager's stop() only
-    // kills "owned" processes; if the manager connected to an already-
-    // running Gateway (ownsProcess=false), stop() simply closes the WS
-    // and the old process stays alive with its stale channel connections.
-    if (pid) {
+    if (isOwned && pid) {
       try {
         if (process.platform === 'win32') {
           await execAsync(`taskkill /F /PID ${pid} /T`);
         } else {
           process.kill(pid, 'SIGTERM');
-          // Give it a moment to die
           await new Promise((resolve) => setTimeout(resolve, 500));
           try {
             process.kill(pid, 0);
@@ -76,12 +70,9 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
         // process already gone – that's fine
       }
     } else if (port) {
-      // If we don't know the PID (e.g. connected to an orphaned Gateway from
-      // a previous pnpm dev run), forcefully kill whatever is on the port.
       try {
         if (process.platform === 'darwin' || process.platform === 'linux') {
-          // MUST use -sTCP:LISTEN. Otherwise lsof returns the client process (BoostClaw itself)
-          // that has an ESTABLISHED WebSocket connection to the port, causing us to kill ourselves.
+          // Restrict to listening sockets so we do not match BoostClaw's client-side WS connection.
           const { stdout } = await execAsync(`lsof -t -i :${port} -sTCP:LISTEN`);
           const pids = stdout.trim().split('\n').filter(Boolean);
           for (const p of pids) {
@@ -100,7 +91,6 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
             }
           }
         } else if (process.platform === 'win32') {
-          // Find PID listening on the port
           const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
           const lines = stdout.trim().split('\n');
           const pids = new Set<string>();
@@ -119,7 +109,7 @@ export async function restartGatewayForAgentDeletion(ctx: HostApiContext): Promi
           }
         }
       } catch {
-        // Port might not be bound or command failed; ignore
+        // Port might not be bound or command failed; ignore.
       }
     }
 

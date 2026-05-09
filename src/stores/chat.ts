@@ -703,7 +703,7 @@ function ensureSessionEntry(sessions: ChatSession[], sessionKey: string): ChatSe
   if (sessions.some((session) => session.key === sessionKey)) {
     return sessions;
   }
-  return [...sessions, { key: sessionKey, displayName: sessionKey }];
+  return [...sessions, { key: sessionKey }];
 }
 
 function clearSessionEntryFromMap<T extends Record<string, unknown>>(
@@ -823,11 +823,30 @@ function isToolResultRole(role: unknown): boolean {
 /** True for internal plumbing messages that should never be shown in the UI. */
 function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean {
   if (msg.role === 'system') return true;
+  const text = getMessageText(msg.content);
+  if (isRuntimeSystemNoticeText(text)) return true;
   if (msg.role === 'assistant') {
-    const text = getMessageText(msg.content);
     if (/^(HEARTBEAT_OK|NO_REPLY)\s*$/.test(text)) return true;
   }
+  if (msg.role === 'user') {
+    if (/Read\s+HEARTBEAT\.md\b/i.test(text)) return true;
+  }
   return false;
+}
+
+function isRuntimeSystemNoticeText(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    /^System\s*\([^)]*untrusted[^)]*\):\s*\[[^\]]+\]\s*Exec\s+(?:failed|completed)\b/i.test(
+      trimmed
+    ) ||
+    /^An async command you ran earlier has completed\.\s*The result is shown in the system messages above\./i.test(
+      trimmed
+    ) ||
+    /^Current time:\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th),\s+\d{4}\b/i.test(
+      trimmed
+    )
+  );
 }
 
 /** Strip <skill_context> XML wrapper so UI displays only the user's original text. */
@@ -1415,7 +1434,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       getCanonicalPrefixFromSessions(sessions) ??
       DEFAULT_CANONICAL_PREFIX;
     const newKey = `${prefix}:session-${Date.now()}`;
-    const newSessionEntry: ChatSession = { key: newKey, displayName: newKey };
+    const newSessionEntry: ChatSession = { key: newKey };
     set((s) => ({
       currentSessionKey: newKey,
       currentAgentId: getAgentIdFromSessionKey(newKey),
@@ -1554,57 +1573,45 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
 
-        // Preserve the optimistic user message during an active send.
-        // The Gateway may not include the user's message in chat.history
-        // until the run completes, causing it to flash out of the UI.
-        let finalMessages = enrichedMessages;
-        const userMsgAt = get().lastUserMessageAt;
-        if (get().sending && userMsgAt) {
-          const userMsMs = toMs(userMsgAt);
-          const hasRecentUser = enrichedMessages.some(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
-          );
-          if (!hasRecentUser) {
-            const currentMsgs = get().messages;
-            const optimistic = [...currentMsgs]
-              .reverse()
-              .find(
-                (m) =>
-                  m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
-              );
-            if (optimistic) {
-              finalMessages = [...enrichedMessages, optimistic];
-            }
-          }
+        // During an active send, merge history results with existing messages
+        // instead of replacing them. This prevents the optimistic user message
+        // from disappearing or duplicating during history polling.
+        // When NOT sending (session switch / page load), replace normally.
+        let finalMessages: RawMessage[];
+        if (get().sending) {
+          const existing = get().messages;
+          const existingIds = new Set(existing.map((m) => m.id).filter(Boolean));
+          finalMessages = [
+            ...existing,
+            ...enrichedMessages.filter((m) => !m.id || !existingIds.has(m.id)),
+          ];
+        } else {
+          finalMessages = enrichedMessages;
         }
 
-        set({ messages: finalMessages, thinkingLevel, loading: false });
-
-        // Extract first user message text as a session label for display in the toolbar.
-        // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
-        // displayName (e.g. the configured agent name "BoostClaw") instead.
+        // Batch label + activity + messages into a single state update to avoid
+        // consecutive re-renders during session switch.
         const isMainSession = currentSessionKey.endsWith(':main');
-        if (!isMainSession) {
-          const firstUserMsg = finalMessages.find((m) => m.role === 'user');
-          if (firstUserMsg) {
+        const firstUserMsg = isMainSession ? null : finalMessages.find((m) => m.role === 'user');
+        const lastMsg = finalMessages[finalMessages.length - 1];
+        set((s) => {
+          const patch: Partial<ChatState> = {
+            messages: finalMessages,
+            thinkingLevel,
+            loading: false,
+          };
+          if (firstUserMsg && !s.sessionLabels[currentSessionKey]) {
             const labelText = getMessageText(firstUserMsg.content).trim();
             if (labelText) {
               const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-              set((s) => ({
-                sessionLabels: { ...s.sessionLabels, [currentSessionKey]: truncated },
-              }));
+              patch.sessionLabels = { ...s.sessionLabels, [currentSessionKey]: truncated };
             }
           }
-        }
-
-        // Record last activity time from the last message in history
-        const lastMsg = finalMessages[finalMessages.length - 1];
-        if (lastMsg?.timestamp) {
-          const lastAt = toMs(lastMsg.timestamp);
-          set((s) => ({
-            sessionLastActivity: { ...s.sessionLastActivity, [currentSessionKey]: lastAt },
-          }));
-        }
+          if (lastMsg?.timestamp) {
+            patch.sessionLastActivity = { ...s.sessionLastActivity, [currentSessionKey]: toMs(lastMsg.timestamp) };
+          }
+          return patch;
+        });
 
         // Async: load missing image previews from disk (updates in background)
         loadMissingPreviews(finalMessages).then((updated) => {

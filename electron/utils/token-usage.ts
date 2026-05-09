@@ -9,6 +9,16 @@ import {
 } from './token-usage-core';
 import { listConfiguredAgentIds } from './agent-config';
 
+const TOKEN_USAGE_CACHE_TTL_MS = 20_000;
+
+type TokenUsageCacheEntry = {
+  createdAt: number;
+  entries: TokenUsageHistoryEntry[];
+};
+
+const tokenUsageCache = new Map<string, TokenUsageCacheEntry>();
+const tokenUsageInFlight = new Map<string, Promise<TokenUsageHistoryEntry[]>>();
+
 export {
   extractSessionIdFromTranscriptFileName,
   parseUsageEntriesFromJsonl,
@@ -89,12 +99,48 @@ async function listRecentSessionFiles(): Promise<Array<{ filePath: string; sessi
   }
 }
 
-export async function getRecentTokenUsageHistory(limit?: number): Promise<TokenUsageHistoryEntry[]> {
-  const files = await listRecentSessionFiles();
-  const results: TokenUsageHistoryEntry[] = [];
-  const maxEntries = typeof limit === 'number' && Number.isFinite(limit)
+function normalizeUsageLimit(limit?: number): number {
+  return typeof limit === 'number' && Number.isFinite(limit)
     ? Math.max(Math.floor(limit), 0)
     : Number.POSITIVE_INFINITY;
+}
+
+function usageCacheKey(maxEntries: number): string {
+  return Number.isFinite(maxEntries) ? String(maxEntries) : 'all';
+}
+
+export async function getRecentTokenUsageHistory(limit?: number): Promise<TokenUsageHistoryEntry[]> {
+  const maxEntries = normalizeUsageLimit(limit);
+  const cacheKey = usageCacheKey(maxEntries);
+  const now = Date.now();
+  const cached = tokenUsageCache.get(cacheKey);
+  if (cached && now - cached.createdAt < TOKEN_USAGE_CACHE_TTL_MS) {
+    return cached.entries.map((entry) => ({ ...entry }));
+  }
+
+  const existingLoad = tokenUsageInFlight.get(cacheKey);
+  if (existingLoad) {
+    const entries = await existingLoad;
+    return entries.map((entry) => ({ ...entry }));
+  }
+
+  const loadPromise = readRecentTokenUsageHistory(maxEntries);
+  tokenUsageInFlight.set(cacheKey, loadPromise);
+  try {
+    const entries = await loadPromise;
+    tokenUsageCache.set(cacheKey, {
+      createdAt: Date.now(),
+      entries: entries.map((entry) => ({ ...entry })),
+    });
+    return entries;
+  } finally {
+    tokenUsageInFlight.delete(cacheKey);
+  }
+}
+
+async function readRecentTokenUsageHistory(maxEntries: number): Promise<TokenUsageHistoryEntry[]> {
+  const files = await listRecentSessionFiles();
+  const results: TokenUsageHistoryEntry[] = [];
 
   for (const file of files) {
     if (results.length >= maxEntries) break;

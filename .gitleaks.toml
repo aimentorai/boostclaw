@@ -1,0 +1,12 @@
+# BoostClaw gitleaks configuration
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "BoostClaw known safe patterns"
+
+  paths = [
+    "tests/",
+  ]

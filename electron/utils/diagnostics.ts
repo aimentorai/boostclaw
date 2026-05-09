@@ -138,7 +138,16 @@ export function redactDiagnosticEvidence(line: string): string {
   return line
     .replace(/(authorization:\s*bearer\s+)[^\s"']+/gi, '$1[redacted]')
     .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|key)=)[^&\s"']+/gi, '$1[redacted]')
-    .replace(/("(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|key)"\s*:\s*")[^"]+"/gi, '$1[redacted]"');
+    .replace(/("(?:bodyPreview|body|responseBody)"\s*:\s*")[^"]*(?:\\.[^"]*)*"/gi, '$1[redacted]"')
+    .replace(
+      /("(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|key|prefix|suffix)"\s*:\s*")[^"]+"/gi,
+      '$1[redacted]"'
+    )
+    .replace(
+      /(\\"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|key)\\"\s*:\s*\\")[^\\"]+/gi,
+      '$1[redacted]'
+    )
+    .replace(/\b(?:sk|xai)-[A-Za-z0-9][A-Za-z0-9_-]{16,}\b/g, '[redacted]');
 }
 
 const CREDENTIAL_PATTERNS = [

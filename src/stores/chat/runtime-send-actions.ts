@@ -37,7 +37,7 @@ function ensureSessionEntry(sessions: ChatSession[], sessionKey: string): ChatSe
   if (sessions.some((session) => session.key === sessionKey)) {
     return sessions;
   }
-  return [...sessions, { key: sessionKey, displayName: sessionKey }];
+  return [...sessions, { key: sessionKey }];
 }
 
 export function createRuntimeSendActions(

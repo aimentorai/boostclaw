@@ -42,6 +42,7 @@
         "bundle:preinstalled-skills": "zx scripts/bundle-preinstalled-skills.mjs",
         "lint": "eslint . --fix",
         "typecheck": "tsc --noEmit",
+        "secrets:scan": "gitleaks detect -c .gitleaks.toml --source .",
         "test": "vitest run",
         "test:e2e": "pnpm run build:vite && playwright test",
         "test:e2e:headed": "pnpm run build:vite && playwright test --headed",

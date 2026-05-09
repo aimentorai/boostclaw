@@ -323,7 +323,7 @@ export function createSessionActions(
         && !sessionLabels[currentSessionKey];
       const prefix = getCanonicalPrefixFromSessions(get().sessions) ?? DEFAULT_CANONICAL_PREFIX;
       const newKey = `${prefix}:session-${Date.now()}`;
-      const newSessionEntry: ChatSession = { key: newKey, displayName: newKey };
+      const newSessionEntry: ChatSession = { key: newKey };
       set((s) => ({
         currentSessionKey: newKey,
         currentAgentId: getAgentIdFromSessionKey(newKey),

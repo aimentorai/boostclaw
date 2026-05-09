@@ -223,8 +223,14 @@ function handleGatewayNotification(
       const matchesActiveRun =
         runId != null && state.activeRunId != null && String(runId) === state.activeRunId;
 
+      // When chat data was already forwarded to handleChatEvent,
+      // it manages its own history reload for 'final' events. Skip
+      // maybeLoadHistory here to avoid scheduling a second redundant
+      // load (although _historyLoadInFlight would deduplicate it).
       if (matchesCurrentSession || matchesActiveRun) {
-        maybeLoadHistory(state);
+        if (!hasChatData) {
+          maybeLoadHistory(state);
+        }
       }
       if ((matchesCurrentSession || matchesActiveRun) && state.sending) {
         useChatStore.setState({
@@ -248,18 +254,11 @@ function handleGatewayChatMessage(data: unknown): void {
         : chatData;
 
     if (payload.state) {
-      const dedup = shouldProcessGatewayEvent(payload);
-      console.log(
-        `[perf] chat-message: state=${payload.state} runId=${payload.runId ?? '-'} dedup=${dedup}`
-      );
-      if (!dedup) return;
+      if (!shouldProcessGatewayEvent(payload)) return;
       useChatStore.getState().handleChatEvent(payload);
       return;
     }
 
-    console.log(
-      `[perf] chat-message: no state, wrapping as final. keys=${Object.keys(chatData).join(',')}`
-    );
     const normalized = {
       state: 'final',
       message: payload,

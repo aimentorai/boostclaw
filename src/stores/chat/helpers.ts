@@ -601,11 +601,30 @@ function isToolResultRole(role: unknown): boolean {
 /** True for internal plumbing messages that should never be shown in the UI. */
 function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean {
   if (msg.role === 'system') return true;
+  const text = getMessageText(msg.content);
+  if (isRuntimeSystemNoticeText(text)) return true;
   if (msg.role === 'assistant') {
-    const text = getMessageText(msg.content);
     if (/^(HEARTBEAT_OK|NO_REPLY)\s*$/.test(text)) return true;
   }
+  if (msg.role === 'user') {
+    if (/Read\s+HEARTBEAT\.md\b/i.test(text)) return true;
+  }
   return false;
+}
+
+function isRuntimeSystemNoticeText(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    /^System\s*\([^)]*untrusted[^)]*\):\s*\[[^\]]+\]\s*Exec\s+(?:failed|completed)\b/i.test(
+      trimmed
+    ) ||
+    /^An async command you ran earlier has completed\.\s*The result is shown in the system messages above\./i.test(
+      trimmed
+    ) ||
+    /^Current time:\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th),\s+\d{4}\b/i.test(
+      trimmed
+    )
+  );
 }
 
 function extractTextFromContent(content: unknown): string {

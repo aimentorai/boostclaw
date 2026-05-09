@@ -339,5 +339,17 @@ describe('diagnostic logs', () => {
 
     const result2 = redactDiagnosticEvidence('api_key=mysecretkey');
     expect(result2).toMatch(/\[redacted\]/);
+
+    const result3 = redactDiagnosticEvidence(
+      '[INFO ] response { "bodyPreview": "{\\"data\\":{\\"apiKey\\":\\"sk-sensitive-secret-1234567890\\"}}" }'
+    );
+    expect(result3).toContain('"bodyPreview": "[redacted]"');
+    expect(result3).not.toContain('sk-sensitive-secret');
+
+    const result4 = redactDiagnosticEvidence(
+      '[INFO ] cookie { "sessionCookieSummary": { "prefix": "abc123", "suffix": "xyz789" } }'
+    );
+    expect(result4).not.toContain('abc123');
+    expect(result4).not.toContain('xyz789');
   });
 });

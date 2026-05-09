@@ -26,6 +26,19 @@ function cleanUserText(text: string): string {
       .replace(/^Conversation info\s*\([^)]*\):\s*```[a-z]*\n[\s\S]*?```\s*/i, '')
       // Fallback: remove "Conversation info (...): {...}" without code block wrapper
       .replace(/^Conversation info\s*\([^)]*\):\s*\{[\s\S]*?\}\s*/i, '')
+      // Remove runtime system notices accidentally persisted as user-visible text.
+      .replace(
+        /^System\s*\([^)]*untrusted[^)]*\):\s*\[[^\]]+\]\s*Exec\s+(?:failed|completed)[^\n]*(?:\n{2,}|\n|$)/i,
+        ''
+      )
+      .replace(
+        /^An async command you ran earlier has completed\.\s*The result is shown in the system messages above\.[^\n]*(?:\n{2,}|\n|$)/i,
+        ''
+      )
+      .replace(
+        /^Current time:\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th),\s+\d{4}\s+-\s+\d{1,2}:\d{2}\s+[AP]M\s+\([^)]+\)\s+\/\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+UTC\s*/i,
+        ''
+      )
       // Remove Gateway timestamp prefix like [Fri 2026-02-13 22:39 GMT+8]
       .replace(
         /^\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[^\]]+\]\s*/i,

@@ -6,6 +6,18 @@ import { parseJsonBody, sendJson } from '../route-utils';
 
 const SAFE_SESSION_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
+function parseSafeAgentSessionKey(sessionKey: unknown): { agentId: string } | null {
+  if (typeof sessionKey !== 'string') return null;
+  const parts = sessionKey.split(':');
+  if (parts.length < 3 || parts[0] !== 'agent') return null;
+  const [, agentId, ...suffixParts] = parts;
+  if (!SAFE_SESSION_SEGMENT.test(agentId)) return null;
+  if (suffixParts.length === 0 || suffixParts.some((part) => !SAFE_SESSION_SEGMENT.test(part))) {
+    return null;
+  }
+  return { agentId };
+}
+
 export async function handleSessionRoutes(
   req: IncomingMessage,
   res: ServerResponse,
@@ -53,16 +65,12 @@ export async function handleSessionRoutes(
     try {
       const body = await parseJsonBody<{ sessionKey: string }>(req);
       const sessionKey = body.sessionKey;
-      if (!sessionKey || !sessionKey.startsWith('agent:')) {
-        sendJson(res, 400, { success: false, error: `Invalid sessionKey: ${sessionKey}` });
+      const parsedSession = parseSafeAgentSessionKey(sessionKey);
+      if (!parsedSession) {
+        sendJson(res, 400, { success: false, error: 'Invalid session key' });
         return true;
       }
-      const parts = sessionKey.split(':');
-      if (parts.length < 3) {
-        sendJson(res, 400, { success: false, error: `sessionKey has too few parts: ${sessionKey}` });
-        return true;
-      }
-      const agentId = parts[1];
+      const { agentId } = parsedSession;
       const sessionsDir = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions');
       const sessionsJsonPath = join(sessionsDir, 'sessions.json');
       const fsP = await import('node:fs/promises');
@@ -113,7 +121,8 @@ export async function handleSessionRoutes(
         await fsP.access(resolvedSrcPath);
         await fsP.rename(resolvedSrcPath, dstPath);
       } catch {
-        // Non-fatal; still try to update sessions.json.
+        sendJson(res, 500, { success: false, error: 'Failed to delete session' });
+        return true;
       }
       const raw2 = await fsP.readFile(sessionsJsonPath, 'utf8');
       const json2 = JSON.parse(raw2) as Record<string, unknown>;
@@ -125,8 +134,8 @@ export async function handleSessionRoutes(
       }
       await fsP.writeFile(sessionsJsonPath, JSON.stringify(json2, null, 2), 'utf8');
       sendJson(res, 200, { success: true });
-    } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+    } catch {
+      sendJson(res, 500, { success: false, error: 'Failed to delete session' });
     }
     return true;
   }
@@ -136,21 +145,17 @@ export async function handleSessionRoutes(
       const body = await parseJsonBody<{ sessionKey: string; label: string }>(req);
       const sessionKey = body.sessionKey;
       const label = String(body.label ?? '').trim().slice(0, 80);
-      if (!sessionKey || !sessionKey.startsWith('agent:')) {
-        sendJson(res, 400, { success: false, error: `Invalid sessionKey: ${sessionKey}` });
+      const parsedSession = parseSafeAgentSessionKey(sessionKey);
+      if (!parsedSession) {
+        sendJson(res, 400, { success: false, error: 'Invalid session key' });
         return true;
       }
       if (!label) {
         sendJson(res, 400, { success: false, error: 'label is required' });
         return true;
       }
-      const parts = sessionKey.split(':');
-      if (parts.length < 3) {
-        sendJson(res, 400, { success: false, error: `sessionKey has too few parts: ${sessionKey}` });
-        return true;
-      }
 
-      const agentId = parts[1];
+      const { agentId } = parsedSession;
       const sessionsDir = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions');
       const sessionsJsonPath = join(sessionsDir, 'sessions.json');
       const fsP = await import('node:fs/promises');
@@ -177,14 +182,14 @@ export async function handleSessionRoutes(
       }
 
       if (!updated) {
-        sendJson(res, 404, { success: false, error: `Session not found: ${sessionKey}` });
+        sendJson(res, 404, { success: false, error: 'Session not found' });
         return true;
       }
 
       await fsP.writeFile(sessionsJsonPath, JSON.stringify(sessionsJson, null, 2), 'utf8');
       sendJson(res, 200, { success: true });
-    } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+    } catch {
+      sendJson(res, 500, { success: false, error: 'Failed to rename session' });
     }
     return true;
   }

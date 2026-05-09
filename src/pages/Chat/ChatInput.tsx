@@ -254,13 +254,12 @@ export function ChatInput({
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const switchSession = useChatStore((s) => s.switchSession);
   const currentSessionKey = useChatStore((s) => s.currentSessionKey);
-  const messages = useChatStore((s) => s.messages);
+  const currentSessionHasMessages = useChatStore((s) => s.messages.length > 0);
   const currentAgent = useMemo(
     () => (agents ?? []).find((agent) => agent.id === currentAgentId) ?? null,
     [agents, currentAgentId]
   );
   const currentAgentName = currentAgent?.name ?? currentAgentId;
-  const currentSessionHasMessages = messages.length > 0;
   /** Main agent session: composer agent picker is read-only (switch via sidebar). */
   const isMainAgentSession = currentAgentId === 'main';
   const currentModelDisplay = currentAgent?.modelDisplay ?? null;
@@ -713,7 +712,7 @@ export function ChatInput({
     onSend(textToSend, attachmentsToSend, null);
     setExpertPickerOpen(false);
     setSelectedSkillId(null);
-  }, [input, attachments, canSend, onSend, selectedSkill]);
+  }, [input, attachments, canSend, onSend, selectedSkill, templateSkill]);
 
   const handleStop = useCallback(() => {
     if (!canStop) return;

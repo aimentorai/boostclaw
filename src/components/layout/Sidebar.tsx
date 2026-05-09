@@ -4,6 +4,7 @@
  * No longer fixed - sits inside the flex layout below the title bar.
  */
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle,
@@ -143,14 +144,19 @@ export function Sidebar() {
   const sidebarCollapsed = useSettingsStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useSettingsStore((state) => state.setSidebarCollapsed);
 
-  const sessions = useChatStore((s) => s.sessions);
-  const currentSessionKey = useChatStore((s) => s.currentSessionKey);
-  const sessionLabels = useChatStore((s) => s.sessionLabels);
-  const sessionLastActivity = useChatStore((s) => s.sessionLastActivity);
-  const switchSession = useChatStore((s) => s.switchSession);
-  const newSession = useChatStore((s) => s.newSession);
-  const renameSession = useChatStore((s) => s.renameSession);
-  const deleteSession = useChatStore((s) => s.deleteSession);
+  const { sessions, currentSessionKey, sessionLabels, sessionLastActivity, switchSession, newSession, renameSession, deleteSession } =
+    useChatStore(
+      useShallow((s) => ({
+        sessions: s.sessions,
+        currentSessionKey: s.currentSessionKey,
+        sessionLabels: s.sessionLabels,
+        sessionLastActivity: s.sessionLastActivity,
+        switchSession: s.switchSession,
+        newSession: s.newSession,
+        renameSession: s.renameSession,
+        deleteSession: s.deleteSession,
+      }))
+    );
   const loadSessions = useChatStore((s) => s.loadSessions);
   const loadHistory = useChatStore((s) => s.loadHistory);
 
@@ -160,11 +166,15 @@ export function Sidebar() {
   useEffect(() => {
     if (!isGatewayRunning) return;
     let cancelled = false;
-    const hasExistingMessages = useChatStore.getState().messages.length > 0;
+    const state = useChatStore.getState();
+    const hasSessions = state.sessions.length > 0;
+    const hasMessages = state.messages.length > 0;
     (async () => {
-      await loadSessions();
+      if (!hasSessions) await loadSessions();
       if (cancelled) return;
-      await loadHistory(hasExistingMessages);
+      // Use quiet mode when we already have messages so existing
+      // content stays visible while fresh data loads in background.
+      await loadHistory(hasMessages);
     })();
     return () => {
       cancelled = true;
@@ -176,8 +186,21 @@ export function Sidebar() {
   const navigate = useNavigate();
   const isOnChat = useLocation().pathname === '/';
 
-  const getSessionLabel = (key: string, displayName?: string, label?: string) =>
-    sessionLabels[key] ?? label ?? displayName ?? key;
+  const getSessionLabel = (key: string, displayName?: string, label?: string) => {
+    const resolved = sessionLabels[key] ?? label ?? displayName;
+    if (resolved) {
+      // Gateway may set displayName to the raw key; treat auto-generated keys
+      // as missing labels so the UI shows a friendly name instead.
+      if (resolved === key && key.startsWith('agent:')) {
+        return t('common:sidebar.newChat');
+      }
+      return resolved;
+    }
+    if (key.startsWith('agent:')) {
+      return t('common:sidebar.newChat');
+    }
+    return key;
+  };
 
   const { t } = useTranslation(['common', 'chat']);
   const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(

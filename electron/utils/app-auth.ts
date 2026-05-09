@@ -1078,7 +1078,6 @@ export class AppAuthManager extends EventEmitter {
           'User-Agent': 'BoostClaw/1.0',
           Accept: '*/*',
         },
-        sessionCookieSummary: summarizeCookieValue(sessionInfo.value),
       });
       const response = await fetch(SYSTEM_DEFAULT_MODEL_KEY_URL, {
         method: 'GET',
@@ -1103,7 +1102,6 @@ export class AppAuthManager extends EventEmitter {
         status: response.status,
         ok: response.ok,
         hasApiKey: Boolean(apiKey),
-        bodyPreview: text.slice(0, 500),
       });
       if (!response.ok || !apiKey) {
         return this.buildSystemDefaultModelProviderUnavailable(
