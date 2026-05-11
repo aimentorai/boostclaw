@@ -1,5 +1,10 @@
 import { invokeIpc } from '@/lib/api-client';
+import { hostApiFetch } from '@/lib/host-api';
 import { getCanonicalPrefixFromSessions, getMessageText, toMs } from './helpers';
+import {
+  CHAT_HISTORY_RPC_TIMEOUT_MS,
+  loadSessionTranscriptFallbackMessages,
+} from './history-actions';
 import { DEFAULT_CANONICAL_PREFIX, DEFAULT_SESSION_KEY, type ChatSession, type RawMessage } from './types';
 import type { ChatGet, ChatSet, SessionHistoryActions } from './store-api';
 
@@ -23,8 +28,37 @@ function parseSessionUpdatedAtMs(value: unknown): number | undefined {
 }
 
 const SIDEBAR_LABEL_HISTORY_LIMIT = 3;
-const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 8_000;
+const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 2_000;
 const SIDEBAR_LABEL_HISTORY_CONCURRENCY = 2;
+
+type SessionListResult = {
+  success?: boolean;
+  result?: Record<string, unknown>;
+  sessions?: unknown;
+  error?: string;
+};
+
+async function loadShortSessionHistory(sessionKey: string, limit: number): Promise<RawMessage[]> {
+  const localMessages = await loadSessionTranscriptFallbackMessages(sessionKey);
+  if (localMessages.length > 0) {
+    return localMessages.slice(0, limit);
+  }
+
+  try {
+    const r = (await invokeIpc(
+      'gateway:rpc',
+      'chat.history',
+      { sessionKey, limit },
+      Math.min(SIDEBAR_LABEL_HISTORY_TIMEOUT_MS, CHAT_HISTORY_RPC_TIMEOUT_MS)
+    )) as { success: boolean; result?: Record<string, unknown> };
+    if (r.success && r.result && Array.isArray(r.result.messages)) {
+      return r.result.messages as RawMessage[];
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
 
 async function hydrateSidebarSessionMetadata(
   sessions: ChatSession[],
@@ -44,15 +78,7 @@ async function hydrateSidebarSessionMetadata(
       if (!session) continue;
 
       try {
-        const r = (await invokeIpc(
-          'gateway:rpc',
-          'chat.history',
-          { sessionKey: session.key, limit: SIDEBAR_LABEL_HISTORY_LIMIT },
-          SIDEBAR_LABEL_HISTORY_TIMEOUT_MS
-        )) as { success: boolean; result?: Record<string, unknown> };
-        if (!r.success || !r.result) continue;
-
-        const msgs = Array.isArray(r.result.messages) ? (r.result.messages as RawMessage[]) : [];
+        const msgs = await loadShortSessionHistory(session.key, SIDEBAR_LABEL_HISTORY_LIMIT);
         const firstUser = msgs.find((m) => m.role === 'user');
         const lastMsg = msgs[msgs.length - 1];
         if (!firstUser && !lastMsg?.timestamp) continue;
@@ -88,6 +114,90 @@ async function hydrateSidebarSessionMetadata(
   );
 }
 
+function normalizeRawSessions(rawSessions: unknown): ChatSession[] {
+  return (Array.isArray(rawSessions) ? rawSessions : [])
+    .map((s: Record<string, unknown>) => ({
+      key: String(s.key || ''),
+      label: s.label ? String(s.label) : undefined,
+      displayName: s.displayName ? String(s.displayName) : undefined,
+      thinkingLevel: s.thinkingLevel ? String(s.thinkingLevel) : undefined,
+      model: s.model ? String(s.model) : undefined,
+      updatedAt: parseSessionUpdatedAtMs(s.updatedAt),
+    }))
+    .filter((s: ChatSession) => s.key);
+}
+
+function applySessionList(
+  sessions: ChatSession[],
+  set: ChatSet,
+  get: ChatGet,
+): void {
+  const canonicalBySuffix = new Map<string, string>();
+  for (const session of sessions) {
+    if (!session.key.startsWith('agent:')) continue;
+    const parts = session.key.split(':');
+    if (parts.length < 3) continue;
+    const suffix = parts.slice(2).join(':');
+    if (suffix && !canonicalBySuffix.has(suffix)) {
+      canonicalBySuffix.set(suffix, session.key);
+    }
+  }
+
+  // Deduplicate: if both short and canonical existed, keep canonical only
+  const seen = new Set<string>();
+  const dedupedSessions = sessions.filter((s) => {
+    if (!s.key.startsWith('agent:') && canonicalBySuffix.has(s.key)) return false;
+    if (seen.has(s.key)) return false;
+    seen.add(s.key);
+    return true;
+  });
+
+  const { currentSessionKey } = get();
+  let nextSessionKey = currentSessionKey || DEFAULT_SESSION_KEY;
+  if (!nextSessionKey.startsWith('agent:')) {
+    const canonicalMatch = canonicalBySuffix.get(nextSessionKey);
+    if (canonicalMatch) {
+      nextSessionKey = canonicalMatch;
+    }
+  }
+  if (!dedupedSessions.find((s) => s.key === nextSessionKey) && dedupedSessions.length > 0) {
+    // Current session not found in the backend list
+    const isNewEmptySession = get().messages.length === 0;
+    if (!isNewEmptySession) {
+      nextSessionKey = dedupedSessions[0].key;
+    }
+  }
+
+  const sessionsWithCurrent = !dedupedSessions.find((s) => s.key === nextSessionKey) && nextSessionKey
+    ? [
+      ...dedupedSessions,
+      { key: nextSessionKey, displayName: nextSessionKey },
+    ]
+    : dedupedSessions;
+
+  const discoveredActivity = Object.fromEntries(
+    sessionsWithCurrent
+      .filter((session) => typeof session.updatedAt === 'number' && Number.isFinite(session.updatedAt))
+      .map((session) => [session.key, session.updatedAt!]),
+  );
+
+  set((state) => ({
+    sessions: sessionsWithCurrent,
+    currentSessionKey: nextSessionKey,
+    currentAgentId: getAgentIdFromSessionKey(nextSessionKey),
+    sessionLastActivity: {
+      ...state.sessionLastActivity,
+      ...discoveredActivity,
+    },
+  }));
+
+  if (currentSessionKey !== nextSessionKey) {
+    get().loadHistory();
+  }
+
+  void hydrateSidebarSessionMetadata(sessionsWithCurrent, set, get);
+}
+
 export function createSessionActions(
   set: ChatSet,
   get: ChatGet,
@@ -95,6 +205,14 @@ export function createSessionActions(
   return {
     loadSessions: async () => {
       try {
+        const localResult = await hostApiFetch<SessionListResult>('/api/sessions/list').catch(() => null);
+        if (localResult && Array.isArray(localResult.sessions)) {
+          const localSessions = normalizeRawSessions(localResult.sessions);
+          if (localSessions.length > 0) {
+            applySessionList(localSessions, set, get);
+          }
+        }
+
         const result = await invokeIpc(
           'gateway:rpc',
           'sessions.list',
@@ -103,80 +221,7 @@ export function createSessionActions(
 
         if (result.success && result.result) {
           const data = result.result;
-          const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
-          const sessions: ChatSession[] = rawSessions.map((s: Record<string, unknown>) => ({
-            key: String(s.key || ''),
-            label: s.label ? String(s.label) : undefined,
-            displayName: s.displayName ? String(s.displayName) : undefined,
-            thinkingLevel: s.thinkingLevel ? String(s.thinkingLevel) : undefined,
-            model: s.model ? String(s.model) : undefined,
-            updatedAt: parseSessionUpdatedAtMs(s.updatedAt),
-          })).filter((s: ChatSession) => s.key);
-
-          const canonicalBySuffix = new Map<string, string>();
-          for (const session of sessions) {
-            if (!session.key.startsWith('agent:')) continue;
-            const parts = session.key.split(':');
-            if (parts.length < 3) continue;
-            const suffix = parts.slice(2).join(':');
-            if (suffix && !canonicalBySuffix.has(suffix)) {
-              canonicalBySuffix.set(suffix, session.key);
-            }
-          }
-
-          // Deduplicate: if both short and canonical existed, keep canonical only
-          const seen = new Set<string>();
-          const dedupedSessions = sessions.filter((s) => {
-            if (!s.key.startsWith('agent:') && canonicalBySuffix.has(s.key)) return false;
-            if (seen.has(s.key)) return false;
-            seen.add(s.key);
-            return true;
-          });
-
-          const { currentSessionKey } = get();
-          let nextSessionKey = currentSessionKey || DEFAULT_SESSION_KEY;
-          if (!nextSessionKey.startsWith('agent:')) {
-            const canonicalMatch = canonicalBySuffix.get(nextSessionKey);
-            if (canonicalMatch) {
-              nextSessionKey = canonicalMatch;
-            }
-          }
-          if (!dedupedSessions.find((s) => s.key === nextSessionKey) && dedupedSessions.length > 0) {
-            // Current session not found in the backend list
-            const isNewEmptySession = get().messages.length === 0;
-            if (!isNewEmptySession) {
-              nextSessionKey = dedupedSessions[0].key;
-            }
-          }
-
-          const sessionsWithCurrent = !dedupedSessions.find((s) => s.key === nextSessionKey) && nextSessionKey
-            ? [
-              ...dedupedSessions,
-              { key: nextSessionKey, displayName: nextSessionKey },
-            ]
-            : dedupedSessions;
-
-          const discoveredActivity = Object.fromEntries(
-            sessionsWithCurrent
-              .filter((session) => typeof session.updatedAt === 'number' && Number.isFinite(session.updatedAt))
-              .map((session) => [session.key, session.updatedAt!]),
-          );
-
-          set((state) => ({
-            sessions: sessionsWithCurrent,
-            currentSessionKey: nextSessionKey,
-            currentAgentId: getAgentIdFromSessionKey(nextSessionKey),
-            sessionLastActivity: {
-              ...state.sessionLastActivity,
-              ...discoveredActivity,
-            },
-          }));
-
-          if (currentSessionKey !== nextSessionKey) {
-            get().loadHistory();
-          }
-
-          void hydrateSidebarSessionMetadata(sessionsWithCurrent, set, get);
+          applySessionList(normalizeRawSessions(data.sessions), set, get);
         }
       } catch (err) {
         console.warn('Failed to load sessions:', err);

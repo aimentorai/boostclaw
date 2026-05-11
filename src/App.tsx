@@ -250,9 +250,19 @@ function App() {
       void refreshAuthStatus();
     });
 
+    const offLogout = subscribeHostEvent('auth:logout', () => {
+      useAuthStore.setState({
+        pendingLogin: false,
+        authenticated: false,
+        profile: null,
+      });
+      navigate('/login', { replace: true });
+    });
+
     return () => {
       offSuccess();
       offError();
+      offLogout();
     };
   }, [navigate, refreshAuthStatus]);
 

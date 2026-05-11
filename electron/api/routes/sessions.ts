@@ -18,6 +18,158 @@ function parseSafeAgentSessionKey(sessionKey: unknown): { agentId: string } | nu
   return { agentId };
 }
 
+async function resolveSessionTranscriptPath(sessionKey: string): Promise<string | null> {
+  const parsedSession = parseSafeAgentSessionKey(sessionKey);
+  if (!parsedSession) return null;
+
+  const { agentId } = parsedSession;
+  const sessionsDir = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions');
+  const sessionsJsonPath = join(sessionsDir, 'sessions.json');
+  const fsP = await import('node:fs/promises');
+  const raw = await fsP.readFile(sessionsJsonPath, 'utf8');
+  const sessionsJson = JSON.parse(raw) as Record<string, unknown>;
+
+  let uuidFileName: string | undefined;
+  let resolvedSrcPath: string | undefined;
+
+  if (Array.isArray(sessionsJson.sessions)) {
+    const entry = (sessionsJson.sessions as Array<Record<string, unknown>>)
+      .find((s) => s.key === sessionKey || s.sessionKey === sessionKey);
+    if (entry) {
+      uuidFileName = (entry.file ?? entry.fileName ?? entry.path) as string | undefined;
+      if (!uuidFileName && typeof entry.id === 'string') {
+        uuidFileName = `${entry.id}.jsonl`;
+      }
+    }
+  }
+
+  if (!uuidFileName && sessionsJson[sessionKey] != null) {
+    const val = sessionsJson[sessionKey];
+    if (typeof val === 'string') {
+      uuidFileName = val;
+    } else if (typeof val === 'object' && val !== null) {
+      const entry = val as Record<string, unknown>;
+      const absFile = (entry.sessionFile ?? entry.file ?? entry.fileName ?? entry.path) as string | undefined;
+      if (absFile) {
+        if (absFile.startsWith('/') || absFile.match(/^[A-Za-z]:\\/)) {
+          resolvedSrcPath = absFile;
+        } else {
+          uuidFileName = absFile;
+        }
+      } else {
+        const uuidVal = (entry.id ?? entry.sessionId) as string | undefined;
+        if (uuidVal) uuidFileName = uuidVal.endsWith('.jsonl') ? uuidVal : `${uuidVal}.jsonl`;
+      }
+    }
+  }
+
+  if (resolvedSrcPath) return resolvedSrcPath;
+  if (!uuidFileName) return null;
+  if (!uuidFileName.endsWith('.jsonl')) uuidFileName = `${uuidFileName}.jsonl`;
+  return join(sessionsDir, uuidFileName);
+}
+
+async function loadTranscriptMessages(transcriptPath: string): Promise<unknown[]> {
+  const fsP = await import('node:fs/promises');
+  const raw = await fsP.readFile(transcriptPath, 'utf8');
+  const lines = raw.split(/\r?\n/).filter(Boolean);
+  return lines.flatMap((line) => {
+    try {
+      const entry = JSON.parse(line) as { type?: string; message?: unknown };
+      return entry.type === 'message' && entry.message ? [entry.message] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readTimestampMs(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function extractSessionStoreEntries(store: Record<string, unknown>): Array<{
+  key?: string;
+  entry: Record<string, unknown>;
+}> {
+  const directEntries = Object.entries(store)
+    .filter(([key, value]) => key !== 'sessions' && value && typeof value === 'object')
+    .map(([key, value]) => ({ key, entry: value as Record<string, unknown> }));
+  const arrayEntries = Array.isArray(store.sessions)
+    ? store.sessions
+        .filter((entry): entry is Record<string, unknown> => Boolean(entry && typeof entry === 'object'))
+        .map((entry) => ({ key: readString(entry.key) || readString(entry.sessionKey), entry }))
+    : [];
+  return [...directEntries, ...arrayEntries];
+}
+
+async function listLocalSessions(): Promise<Array<Record<string, unknown>>> {
+  const fsP = await import('node:fs/promises');
+  const agentsDir = join(getOpenClawConfigDir(), 'agents');
+  const agentDirs = await fsP.readdir(agentsDir, { withFileTypes: true }).catch(() => []);
+  const sessions: Array<Record<string, unknown>> = [];
+
+  for (const agentDir of agentDirs) {
+    if (!agentDir.isDirectory()) continue;
+    if (!SAFE_SESSION_SEGMENT.test(agentDir.name)) continue;
+
+    const sessionsDir = join(agentsDir, agentDir.name, 'sessions');
+    const sessionsJsonPath = join(sessionsDir, 'sessions.json');
+    const raw = await fsP.readFile(sessionsJsonPath, 'utf8').catch(() => '');
+    if (!raw.trim()) continue;
+
+    let store: Record<string, unknown>;
+    try {
+      store = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+
+    for (const { key: entryKey, entry } of extractSessionStoreEntries(store)) {
+      const key = readString(entryKey) || readString(entry.key) || readString(entry.sessionKey);
+      if (!key || !parseSafeAgentSessionKey(key)) continue;
+
+      const fileName = readString(entry.file)
+        || readString(entry.fileName)
+        || readString(entry.path)
+        || readString(entry.sessionFile);
+      if (fileName?.includes('.deleted.jsonl')) continue;
+
+      let updatedAt = readTimestampMs(entry.updatedAt)
+        || readTimestampMs(entry.lastActivityAt)
+        || readTimestampMs(entry.lastMessageAt)
+        || readTimestampMs(entry.createdAt);
+
+      if (!updatedAt && fileName && !fileName.startsWith('/') && !fileName.match(/^[A-Za-z]:\\/)) {
+        const normalizedFileName = fileName.endsWith('.jsonl') ? fileName : `${fileName}.jsonl`;
+        const stat = await fsP.stat(join(sessionsDir, normalizedFileName)).catch(() => null);
+        updatedAt = stat?.mtimeMs;
+      }
+
+      sessions.push({
+        key,
+        label: readString(entry.label),
+        displayName: readString(entry.displayName) || readString(entry.name),
+        thinkingLevel: readString(entry.thinkingLevel),
+        model: readString(entry.model),
+        updatedAt,
+      });
+    }
+  }
+
+  return sessions;
+}
+
 export async function handleSessionRoutes(
   req: IncomingMessage,
   res: ServerResponse,
@@ -38,17 +190,7 @@ export async function handleSessionRoutes(
       }
 
       const transcriptPath = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions', `${sessionId}.jsonl`);
-      const fsP = await import('node:fs/promises');
-      const raw = await fsP.readFile(transcriptPath, 'utf8');
-      const lines = raw.split(/\r?\n/).filter(Boolean);
-      const messages = lines.flatMap((line) => {
-        try {
-          const entry = JSON.parse(line) as { type?: string; message?: unknown };
-          return entry.type === 'message' && entry.message ? [entry.message] : [];
-        } catch {
-          return [];
-        }
-      });
+      const messages = await loadTranscriptMessages(transcriptPath);
 
       sendJson(res, 200, { success: true, messages });
     } catch (error) {
@@ -58,6 +200,37 @@ export async function handleSessionRoutes(
         sendJson(res, 500, { success: false, error: 'Failed to load transcript' });
       }
     }
+    return true;
+  }
+
+  if (url.pathname === '/api/sessions/history' && req.method === 'GET') {
+    try {
+      const sessionKey = url.searchParams.get('sessionKey')?.trim() || '';
+      if (!sessionKey) {
+        sendJson(res, 400, { success: false, error: 'sessionKey is required' });
+        return true;
+      }
+
+      const transcriptPath = await resolveSessionTranscriptPath(sessionKey);
+      if (!transcriptPath) {
+        sendJson(res, 404, { success: false, error: 'Transcript not found' });
+        return true;
+      }
+
+      const messages = await loadTranscriptMessages(transcriptPath);
+      sendJson(res, 200, { success: true, messages });
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+        sendJson(res, 404, { success: false, error: 'Transcript not found' });
+      } else {
+        sendJson(res, 500, { success: false, error: 'Failed to load session history' });
+      }
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/sessions/list' && req.method === 'GET') {
+    sendJson(res, 200, { success: true, sessions: await listLocalSessions() });
     return true;
   }
 

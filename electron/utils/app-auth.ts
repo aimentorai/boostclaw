@@ -1057,6 +1057,17 @@ export class AppAuthManager extends EventEmitter {
     };
   }
 
+  private async enforceReloginForMissingModelUserId(): Promise<void> {
+    logger.warn('[AppAuth] Model user ID missing while fetching system default model key; forcing logout');
+    try {
+      await this.logout();
+    } catch (error) {
+      logger.warn('[AppAuth] Failed to force logout after missing model user ID', {
+        error: String(error),
+      });
+    }
+  }
+
   private async requestSystemDefaultModelProviderInfo(): Promise<SystemDefaultModelProviderInfo> {
     const sessionInfo = await this.getPostLoginSessionCookieInfo();
     const userId = sessionInfo.userId?.trim();
@@ -1064,6 +1075,7 @@ export class AppAuthManager extends EventEmitter {
       return this.buildSystemDefaultModelProviderUnavailable('Model session cookie is unavailable');
     }
     if (!userId) {
+      await this.enforceReloginForMissingModelUserId();
       return this.buildSystemDefaultModelProviderUnavailable('Model user ID is unavailable');
     }
 

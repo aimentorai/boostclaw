@@ -19,6 +19,7 @@ import type { ChatGet, ChatSet, SessionHistoryActions } from './store-api';
 // the history poll timer and a final event arriving at the same time).
 // Keyed by sessionKey so switching sessions always loads immediately.
 let _loadingSessionKey: string | null = null;
+export const CHAT_HISTORY_RPC_TIMEOUT_MS = 5000;
 
 async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promise<RawMessage[]> {
   if (!isCronSessionKey(sessionKey)) return [];
@@ -29,6 +30,18 @@ async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promis
     return Array.isArray(response.messages) ? response.messages : [];
   } catch (error) {
     console.warn('Failed to load cron fallback history:', error);
+    return [];
+  }
+}
+
+export async function loadSessionTranscriptFallbackMessages(sessionKey: string): Promise<RawMessage[]> {
+  try {
+    const response = await hostApiFetch<{ messages?: RawMessage[] }>(
+      `/api/sessions/history?sessionKey=${encodeURIComponent(sessionKey)}`
+    );
+    return Array.isArray(response.messages) ? response.messages : [];
+  } catch (error) {
+    console.warn('Failed to load transcript fallback history:', error);
     return [];
   }
 }
@@ -188,11 +201,20 @@ export function createHistoryActions(
         }
       };
 
+      let loadedFromLocalTranscript = false;
       try {
+        if (!isCronSessionKey(currentSessionKey)) {
+          const localMessages = await loadSessionTranscriptFallbackMessages(currentSessionKey);
+          if (localMessages.length > 0) {
+            loadedFromLocalTranscript = true;
+            applyLoadedMessages(localMessages, null);
+          }
+        }
+
         const result = (await invokeIpc('gateway:rpc', 'chat.history', {
           sessionKey: currentSessionKey,
           limit: 200,
-        })) as { success: boolean; result?: Record<string, unknown>; error?: string };
+        }, CHAT_HISTORY_RPC_TIMEOUT_MS)) as { success: boolean; result?: Record<string, unknown>; error?: string };
 
         if (result.success && result.result) {
           const data = result.result;
@@ -201,21 +223,28 @@ export function createHistoryActions(
           if (rawMessages.length === 0 && isCronSessionKey(currentSessionKey)) {
             rawMessages = await loadCronFallbackMessages(currentSessionKey, 200);
           }
+          if (rawMessages.length === 0 && loadedFromLocalTranscript) {
+            return;
+          }
           applyLoadedMessages(rawMessages, thinkingLevel);
         } else {
-          const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
+          const fallbackMessages = isCronSessionKey(currentSessionKey)
+            ? await loadCronFallbackMessages(currentSessionKey, 200)
+            : await loadSessionTranscriptFallbackMessages(currentSessionKey);
           if (fallbackMessages.length > 0) {
             applyLoadedMessages(fallbackMessages, null);
-          } else {
+          } else if (!loadedFromLocalTranscript) {
             applyLoadFailure(result.error || 'Failed to load chat history');
           }
         }
       } catch (err) {
         console.warn('Failed to load chat history:', err);
-        const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
+        const fallbackMessages = isCronSessionKey(currentSessionKey)
+          ? await loadCronFallbackMessages(currentSessionKey, 200)
+          : await loadSessionTranscriptFallbackMessages(currentSessionKey);
         if (fallbackMessages.length > 0) {
           applyLoadedMessages(fallbackMessages, null);
-        } else {
+        } else if (!loadedFromLocalTranscript) {
           applyLoadFailure(String(err));
         }
       } finally {
