@@ -112,6 +112,7 @@ export function startHostApiServer(
           return;
         }
       }
+      logger.info(`[hostapi] ${req.method} ${requestUrl.pathname} 404`);
       sendJson(res, 404, {
         success: false,
         error: `No route for ${req.method} ${requestUrl.pathname}`,

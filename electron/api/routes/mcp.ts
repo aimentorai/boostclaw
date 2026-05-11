@@ -15,6 +15,7 @@ import {
   deleteMcpServer,
   toggleMcpServer,
 } from '../../services/mcp/mcp-server-store';
+import { logger } from '../../utils/logger';
 
 export async function handleMcpRoutes(
   req: IncomingMessage,
@@ -28,6 +29,7 @@ export async function handleMcpRoutes(
       const servers = await listMcpServers();
       sendJson(res, 200, { success: true, servers });
     } catch (error) {
+      logger.warn('[MCP] List servers failed:', error);
       sendJson(res, 500, { success: false, error: String(error) });
     }
     return true;
@@ -42,13 +44,16 @@ export async function handleMcpRoutes(
         sendJson(res, 400, { success: false, error: 'Server name (name) is required.' });
         return true;
       }
+      logger.info(`[MCP] Add server "${name}"`);
       const result = await addMcpServer(name, body);
       if (result.success) {
         sendJson(res, 200, { success: true, server: result.server });
       } else {
+        logger.warn(`[MCP] Add server "${name}" failed: ${result.error}`);
         sendJson(res, 400, { success: false, error: result.error });
       }
     } catch (error) {
+      logger.warn('[MCP] Add server failed:', error);
       sendJson(res, 500, { success: false, error: String(error) });
     }
     return true;
@@ -69,6 +74,7 @@ export async function handleMcpRoutes(
           sendJson(res, 200, { success: true, server });
         }
       } catch (error) {
+        logger.warn(`[MCP] Get server "${serverName}" failed:`, error);
         sendJson(res, 500, { success: false, error: String(error) });
       }
       return true;
@@ -78,14 +84,17 @@ export async function handleMcpRoutes(
     if (req.method === 'PUT') {
       try {
         const body = await parseJsonBody<Record<string, unknown>>(req);
+        logger.info(`[MCP] Update server "${serverName}"`);
         const result = await updateMcpServer(serverName, body);
         if (result.success) {
           sendJson(res, 200, { success: true, server: result.server });
         } else {
+          logger.warn(`[MCP] Update server "${serverName}" failed: ${result.error}`);
           const status = result.error?.includes('not found') ? 404 : 400;
           sendJson(res, status, { success: false, error: result.error });
         }
       } catch (error) {
+        logger.warn(`[MCP] Update server "${serverName}" failed:`, error);
         sendJson(res, 500, { success: false, error: String(error) });
       }
       return true;
@@ -94,15 +103,18 @@ export async function handleMcpRoutes(
     // DELETE — remove a server
     if (req.method === 'DELETE') {
       try {
+        logger.info(`[MCP] Delete server "${serverName}"`);
         const result = await deleteMcpServer(serverName);
         if (result.success) {
           sendJson(res, 200, { success: true });
         } else {
+          logger.warn(`[MCP] Delete server "${serverName}" failed: ${result.error}`);
           const status = result.error?.includes('not found') ? 404
             : result.error?.includes('Cannot delete subscription') ? 403 : 400;
           sendJson(res, status, { success: false, error: result.error });
         }
       } catch (error) {
+        logger.warn(`[MCP] Delete server "${serverName}" failed:`, error);
         sendJson(res, 500, { success: false, error: String(error) });
       }
       return true;
@@ -116,14 +128,17 @@ export async function handleMcpRoutes(
           sendJson(res, 400, { success: false, error: 'enabled (boolean) is required.' });
           return true;
         }
+        logger.info(`[MCP] Toggle server "${serverName}" enabled=${body.enabled}`);
         const result = await toggleMcpServer(serverName, body.enabled);
         if (result.success) {
           sendJson(res, 200, { success: true, server: result.server });
         } else {
+          logger.warn(`[MCP] Toggle server "${serverName}" failed: ${result.error}`);
           const status = result.error?.includes('not found') ? 404 : 400;
           sendJson(res, status, { success: false, error: result.error });
         }
       } catch (error) {
+        logger.warn(`[MCP] Toggle server "${serverName}" failed:`, error);
         sendJson(res, 500, { success: false, error: String(error) });
       }
       return true;

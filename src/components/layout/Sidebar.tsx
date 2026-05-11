@@ -186,22 +186,6 @@ export function Sidebar() {
   const navigate = useNavigate();
   const isOnChat = useLocation().pathname === '/';
 
-  const getSessionLabel = (key: string, displayName?: string, label?: string) => {
-    const resolved = sessionLabels[key] ?? label ?? displayName;
-    if (resolved) {
-      // Gateway may set displayName to the raw key; treat auto-generated keys
-      // as missing labels so the UI shows a friendly name instead.
-      if (resolved === key && key.startsWith('agent:')) {
-        return t('common:sidebar.newChat');
-      }
-      return resolved;
-    }
-    if (key.startsWith('agent:')) {
-      return t('common:sidebar.newChat');
-    }
-    return key;
-  };
-
   const { t } = useTranslation(['common', 'chat']);
   const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(
     null
@@ -225,6 +209,24 @@ export function Sidebar() {
     () => Object.fromEntries((agents ?? []).map((agent) => [agent.id, agent.name])),
     [agents]
   );
+
+  const getSessionLabel = (key: string, displayName?: string, label?: string) => {
+    // Prefer auto-generated label (from first user message), then Gateway label
+    const resolved = sessionLabels[key] ?? label;
+    if (resolved) return resolved;
+    // If displayName is the agent's name (not a real session title), skip it
+    if (displayName && displayName !== key) {
+      const agentId = getAgentIdFromSessionKey(key);
+      if (agentNameById[agentId] !== displayName) {
+        return displayName;
+      }
+    }
+    if (key.startsWith('agent:')) {
+      return t('common:sidebar.newChat');
+    }
+    return key;
+  };
+
   const sessionBuckets: Array<{ key: SessionBucketKey; label: string; sessions: typeof sessions }> =
     [
       { key: 'today', label: t('chat:historyBuckets.today'), sessions: [] },
@@ -242,6 +244,17 @@ export function Sidebar() {
     (a, b) =>
       (sessionLastActivity[b.key] ?? nowMs) - (sessionLastActivity[a.key] ?? nowMs)
   )) {
+    // Hide default-agent sessions that have no real content — they are
+    // kept alive by internal tasks (e.g. HEARTBEAT) and would otherwise
+    // clutter the sidebar with meaningless entries.
+    if (
+      session.key.endsWith(':main') &&
+      session.key !== currentSessionKey &&
+      !sessionLabels[session.key] &&
+      !session.label
+    ) {
+      continue;
+    }
     const bucketKey = getSessionBucket(sessionLastActivity[session.key] ?? 0, nowMs);
     sessionBucketMap[bucketKey].sessions.push(session);
   }

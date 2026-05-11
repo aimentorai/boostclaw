@@ -826,10 +826,19 @@ function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean 
   const text = getMessageText(msg.content);
   if (isRuntimeSystemNoticeText(text)) return true;
   if (msg.role === 'assistant') {
-    if (/^(HEARTBEAT_OK|NO_REPLY)\s*$/.test(text)) return true;
+    if (/\bHEARTBEAT_OK\b/i.test(text)) return true;
+    if (/\bNO_REPLY\b/i.test(text)) return true;
   }
   if (msg.role === 'user') {
-    if (/Read\s+HEARTBEAT\.md\b/i.test(text)) return true;
+    if (/Read[\s\S]*HEARTBEAT\.md/i.test(text)) return true;
+  }
+  // Also filter messages whose thinking blocks reference HEARTBEAT tasks
+  if (Array.isArray(msg.content)) {
+    for (const block of msg.content as Array<{ type?: string; thinking?: string }>) {
+      if (block.type === 'thinking' && block.thinking && /\bHEARTBEAT\b/i.test(block.thinking)) {
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -1222,10 +1231,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             void get().loadHistory();
           }
 
-          // Background: hydrate sidebar labels with bounded concurrency and a small
-          // limit. Each request fetches only the first few messages to extract the
-          // first user message as the sidebar label, plus the last message timestamp
-          // for activity sorting — no need to pull the full history.
+          // Background: hydrate sidebar labels in staggered batches to avoid
+          // flooding the gateway with chat.history calls at startup.
           const sessionsToLabel = sessionsWithCurrent.filter((s) => {
             if (s.key.endsWith(':main')) return false;
             if (get().sessionLabels[s.key] || s.label) return false;
@@ -1235,56 +1242,66 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const LABEL_CONCURRENCY = 2;
             const LABEL_TIMEOUT_MS = 8_000;
             const LABEL_HISTORY_LIMIT = 3;
-            let nextIdx = 0;
-            const worker = async () => {
-              while (nextIdx < sessionsToLabel.length) {
-                const session = sessionsToLabel[nextIdx++];
-                if (!session) continue;
-                try {
-                  const r = await Promise.race([
-                    useGatewayStore
-                      .getState()
-                      .rpc<Record<string, unknown>>(
-                        'chat.history',
-                        { sessionKey: session.key, limit: LABEL_HISTORY_LIMIT },
+            const BATCH_SIZE = 5;
+            const BATCH_DELAY_MS = 2_000;
+            let batchStart = 0;
+
+            const processBatch = async () => {
+              const batch = sessionsToLabel.slice(batchStart, batchStart + BATCH_SIZE);
+              if (batch.length === 0) return;
+              let nextIdx = 0;
+              const worker = async () => {
+                while (nextIdx < batch.length) {
+                  const session = batch[nextIdx++];
+                  if (!session) continue;
+                  try {
+                    const r = await Promise.race([
+                      useGatewayStore
+                        .getState()
+                        .rpc<Record<string, unknown>>(
+                          'chat.history',
+                          { sessionKey: session.key, limit: LABEL_HISTORY_LIMIT },
+                        ),
+                      new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('label timeout')), LABEL_TIMEOUT_MS)
                       ),
-                    new Promise<never>((_, reject) =>
-                      setTimeout(() => reject(new Error('label timeout')), LABEL_TIMEOUT_MS)
-                    ),
-                  ]);
-                  const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
-                  const firstUser = msgs.find((m) => m.role === 'user');
-                  const lastMsg = msgs[msgs.length - 1];
-                  if (!firstUser && !lastMsg?.timestamp) continue;
-                  set((s) => {
-                    const next: Partial<typeof s> = {};
-                    if (firstUser && !s.sessionLabels[session.key]) {
-                      const labelText = getMessageText(firstUser.content).trim();
-                      if (labelText) {
-                        const truncated =
-                          labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                        next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                    ]);
+                    const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
+                    const firstUser = msgs.find((m) => m.role === 'user');
+                    const lastMsg = msgs[msgs.length - 1];
+                    if (!firstUser && !lastMsg?.timestamp) continue;
+                    set((s) => {
+                      const next: Partial<typeof s> = {};
+                      if (firstUser && !s.sessionLabels[session.key]) {
+                        const labelText = getMessageText(firstUser.content).trim();
+                        if (labelText) {
+                          const truncated =
+                            labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+                          next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                        }
                       }
-                    }
-                    if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
-                      next.sessionLastActivity = {
-                        ...s.sessionLastActivity,
-                        [session.key]: toMs(lastMsg.timestamp),
-                      };
-                    }
-                    return next;
-                  });
-                } catch {
-                  // Sidebar metadata is best-effort.
+                      if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
+                        next.sessionLastActivity = {
+                          ...s.sessionLastActivity,
+                          [session.key]: toMs(lastMsg.timestamp),
+                        };
+                      }
+                      return next;
+                    });
+                  } catch {
+                    // Sidebar metadata is best-effort.
+                  }
                 }
+              };
+              await Promise.all(
+                Array.from({ length: Math.min(LABEL_CONCURRENCY, batch.length) }, () => worker()),
+              );
+              batchStart += BATCH_SIZE;
+              if (batchStart < sessionsToLabel.length) {
+                setTimeout(processBatch, BATCH_DELAY_MS);
               }
             };
-            void Promise.all(
-              Array.from(
-                { length: Math.min(LABEL_CONCURRENCY, sessionsToLabel.length) },
-                () => worker(),
-              ),
-            );
+            void processBatch();
           }
         }
       } catch (err) {

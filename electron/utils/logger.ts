@@ -40,7 +40,7 @@ let logDir: string | null = null;
 /**
  * In-memory ring buffer for recent logs (useful for UI display)
  */
-const RING_BUFFER_SIZE = 500;
+const RING_BUFFER_SIZE = 2000;
 const recentLogs: string[] = [];
 
 // ── Async write buffer ───────────────────────────────────────────

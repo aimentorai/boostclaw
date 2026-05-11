@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { proxyAwareFetch } from '../../utils/proxy-fetch';
 import { getPort } from '../../utils/config';
 import { getHostApiToken } from '../../api/server';
+import { logger } from '../../utils/logger';
 
 type HostApiFetchRequest = {
   path: string;
@@ -9,6 +10,25 @@ type HostApiFetchRequest = {
   headers?: Record<string, string>;
   body?: unknown;
 };
+
+function describeResponseData(data: unknown, maxLen = 500): string {
+  if (data === undefined || data === null) return '';
+  try {
+    const json = JSON.stringify(data, (_key, value) => {
+      if (
+        typeof _key === 'string' &&
+        /^(apiKey|api_key|key|secret|token|password|credential|accessToken|refreshToken)$/i.test(_key)
+      ) {
+        return '[redacted]';
+      }
+      return value;
+    });
+    const truncated = json.length > maxLen ? `${json.slice(0, maxLen)}…` : json;
+    return ` ${truncated}`;
+  } catch {
+    return ` ${String(data).slice(0, maxLen)}`;
+  }
+}
 
 export function registerHostApiProxyHandlers(): void {
   const hostApiPort = getPort('BoostClaw_HOST_API');
@@ -19,6 +39,7 @@ export function registerHostApiProxyHandlers(): void {
   ipcMain.handle('hostapi:baseUrl', () => `http://127.0.0.1:${hostApiPort}`);
 
   ipcMain.handle('hostapi:fetch', async (_, request: HostApiFetchRequest) => {
+    const t0 = Date.now();
     try {
       const path = typeof request?.path === 'string' ? request.path : '';
       if (!path || !path.startsWith('/')) {
@@ -64,8 +85,12 @@ export function registerHostApiProxyHandlers(): void {
         }
       }
 
+      const detail = describeResponseData(data.json ?? data.text);
+      logger.info(`[hostapi] ${method} ${path} ${response.status} ${Date.now() - t0}ms${detail}`);
+
       return { ok: true, data };
     } catch (error) {
+      logger.warn(`[hostapi] ${request.method || 'GET'} ${request.path || ''} failed: ${String(error)}`);
       return {
         ok: false,
         error: {

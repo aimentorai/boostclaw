@@ -701,8 +701,6 @@ export class GatewayManager extends EventEmitter {
    * Uses OpenClaw protocol format: { type: "req", id: "...", method: "...", params: {...} }
    */
   async rpc<T>(method: string, params?: unknown, timeoutMs = 30000): Promise<T> {
-    const trace = method === 'chat.send' || method === 'chat.sendWithMedia';
-    const t0 = trace ? Date.now() : 0;
 
     // Gate chat requests during gateway reload to prevent model fallback.
     // SIGUSR1 reload can trigger gateway draining/restart; requests sent
@@ -731,9 +729,6 @@ export class GatewayManager extends EventEmitter {
       // Store pending request
       this.pendingRequests.set(id, {
         resolve: (value: unknown) => {
-          if (trace) {
-            logger.debug(`[e2e] WS ${method} round-trip: ${Date.now() - t0}ms`);
-          }
           (resolve as (value: unknown) => void)(value);
         },
         reject,

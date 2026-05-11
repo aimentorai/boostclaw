@@ -604,10 +604,19 @@ function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean 
   const text = getMessageText(msg.content);
   if (isRuntimeSystemNoticeText(text)) return true;
   if (msg.role === 'assistant') {
-    if (/^(HEARTBEAT_OK|NO_REPLY)\s*$/.test(text)) return true;
+    if (/\bHEARTBEAT_OK\b/i.test(text)) return true;
+    if (/\bNO_REPLY\b/i.test(text)) return true;
   }
   if (msg.role === 'user') {
-    if (/Read\s+HEARTBEAT\.md\b/i.test(text)) return true;
+    if (/Read[\s\S]*HEARTBEAT\.md/i.test(text)) return true;
+  }
+  // Also filter messages whose thinking blocks reference HEARTBEAT tasks
+  if (Array.isArray(msg.content)) {
+    for (const block of msg.content as Array<{ type?: string; thinking?: string }>) {
+      if (block.type === 'thinking' && block.thinking && /\bHEARTBEAT\b/i.test(block.thinking)) {
+        return true;
+      }
+    }
   }
   return false;
 }

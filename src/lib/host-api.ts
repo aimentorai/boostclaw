@@ -5,6 +5,10 @@ import { normalizeAppError } from './error-model';
 const HOST_API_PORT = 19880;
 const HOST_API_BASE = `http://127.0.0.1:${HOST_API_PORT}`;
 
+/** Short-lived GET response cache to deduplicate concurrent/rapid requests. */
+const HOST_API_CACHE_TTL_MS = 2_000;
+const _hostApiCache = new Map<string, { ts: number; data: unknown }>();
+
 /** Cached Host API auth token, fetched once from the main process via IPC. */
 let cachedHostApiToken: string | null = null;
 
@@ -156,6 +160,16 @@ function allowLocalhostFallback(): boolean {
 export async function hostApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const startedAt = Date.now();
   const method = init?.method || 'GET';
+
+  // Short-lived GET response cache — prevents duplicate requests when
+  // multiple stores/components mount simultaneously and call the same endpoint.
+  if (method === 'GET') {
+    const cached = _hostApiCache.get(path);
+    if (cached && Date.now() - cached.ts < HOST_API_CACHE_TTL_MS) {
+      return cached.data as T;
+    }
+  }
+
   // In Electron renderer, always proxy through main process to avoid CORS.
   try {
     const response = await invokeIpc<HostApiProxyResponse>('hostapi:fetch', {
@@ -165,11 +179,16 @@ export async function hostApiFetch<T>(path: string, init?: RequestInit): Promise
       body: init?.body ?? null,
     });
 
+    let result: T;
     if (typeof response?.ok === 'boolean' && 'data' in response) {
-      return parseUnifiedProxyResponse<T>(response, path, method, startedAt);
+      result = parseUnifiedProxyResponse<T>(response, path, method, startedAt);
+    } else {
+      result = parseLegacyProxyResponse<T>(response, path, method, startedAt);
     }
-
-    return parseLegacyProxyResponse<T>(response, path, method, startedAt);
+    if (method === 'GET') {
+      _hostApiCache.set(path, { ts: Date.now(), data: result });
+    }
+    return result;
   } catch (error) {
     const normalized = normalizeAppError(error, { source: 'ipc-proxy', path, method });
     const message = normalized.message;

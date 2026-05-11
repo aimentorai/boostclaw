@@ -14,6 +14,21 @@ describe('chat helper message filtering', () => {
     ).toBe(true);
   });
 
+  it('hides user HEARTBEAT read messages with any intermediate text', () => {
+    expect(
+      isInternalMessage({
+        role: 'user',
+        content: 'Read the HEARTBEAT.md file in the workspace to see if there are any tasks that need attention.',
+      })
+    ).toBe(true);
+    expect(
+      isInternalMessage({
+        role: 'user',
+        content: 'Read HEARTBEAT.md',
+      })
+    ).toBe(true);
+  });
+
   it('keeps normal user questions about system messages visible', () => {
     expect(
       isInternalMessage({

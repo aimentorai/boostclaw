@@ -1210,20 +1210,14 @@ function registerGatewayHandlers(gatewayManager: GatewayManager, mainWindow: Bro
 
   // Gateway RPC call
   ipcMain.handle('gateway:rpc', async (_, method: string, params?: unknown, timeoutMs?: number) => {
-    const trace = method === 'chat.send' || method === 'chat.sendWithMedia';
-    const t0 = trace ? Date.now() : 0;
+    const t0 = Date.now();
     try {
       const result = await gatewayManager.rpc(method, params, timeoutMs);
-      if (trace) {
-        logger.debug(`[e2e] ${method} IPC→WS→GW→WS→IPC: ${Date.now() - t0}ms`);
-      }
+      logger.info(`[gateway:rpc] ${method} OK ${Date.now() - t0}ms`);
       return { success: true, result };
     } catch (error) {
-      if (trace) {
-        logger.debug(`[e2e] ${method} failed after ${Date.now() - t0}ms`);
-      }
       logger.warn(
-        `[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}): ${String(error)}`
+        `[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}, ${Date.now() - t0}ms): ${String(error)}`
       );
       return { success: false, error: String(error) };
     }
