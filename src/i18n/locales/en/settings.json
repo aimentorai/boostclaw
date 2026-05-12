@@ -13,7 +13,14 @@
     "launchAtStartupDesc": "Automatically launch BoostClaw when you log in",
     "resetSetupWizard": "Re-run setup wizard",
     "resetSetupWizardDesc": "Show the first-time setup guide again on next launch",
-    "resetSetupWizardSucceeded": "Setup wizard reset. Redirecting..."
+    "resetSetupWizardSucceeded": "Setup wizard reset. Redirecting...",
+    "resetApp": "Reset Application",
+    "resetAppDesc": "Delete all data and restart the app",
+    "resetAppConfirmTitle": "Reset Application",
+    "resetAppConfirmDesc": "This will permanently delete all chat history, configurations, and API keys. This action cannot be undone.",
+    "resetAppConfirmCancel": "Cancel",
+    "resetAppConfirmProceed": "Reset & Restart",
+    "resetAppSucceeded": "Application reset. Restarting..."
   },
   "account": {
     "title": "Account",

@@ -11,6 +11,7 @@
 import { access, mkdir, readFile, writeFile } from 'fs/promises';
 import { constants, readdirSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { listConfiguredAgentIds } from './agent-config';
 import { getOpenClawResolvedDir, getOpenClawConfigDir } from './paths';
 import { getProviderEnvVar, getProviderDefaultModel, getProviderConfig } from './provider-registry';
@@ -1309,6 +1310,7 @@ const ANTHROPIC_PROVIDERS = new Set(['anthropic', 'anthropic-vertex']);
  * **Layer 1 — Model-agnostic** (applies to all providers):
  * - `contextPruning.mode: "cache-ttl"` + `ttl: "5m"` — trim old tool results after cache TTL
  * - `contextInjection: "continuation-skip"` — skip bootstrap re-injection on safe continuations
+ * - `skipBootstrap: true` — suppress Gateway bootstrap pending workflow (BoostClaw manages its own)
  * - `contextLimits.toolResultMaxChars: 16000` — cap tool output size
  * - `bootstrapTotalMaxChars: 60000` — cap total bootstrap context
  *
@@ -1323,11 +1325,14 @@ export async function syncPerformanceDefaultsToOpenClaw(): Promise<void> {
     const agents =
       config.agents && typeof config.agents === 'object'
         ? (config.agents as Record<string, unknown>)
-        : null;
-    if (!agents) return;
+        : {};
+    agents.defaults =
+      agents.defaults && typeof agents.defaults === 'object'
+        ? agents.defaults
+        : {};
 
     const defaults = (
-      agents.defaults && typeof agents.defaults === 'object'
+      typeof agents.defaults === 'object'
         ? { ...(agents.defaults as Record<string, unknown>) }
         : {}
     ) as Record<string, unknown>;
@@ -1351,6 +1356,19 @@ export async function syncPerformanceDefaultsToOpenClaw(): Promise<void> {
 
     if (defaults.contextInjection === undefined) {
       defaults.contextInjection = 'continuation-skip';
+      changed = true;
+    }
+
+    if (defaults.skipBootstrap === undefined) {
+      defaults.skipBootstrap = true;
+      changed = true;
+    }
+
+    if (defaults.workspace === undefined) {
+      const workspacePath = join(getOpenClawConfigDir(), 'workspace');
+      defaults.workspace = workspacePath.startsWith(homedir())
+        ? workspacePath.replace(homedir(), '~')
+        : workspacePath;
       changed = true;
     }
 

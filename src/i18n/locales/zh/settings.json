@@ -13,7 +13,14 @@
     "launchAtStartupDesc": "登录系统后自动启动 BoostClaw",
     "resetSetupWizard": "重新运行引导向导",
     "resetSetupWizardDesc": "下次启动时再次显示首次设置引导",
-    "resetSetupWizardSucceeded": "引导向导已重置，正在跳转..."
+    "resetSetupWizardSucceeded": "引导向导已重置，正在跳转...",
+    "resetApp": "重置应用",
+    "resetAppDesc": "删除所有数据并重新启动应用",
+    "resetAppConfirmTitle": "重置应用",
+    "resetAppConfirmDesc": "此操作将永久删除所有聊天记录、配置和 API 密钥，不可恢复。",
+    "resetAppConfirmCancel": "取消",
+    "resetAppConfirmProceed": "重置并重启",
+    "resetAppSucceeded": "应用已重置，正在重启..."
   },
   "account": {
     "title": "账号",

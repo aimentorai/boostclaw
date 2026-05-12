@@ -1,46 +1,107 @@
 # AGENTS.md
 
-## Cursor Cloud specific instructions
+## Overview
 
-### Overview
+BoostClaw is a cross-platform **Electron desktop app** (React 19 + Vite + TypeScript) providing a GUI for the OpenClaw AI agent runtime. Single-package pnpm workspace (no monorepo). Pinned pnpm version in `packageManager` field — use `corepack enable && corepack prepare` to activate it.
 
-BoostClaw is a cross-platform **Electron desktop app** (React 19 + Vite + TypeScript) providing a GUI for the OpenClaw AI agent runtime. It uses pnpm as its package manager (pinned version in `package.json`'s `packageManager` field).
-
-### Quick reference
-
-Standard dev commands are in `package.json` scripts and `README.md`. Key ones:
+## Quick reference
 
 | Task | Command |
 |------|---------|
-| Install deps + download uv | `pnpm run init` |
+| Install + download uv | `pnpm run init` |
 | Dev server (Vite + Electron) | `pnpm dev` |
 | Lint (ESLint, auto-fix) | `pnpm run lint` |
 | Type check | `pnpm run typecheck` |
 | Unit tests (Vitest) | `pnpm test` |
-| Comms replay metrics | `pnpm run comms:replay` |
-| Comms baseline refresh | `pnpm run comms:baseline` |
+| E2E tests (Playwright, headless) | `pnpm run test:e2e` |
+| E2E tests (headed) | `pnpm run test:e2e:headed` |
+| Build frontend + main only | `pnpm run build:vite` |
+| Full release build | `pnpm run build` |
+| Secrets scan | `pnpm run secrets:scan` |
+| Comms replay | `pnpm run comms:replay` |
+| Comms baseline | `pnpm run comms:baseline` |
 | Comms regression compare | `pnpm run comms:compare` |
-| E2E tests (Playwright) | `pnpm run test:e2e` |
-| Build frontend only | `pnpm run build:vite` |
 
-### Non-obvious caveats
+**Required order**: `e2e` depends on `build:vite` (auto-runs it). `dev` auto-runs `pnpm install` + predev scripts.
 
-- **pnpm version**: The exact pnpm version is pinned via `packageManager` in `package.json`. Use `corepack enable && corepack prepare` to activate the correct version before installing.
-- **Electron on headless Linux**: The dbus errors (`Failed to connect to the bus`) are expected and harmless in a headless/cloud environment. The app still runs fine with `$DISPLAY` set (e.g., `:1` via Xvfb/VNC).
-- **`pnpm run lint` race condition**: If `pnpm run uv:download` was recently run, ESLint may fail with `ENOENT: no such file or directory, scandir '/workspace/temp_uv_extract'` because the temp directory was created and removed during download. Simply re-run lint after the download script finishes.
-- **Build scripts warning**: `pnpm install` may warn about ignored build scripts for `@discordjs/opus` and `koffi`. These are optional messaging-channel dependencies and the warnings are safe to ignore.
-- **`pnpm run init`**: This is a convenience script that runs `pnpm install` followed by `pnpm run uv:download`. Either run `pnpm run init` or run the two steps separately.
-- **Gateway startup**: When running `pnpm dev`, the OpenClaw Gateway process starts automatically on port 18789. It takes ~10-30 seconds to become ready. Gateway readiness is not required for UI development—the app functions without it (shows "connecting" state).
-- **No database**: The app uses `electron-store` (JSON files) and OS keychain. No database setup is needed.
-- **AI Provider keys**: Actual AI chat requires at least one provider API key configured via Settings > AI Providers. The app is fully navigable and testable without keys.
-- **Token usage history implementation**: Dashboard token usage history is not parsed from console logs. It reads OpenClaw session transcript `.jsonl` files under the local OpenClaw config directory, scans both configured agents and any runtime agent directories found on disk, and treats normal, `.deleted.jsonl`, and `.jsonl.reset.*` transcripts as valid history sources. It extracts assistant/tool usage records with `message.usage` and aggregates fields such as input/output/cache/total tokens and cost from those structured records.
-- **Models page aggregation**: The 7-day/30-day filters are relative rolling windows, not calendar-month buckets. When grouped by time, the chart should keep all day buckets in the selected window; only model grouping is intentionally capped to the top entries.
-- **OpenClaw Doctor in UI**: In Settings > Advanced > Developer, the app exposes both `Run Doctor` (`openclaw doctor --json`) and `Run Doctor Fix` (`openclaw doctor --fix --yes --non-interactive`) through the host-api. Renderer code should call the host route, not spawn CLI processes directly.
-- **UI change validation**: Any user-visible UI change should include or update an Electron E2E spec in the same PR so the interaction is covered by Playwright.
-- **Renderer/Main API boundary (important)**:
-  - Renderer must use `src/lib/host-api.ts` and `src/lib/api-client.ts` as the single entry for backend calls.
-  - Do not add new direct `window.electron.ipcRenderer.invoke(...)` calls in pages/components; expose them through host-api/api-client instead.
-  - Do not call Gateway HTTP endpoints directly from renderer (`fetch('http://127.0.0.1:18789/...')` etc.). Use Main-process proxy channels (`hostapi:fetch`, `gateway:httpProxy`) to avoid CORS/env drift.
-  - Transport policy is Main-owned and fixed as `WS -> HTTP -> IPC fallback`; renderer should not implement protocol switching UI/business logic.
-- **Comms-change checklist**: If your change touches communication paths (gateway events, runtime send/receive, delivery, or fallback), run `pnpm run comms:replay` and `pnpm run comms:compare` before pushing.
-- **Doc sync rule**: After any functional or architecture change, review `README.md`, `README.zh-CN.md`, and `README.ja-JP.md` for required updates; if behavior/flows/interfaces changed, update docs in the same PR/commit.
+## Architecture
+
+Single Electron app with **contextIsolation: true, nodeIntegration: false**.
+
+```
+Renderer (src/)    ←→  Preload (electron/preload/)  ←→  Main (electron/)
+React + Zustand         contextBridge expose          API server + Gateway manager
+```
+
+- **Renderer**: Pages (`src/pages/`), components (`src/components/`), Zustand stores (`src/stores/`), library (`src/lib/`), i18n (`src/i18n/`). HashRouter for `file://` compat.
+- **Preload** (`electron/preload/index.ts`): Whitelists IPC channels. All `invoke`, `on`, `once` calls are channel-whitelisted — add new channels here.
+- **Main** (`electron/main/index.ts`): Window creation, IPC handler registration, Gateway lifecycle, Host API server on `127.0.0.1:19880`.
+- **Shared**: `shared/language.ts` (supported language codes: en/zh/ja).
+- **Host API**: Sessions use per-session crypto auth token; mutation requests must be `Content-Type: application/json`.
+
+## Renderer → backend data flow (critical)
+
+Renderer code must route ALL backend calls through the lib layer. Three transport paths exist, all Main-owned:
+
+1. **IPC** (primary): `hostApiFetch()` → `invokeApi()` → `invokeIpc()` → preload bridge → `ipcMain.handle('hostapi:fetch')`
+2. **WS** (fallback): Direct WebSocket to Gateway, used when IPC is unavailable
+3. **HTTP proxy** (fallback): `hostapi:fetch` → main process proxy → Gateway
+
+**Rules enforced by ESLint** (`eslint.config.mjs`):
+- Renderer files (`src/**/*.{ts,tsx}`) **cannot** call `window.electron.ipcRenderer.invoke()` directly — must use `invokeIpc` from `@/lib/api-client`.
+- Renderer files **cannot** call `fetch('http://127.0.0.1:...')` or `fetch('http://localhost:...')` — must proxy through host-api.
+- Exception: `src/lib/api-client.ts` itself.
+
+## Preload IPC whitelist
+
+The preload script (`electron/preload/index.ts`) whitelists all IPC channels for `invoke`, `on`, and `once`. When adding new IPC channels in `electron/main/ipc-handlers.ts`, remember to add them to the preload whitelist or renderer calls will be silently blocked.
+
+## Build pipeline (non-obvious)
+
+- **`bundle-openclaw.mjs`**: Copies openclaw from pnpm virtual store, BFS-walks store to collect all transitive deps into a flat `node_modules/`. Resolves pnpm symlinks for macOS codesign. Patches broken modules (lru-cache ESM interop, https-proxy-agent CJS, windowsHide for child_process).
+- **`after-pack.cjs`** (electron-builder hook): Copies `openclaw/node_modules/` into packaged app (electron-builder respects `.gitignore` which excludes it). Bundles plugins from `node_modules/`. Validates Mach-O `.node` binaries, auto-re-downloads corrupted ones. Patches NSIS `extractAppPackage.nsh` to speed up Windows install.
+- **`.npmrc`**: `shamefully-hoist=true` and `package-import-method=copy` are required for Electron packaging. Do not remove.
+- **Build output**: Vite → `dist/` (renderer) + `dist-electron/` (main/preload). electron-builder reads from these.
+
+## E2E mode (`BoostClaw_E2E=1`)
+
+E2E tests launch **dist-electron + node_modules electron**, not a packaged app (`app.isPackaged` is always `false`). The E2E flag skips: gateway auto-start, system tray, telemetry, proxy settings, launch-at-startup, config migration, skill/plugin installation, expert init, CLI install, workspace setup.
+
+- `BoostClaw_E2E_SKIP_SETUP=1` — skips onboarding setup flow.
+- E2E tests use isolated temp `userData` dirs per test run.
+
+## Testing scope and gaps
+
+| Layer | What it covers | What it does NOT cover |
+|-------|---------------|----------------------|
+| `pnpm test` (Vitest) | Pure logic, React components, stores, API client. jsdom env, mocked `window.electron`. | Electron main process, Gateway, real IPC. |
+| `pnpm run test:e2e` (Playwright) | Full renderer UI against dev Electron. Uses `data-testid` locators. | Packaged code paths (`app.isPackaged` — 30+ conditionals). No Gateway runtime. |
+
+**Testing the packaged app** (not covered by CI):
+```bash
+# Fast: unpacked production build (app.isPackaged = true)
+npx electron-builder --dir
+# Slow: full installer
+pnpm run build
+```
+Neither is currently automated in CI. When changing code branched on `app.isPackaged`, manually test with `--dir`.
+
+## Non-obvious caveats
+
+- **pnpm version**: Use `corepack enable && corepack prepare` before `pnpm install`. Pinned via `packageManager` in `package.json`.
+- **Lint race condition**: After `uv:download`, ESLint may fail with `ENOENT` for `temp_uv_extract`. Re-run lint.
+- **Build scripts warning**: Ignored build scripts for `@discordjs/opus` and `koffi` are safe — they're optional messaging-channel deps.
+- **Gateway startup latency**: Gateway takes 10–30s to become ready on `pnpm dev`. UI works without it (shows "connecting").
+- **No database**: Uses `electron-store` (JSON files) and OS keychain.
+- **AI Provider keys**: Required for actual AI chat only. UI fully navigable without keys.
+- **OpenClaw Doctor**: In Settings > Advanced > Developer. Must call host-api route — never spawn CLI processes from renderer.
+- **Token usage history**: Reads `.jsonl` transcript files from OpenClaw config dir, not from console logs or database.
+- **Models page filters**: 7-day/30-day are relative rolling windows, not calendar months.
+- **Build paths**: `pnpm dev` writes to `dist-electron/` and serves renderer from dev server. `pnpm run build:vite` writes to `dist/` + `dist-electron/` for production.
+
+## Conventions
+
+- **UI changes**: Include/update an E2E spec for any user-visible change.
+- **Comms changes**: Run `pnpm run comms:replay && pnpm run comms:compare` before pushing.
+- **Doc sync**: After functional/architecture changes, review `README.md`, `README.zh-CN.md`, `README.ja-JP.md`.
+- **Code style**: Prettier (2-space, single quotes, trailing commas es5, 100 print width). ESLint flat config with TS + React hooks + renderer boundary rules.

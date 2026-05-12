@@ -3,7 +3,7 @@
  * Registers all IPC handlers for main-renderer communication
  */
 import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, extname, basename } from 'node:path';
 import crypto from 'node:crypto';
@@ -2221,6 +2221,28 @@ function registerAppHandlers(): void {
   ipcMain.handle('app:relaunch', () => {
     app.relaunch();
     app.quit();
+  });
+
+  // Reset app — delete all data and restart
+  ipcMain.handle('app:reset', async () => {
+    const dirs = [
+      join(homedir(), '.BoostClaw'),
+      join(homedir(), '.boostclaw'),
+      join(homedir(), '.openclaw'),
+      app.getPath('userData'),
+      join(homedir(), 'Library', 'Caches', 'BoostClaw'),
+    ];
+    for (const dir of dirs) {
+      try {
+        if (existsSync(dir)) {
+          rmSync(dir, { recursive: true, force: true });
+          logger.info(`app:reset — deleted ${dir}`);
+        }
+      } catch (err) {
+        logger.warn(`app:reset — failed to delete ${dir}:`, err);
+      }
+    }
+    return { success: true };
   });
 }
 

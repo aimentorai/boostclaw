@@ -742,6 +742,8 @@ describe('syncPerformanceDefaultsToOpenClaw', () => {
     expect(pruning.mode).toBe('cache-ttl');
     expect(pruning.ttl).toBe('5m');
     expect(defaults.contextInjection).toBe('continuation-skip');
+    expect(defaults.skipBootstrap).toBe(true);
+    expect(typeof defaults.workspace).toBe('string');
 
     const limits = defaults.contextLimits as Record<string, unknown>;
     expect(limits.toolResultMaxChars).toBe(16000);
@@ -839,6 +841,8 @@ describe('syncPerformanceDefaultsToOpenClaw', () => {
           heartbeat: { every: '30m' },
           contextLimits: { toolResultMaxChars: 8000 },
           bootstrapTotalMaxChars: 30000,
+          skipBootstrap: false,
+          workspace: '/custom/path',
         },
       },
     });
@@ -850,6 +854,8 @@ describe('syncPerformanceDefaultsToOpenClaw', () => {
     const defaults = getDefaults(config);
 
     expect(defaults.contextInjection).toBe('always');
+    expect(defaults.skipBootstrap).toBe(false);
+    expect(defaults.workspace).toBe('/custom/path');
 
     const pruning = defaults.contextPruning as Record<string, unknown>;
     expect(pruning.mode).toBe('off');
@@ -875,6 +881,8 @@ describe('syncPerformanceDefaultsToOpenClaw', () => {
           params: { cacheRetention: 'short' },
           contextLimits: { toolResultMaxChars: 16000 },
           bootstrapTotalMaxChars: 60000,
+          skipBootstrap: true,
+          workspace: '~/.boostclaw/openclaw/workspace',
         },
       },
     });
@@ -887,15 +895,21 @@ describe('syncPerformanceDefaultsToOpenClaw', () => {
     logSpy.mockRestore();
   });
 
-  it('skips when agents.defaults is missing', async () => {
+  it('writes performance defaults even with empty config (fixes bootstrap leak after reset)', async () => {
     await writeOpenClawJson({});
 
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const { syncPerformanceDefaultsToOpenClaw } = await import('@electron/utils/openclaw-auth');
     await syncPerformanceDefaultsToOpenClaw();
 
-    expect(logSpy).not.toHaveBeenCalledWith('Synced performance defaults to openclaw.json');
-    logSpy.mockRestore();
+    const config = await readOpenClawJson();
+    const defaults = getDefaults(config);
+
+    expect(defaults.contextInjection).toBe('continuation-skip');
+    expect(defaults.skipBootstrap).toBe(true);
+    expect(typeof defaults.workspace).toBe('string');
+    expect(defaults.bootstrapTotalMaxChars).toBe(60000);
+    const pruning = defaults.contextPruning as Record<string, unknown>;
+    expect(pruning.mode).toBe('cache-ttl');
   });
 
   it('skips cacheRetention for unknown providers', async () => {

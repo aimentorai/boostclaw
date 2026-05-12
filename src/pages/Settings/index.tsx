@@ -12,6 +12,7 @@ import {
   Moon,
   RefreshCw,
   Sun,
+  TriangleAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -194,6 +195,8 @@ export function Settings() {
   const [subscriptionMcpConfig, setSubscriptionMcpConfig] =
     useState<SubscriptionMcpConfigResponse | null>(null);
   const [subscriptionMcpConfigLoading, setSubscriptionMcpConfigLoading] = useState(false);
+  const [resetConfirming, setResetConfirming] = useState(false);
+  const [resetPending, setResetPending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -867,6 +870,74 @@ export function Settings() {
                   {t('appearance.resetSetupWizard')}
                 </Button>
               </div>
+
+              {!resetConfirming ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[15px] font-medium text-destructive/90">
+                      {t('appearance.resetApp')}
+                    </Label>
+                    <p className="text-[13px] text-muted-foreground mt-1">
+                      {t('appearance.resetAppDesc')}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setResetConfirming(true)}
+                    className="rounded-full h-8 px-4 border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive bg-transparent"
+                  >
+                    {t('appearance.resetApp')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <TriangleAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[15px] font-medium text-destructive">
+                        {t('appearance.resetAppConfirmTitle')}
+                      </h3>
+                      <p className="text-[13px] text-muted-foreground mt-1">
+                        {t('appearance.resetAppConfirmDesc')}
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setResetConfirming(false)}
+                          disabled={resetPending}
+                          className="rounded-full h-8 px-4"
+                        >
+                          {t('appearance.resetAppConfirmCancel')}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={resetPending}
+                          onClick={async () => {
+                            setResetPending(true);
+                            try {
+                              await invokeIpc('app:reset');
+                              toast.success(t('appearance.resetAppSucceeded'));
+                              setTimeout(() => {
+                                void invokeIpc('app:relaunch');
+                              }, 500);
+                            } catch (err) {
+                              toast.error(String(err));
+                              setResetPending(false);
+                              setResetConfirming(false);
+                            }
+                          }}
+                          className="rounded-full h-8 px-4"
+                        >
+                          {resetPending ? '…' : t('appearance.resetAppConfirmProceed')}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

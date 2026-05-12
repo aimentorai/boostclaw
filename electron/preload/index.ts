@@ -45,6 +45,7 @@ const electronAPI = {
         'app:platform',
         'app:quit',
         'app:relaunch',
+        'app:reset',
         'app:request',
         // Auth mask (debug toggle)
         'auth:mask:get',

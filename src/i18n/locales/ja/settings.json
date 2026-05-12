@@ -13,7 +13,14 @@
     "launchAtStartupDesc": "ログイン時に自動起動",
     "resetSetupWizard": "セットアップウィザードを再実行",
     "resetSetupWizardDesc": "次回起動時に初回セットアップガイドを再度表示",
-    "resetSetupWizardSucceeded": "セットアップウィザードをリセットしました。リダイレクト中..."
+    "resetSetupWizardSucceeded": "セットアップウィザードをリセットしました。リダイレクト中...",
+    "resetApp": "アプリをリセット",
+    "resetAppDesc": "すべてのデータを削除してアプリを再起動します",
+    "resetAppConfirmTitle": "アプリをリセット",
+    "resetAppConfirmDesc": "すべてのチャット履歴、設定、APIキーが完全に削除されます。この操作は元に戻せません。",
+    "resetAppConfirmCancel": "キャンセル",
+    "resetAppConfirmProceed": "リセットして再起動",
+    "resetAppSucceeded": "アプリをリセットしました。再起動中..."
   },
   "account": {
     "title": "アカウント",
