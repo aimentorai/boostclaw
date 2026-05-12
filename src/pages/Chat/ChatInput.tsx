@@ -38,7 +38,8 @@ import { useSkillsStore } from '@/stores/skills';
 import type { ExpertStatus } from '@/types/expert';
 import type { Skill } from '@/types/skill';
 import { useProviderStore } from '@/stores/providers';
-import type { ProviderAccount, ProviderWithKeyInfo } from '@/lib/providers';
+import { SYSTEM_DEFAULT_PROVIDER_ACCOUNT_ID } from '@/lib/provider-accounts';
+import type { ProviderAccount, ProviderVendorInfo, ProviderWithKeyInfo } from '@/lib/providers';
 import {
   getTemplateDescription,
   getTemplateName,
@@ -241,6 +242,7 @@ export function ChatInput({
   const isComposingRef = useRef(false);
   /** Avoid spamming fetchAgents when agents list is still missing the current id after one refresh. */
   const missingAgentFetchKey = useRef<string | null>(null);
+  const initializedSystemDefaultModelForAgent = useRef<string | null>(null);
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
   const agentsLoading = useAgentsStore((s) => s.loading);
@@ -249,6 +251,7 @@ export function ChatInput({
   const defaultModelRef = useAgentsStore((s) => s.defaultModelRef);
   const providerAccounts = useProviderStore((s) => s.accounts);
   const providerStatuses = useProviderStore((s) => s.statuses);
+  const providerVendors = useProviderStore((s) => s.vendors);
   const providerDefaultAccountId = useProviderStore((s) => s.defaultAccountId);
   const refreshProviderSnapshot = useProviderStore((s) => s.refreshProviderSnapshot);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
@@ -407,6 +410,9 @@ export function ChatInput({
     const statusById = new Map<string, ProviderWithKeyInfo>(
       providerStatuses.map((status) => [status.id, status])
     );
+    const vendorById = new Map<string, ProviderVendorInfo>(
+      providerVendors.map((vendor) => [vendor.id, vendor])
+    );
     const entries = providerAccounts
       .filter((account) => account.enabled && hasConfiguredProviderCredentials(account, statusById))
       .sort((left, right) => {
@@ -418,24 +424,47 @@ export function ChatInput({
     const options = new Map<string, { modelRef: string; label: string; description: string }>();
     for (const account of entries) {
       const runtimeProviderKey = resolveRuntimeProviderKey(account);
-      const modelId = (account.model || '').trim();
-      if (!runtimeProviderKey || !modelId) continue;
-      const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
-        ? modelId.slice(runtimeProviderKey.length + 1)
-        : modelId;
-      if (!normalizedModelId) continue;
-      const modelRef = `${runtimeProviderKey}/${normalizedModelId}`;
-      if (!options.has(modelRef)) {
-        options.set(modelRef, {
-          modelRef,
-          label: normalizedModelId,
-          description: account.label,
-        });
+      if (!runtimeProviderKey) continue;
+
+      const vendor = vendorById.get(account.vendorId);
+      const modelIds = [
+        account.model,
+        ...(account.fallbackModels ?? []),
+        vendor?.defaultModelId,
+        ...(vendor?.availableModels ?? []),
+      ];
+
+      for (const rawModelId of modelIds) {
+        const modelId = (rawModelId || '').trim();
+        if (!modelId) continue;
+        const normalizedModelId = modelId.startsWith(`${runtimeProviderKey}/`)
+          ? modelId.slice(runtimeProviderKey.length + 1)
+          : modelId;
+        if (!normalizedModelId) continue;
+        const modelRef = `${runtimeProviderKey}/${normalizedModelId}`;
+        if (!options.has(modelRef)) {
+          options.set(modelRef, {
+            modelRef,
+            label: normalizedModelId,
+            description: account.label,
+          });
+        }
       }
     }
 
     return [...options.values()];
-  }, [providerStatuses, providerAccounts, providerDefaultAccountId]);
+  }, [providerStatuses, providerVendors, providerAccounts, providerDefaultAccountId]);
+  const systemDefaultModelOption = useMemo(
+    () =>
+      modelOptions.find((option) =>
+        providerAccounts.some((account) => {
+          if (account.id !== SYSTEM_DEFAULT_PROVIDER_ACCOUNT_ID) return false;
+          const runtimeProviderKey = resolveRuntimeProviderKey(account);
+          return option.modelRef.startsWith(`${runtimeProviderKey}/`);
+        })
+      ) ?? null,
+    [modelOptions, providerAccounts]
+  );
   const filteredModelOptions = useMemo(() => {
     const query = modelSearchQuery.trim().toLowerCase();
     if (!query) return modelOptions;
@@ -524,6 +553,31 @@ export function ChatInput({
   useEffect(() => {
     void refreshProviderSnapshot();
   }, [refreshProviderSnapshot]);
+
+  useEffect(() => {
+    if (!systemDefaultModelOption) return;
+    if (currentAgentId !== 'main') return;
+    if (currentSessionHasMessages) return;
+    if (!currentAgent) return;
+    if (currentAgent.overrideModelRef) return;
+    if (currentModelRef === systemDefaultModelOption.modelRef) return;
+
+    const initKey = `${currentAgentId}:${systemDefaultModelOption.modelRef}`;
+    if (initializedSystemDefaultModelForAgent.current === initKey) return;
+    initializedSystemDefaultModelForAgent.current = initKey;
+
+    void updateAgentModel(currentAgentId, systemDefaultModelOption.modelRef).catch(() => {
+      initializedSystemDefaultModelForAgent.current = null;
+    });
+  }, [
+    currentAgent,
+    currentAgentId,
+    currentAgent?.overrideModelRef,
+    currentModelRef,
+    currentSessionHasMessages,
+    systemDefaultModelOption,
+    updateAgentModel,
+  ]);
 
   // ── File staging via native dialog ─────────────────────────────
 

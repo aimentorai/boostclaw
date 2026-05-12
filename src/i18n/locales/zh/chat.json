@@ -114,6 +114,7 @@
         "thinkingHidden": "已隐藏思考过程",
         "openFile": "打开文件",
         "file": "文件",
+        "responseTime": "{{duration}}",
         "loadingVideoPreview": "正在加载视频预览...",
         "videoPreviewUnavailable": "无法预览视频"
     },

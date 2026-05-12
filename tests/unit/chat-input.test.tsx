@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChatInput } from '@/pages/Chat/ChatInput';
 
 const { agentsState, chatState, gatewayState, skillsState, providersState } = vi.hoisted(() => ({
@@ -320,6 +320,45 @@ describe('ChatInput agent targeting', () => {
     fireEvent.click(screen.getByText('claude-sonnet-4'));
 
     expect(agentsState.updateAgentModel).toHaveBeenCalledWith('main', 'anthropic/claude-sonnet-4');
+  });
+
+  it('defaults the first empty main chat to the microdata system model', async () => {
+    agentsState.agents = [
+      {
+        id: 'main',
+        name: 'Main',
+        isDefault: true,
+        modelDisplay: 'gpt-5.4',
+        modelRef: 'openai/gpt-5.4',
+        overrideModelRef: null,
+        inheritedModel: true,
+        workspace: '~/.boostclaw/openclaw/workspace',
+        agentDir: '~/.boostclaw/openclaw/agents/main/agent',
+        mainSessionKey: 'agent:main:main',
+        channelTypes: [],
+      },
+    ];
+    providersState.accounts = [
+      {
+        id: 'boostclaw-system-default',
+        vendorId: 'custom',
+        label: 'microdata',
+        authMode: 'api_key',
+        model: 'qwen-plus',
+        enabled: true,
+        updatedAt: '9999-12-31T23:59:59.999Z',
+      },
+    ];
+    providersState.statuses = [{ id: 'boostclaw-system-default', hasKey: true }];
+
+    render(<ChatInput onSend={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(agentsState.updateAgentModel).toHaveBeenCalledWith(
+        'main',
+        'custom-boostcla/qwen-plus'
+      );
+    });
   });
 
   it('updates the selected target agent model from the model dropdown', () => {

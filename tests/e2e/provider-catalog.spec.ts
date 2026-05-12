@@ -9,6 +9,7 @@ test.describe('BoostClaw provider catalog', () => {
 
       await page.getByTestId('sidebar-nav-models').click();
       await expect(page.getByTestId('models-page')).toBeVisible();
+      await expect(page.getByTestId('providers-system-default-status')).toHaveCount(0);
 
       await page.getByTestId('providers-add-button').click();
       await expect(page.getByTestId('add-provider-dialog')).toBeVisible();

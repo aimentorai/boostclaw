@@ -192,6 +192,11 @@ const MCP_BLOCKED_SERVER_NAMES = new Set<string>([
 ]);
 const POST_LOGIN_SESSION_URL = process.env.BoostClaw_APP_AUTH_POST_LOGIN_URL || 'https://model.microdata-inc.com/login';
 const POST_LOGIN_SESSION_COOKIE_NAME = 'session';
+const POST_LOGIN_SESSION_WAIT_ATTEMPTS = 240;
+const POST_LOGIN_SESSION_AFTER_CONSENT_WAIT_ATTEMPTS = 20;
+const POST_LOGIN_SESSION_WAIT_INTERVAL_MS = 500;
+const POST_LOGIN_USER_WAIT_ATTEMPTS = 20;
+const POST_LOGIN_USER_WAIT_INTERVAL_MS = 500;
 const SYSTEM_DEFAULT_MODEL_KEY_URL = 'https://open.microdata-inc.com/proxy-center/llm/token/system-default-key';
 const SYSTEM_DEFAULT_MODEL_PROVIDER_ACCOUNT_ID = 'boostclaw-system-default';
 const SYSTEM_DEFAULT_MODEL_PROVIDER_LABEL = 'microdata';
@@ -789,25 +794,47 @@ export class AppAuthManager extends EventEmitter {
       this.postLoginModelUserId = null;
       this.postLoginSessionCookieValue = null;
       this.systemDefaultModelProviderInfoCache = null;
+      await this.syncPostLoginAuthMask('');
       await win.loadURL(postLoginUrl);
       await this.capturePostLoginSessionCookie(postLoginUrl);
       await this.capturePostLoginLocalStorageUserId();
-      const quotaSummary = await this.getSubscriptionQuotaSummary();
-      logger.info('[AppAuth] Prefetched subscription quotas after login', {
-        portalUserId: quotaSummary.portalUserId,
-        providers: quotaSummary.snapshots.map((snapshot) => ({
-          provider: snapshot.provider,
-          ok: snapshot.ok,
-          status: snapshot.status,
-          code: snapshot.code,
-        })),
-      });
-      await this.syncSubscriptionMcpConfig();
-      await this.prefetchSystemDefaultModelProviderInfo();
     }
+    this.closeAuthMaskWindow();
     if (returnUrl) {
       await win.loadURL(returnUrl);
     }
+    void this.runPostLoginFollowups().catch((error) => {
+      logger.warn('[AppAuth] Post-login follow-up tasks failed', {
+        error: String(error),
+      });
+    });
+  }
+
+  private async runPostLoginFollowups(): Promise<void> {
+    const quotaSummary = await this.getSubscriptionQuotaSummary();
+    logger.info('[AppAuth] Prefetched subscription quotas after login', {
+      portalUserId: quotaSummary.portalUserId,
+      providers: quotaSummary.snapshots.map((snapshot) => ({
+        provider: snapshot.provider,
+        ok: snapshot.ok,
+        status: snapshot.status,
+        code: snapshot.code,
+      })),
+    });
+    await this.syncSubscriptionMcpConfig();
+    await this.prefetchSystemDefaultModelProviderInfo();
+  }
+
+  private async syncPostLoginAuthMask(urlText: string): Promise<void> {
+    if (this.isWebOAuthConsentPage(urlText)) {
+      this.clearAuthMaskTimeout();
+      this.closeAuthMaskWindow();
+      return;
+    }
+    if (!this.mainWindow || this.mainWindow.isDestroyed() || typeof this.mainWindow.getBounds !== 'function') {
+      return;
+    }
+    await this.showAuthMaskWindow();
   }
 
   private async capturePostLoginSessionCookie(urlText: string): Promise<void> {
@@ -822,7 +849,18 @@ export class AppAuthManager extends EventEmitter {
     let lastCookieValue: string | null = null;
     let stableCookieHits = 0;
     let latestCookie: Electron.Cookie | null = null;
-    for (let attempt = 1; attempt <= 20; attempt += 1) {
+    let leftConsentAttempts = 0;
+    for (let attempt = 1; attempt <= POST_LOGIN_SESSION_WAIT_ATTEMPTS; attempt += 1) {
+      const currentUrl = this.mainWindow
+        && !this.mainWindow.isDestroyed()
+        && typeof this.mainWindow.webContents.getURL === 'function'
+        ? this.mainWindow.webContents.getURL()
+        : '';
+      const waitingForConsent = this.isWebOAuthConsentPage(currentUrl);
+      if (!waitingForConsent) {
+        leftConsentAttempts += 1;
+      }
+      await this.syncPostLoginAuthMask(currentUrl);
       try {
         const cookies = await authSession.cookies.get({
           url: `${target.origin}/`,
@@ -830,6 +868,8 @@ export class AppAuthManager extends EventEmitter {
         });
         logger.info('[AppAuth] Post-login session cookie candidates', {
           url: target.origin,
+          currentUrl: summarizeAuthUrl(currentUrl).location,
+          waitingForConsent,
           name: POST_LOGIN_SESSION_COOKIE_NAME,
           attempt,
           count: cookies.length,
@@ -880,7 +920,11 @@ export class AppAuthManager extends EventEmitter {
         return;
       }
 
-      await sleep(500);
+      if (!waitingForConsent && leftConsentAttempts >= POST_LOGIN_SESSION_AFTER_CONSENT_WAIT_ATTEMPTS) {
+        break;
+      }
+
+      await sleep(POST_LOGIN_SESSION_WAIT_INTERVAL_MS);
     }
 
     if (latestCookie?.value) {
@@ -913,7 +957,7 @@ export class AppAuthManager extends EventEmitter {
       return;
     }
 
-    for (let attempt = 1; attempt <= 20; attempt += 1) {
+    for (let attempt = 1; attempt <= POST_LOGIN_USER_WAIT_ATTEMPTS; attempt += 1) {
       try {
         const inspection = await win.webContents.executeJavaScript(`
           (() => {
@@ -987,7 +1031,7 @@ export class AppAuthManager extends EventEmitter {
         return;
       }
 
-      await sleep(500);
+      await sleep(POST_LOGIN_USER_WAIT_INTERVAL_MS);
     }
 
     logger.warn('[AppAuth] Post-login localStorage user id not found', {

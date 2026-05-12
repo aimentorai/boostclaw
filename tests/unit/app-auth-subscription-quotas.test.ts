@@ -466,6 +466,81 @@ describe('AppAuthManager.getSubscriptionQuotaSummary', () => {
     }));
   });
 
+  it('waits for the model consent flow before capturing the post-login session cookie', async () => {
+    const { AppAuthManager } = await import('@electron/utils/app-auth');
+    const manager = new AppAuthManager();
+    const loadURLMock = vi.fn().mockResolvedValue(undefined);
+    const getURLMock = vi
+      .fn()
+      .mockReturnValueOnce('https://open.am.microdata-inc.com/usercenter/oauth/consent?client_id=c08bd4fb-c96c-4c21-8bd4-fbc96c6c217e&redirect_uri=https%3A%2F%2Fmodel.microdata-inc.com%2Foauth%2Foidc')
+      .mockReturnValueOnce('https://open.am.microdata-inc.com/usercenter/oauth/consent?client_id=c08bd4fb-c96c-4c21-8bd4-fbc96c6c217e&redirect_uri=https%3A%2F%2Fmodel.microdata-inc.com%2Foauth%2Foidc')
+      .mockReturnValue('https://model.microdata-inc.com/console/token-new');
+
+    executeJavaScriptMock.mockResolvedValue({
+      href: 'https://model.microdata-inc.com/console/token-new',
+      hostname: 'model.microdata-inc.com',
+      hasUser: true,
+      userId: '10',
+      parseError: null,
+      keys: ['id'],
+      rawPreview: '{"id":10}',
+    });
+
+    manager.setWindow({
+      isDestroyed: () => false,
+      loadURL: loadURLMock,
+      webContents: {
+        getURL: getURLMock,
+        executeJavaScript: (...args: unknown[]) => executeJavaScriptMock(...args),
+      },
+    } as never);
+
+    secretStoreGetMock.mockResolvedValue({
+      type: 'oauth',
+      accountId: '__BoostClaw_app_auth__',
+      accessToken: 'token',
+      refreshToken: '',
+      expiresAt: Date.now() + 60_000,
+    });
+    secretStoreSetMock.mockResolvedValue(undefined);
+    cookiesGetMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          name: 'session',
+          domain: 'model.microdata-inc.com',
+          value: 'session-cookie-value',
+        },
+      ])
+      .mockResolvedValue([
+        {
+          name: 'session',
+          domain: 'model.microdata-inc.com',
+          value: 'session-cookie-value',
+        },
+      ]);
+
+    await (manager as { restoreMainWindowAfterAuth: () => Promise<void> }).restoreMainWindowAfterAuth();
+
+    expect(cookiesGetMock).toHaveBeenCalledWith({
+      url: 'https://model.microdata-inc.com/',
+      name: 'session',
+    });
+    expect(cookiesGetMock.mock.calls.filter(([arg]) => (
+      arg
+      && typeof arg === 'object'
+      && (arg as { url?: string }).url === 'https://model.microdata-inc.com/'
+      && (arg as { name?: string }).name === 'session'
+    ))).toHaveLength(4);
+    expect(getURLMock).toHaveBeenCalled();
+    expect(await manager.getPostLoginSessionCookieInfo()).toEqual(expect.objectContaining({
+      found: true,
+      value: 'session-cookie-value',
+      userId: '10',
+    }));
+  });
+
   it('restores persisted model user id without requiring relogin', async () => {
     const { AppAuthManager } = await import('@electron/utils/app-auth');
     const manager = new AppAuthManager();

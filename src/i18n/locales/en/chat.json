@@ -114,6 +114,7 @@
         "thinkingHidden": "Thinking hidden",
         "openFile": "Open file",
         "file": "File",
+        "responseTime": "{{duration}}",
         "loadingVideoPreview": "Loading video preview...",
         "videoPreviewUnavailable": "Video preview unavailable"
     },

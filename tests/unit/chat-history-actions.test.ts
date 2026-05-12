@@ -44,7 +44,7 @@ vi.mock('@/stores/chat/helpers', () => ({
 
 type ChatLikeState = {
   currentSessionKey: string;
-  messages: Array<{ role: string; timestamp?: number; content?: unknown; _attachedFiles?: unknown[] }>;
+  messages: Array<{ role: string; timestamp?: number; content?: unknown; id?: string; _attachedFiles?: unknown[] }>;
   loading: boolean;
   error: string | null;
   sending: boolean;
@@ -132,7 +132,12 @@ describe('chat history actions', () => {
 
     await actions.loadHistory();
 
-    expect(hostApiFetchMock).not.toHaveBeenCalled();
+    expect(hostApiFetchMock).toHaveBeenCalledWith(
+      '/api/sessions/history?sessionKey=agent%3Amain%3Amain',
+    );
+    expect(hostApiFetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/cron/session-history'),
+    );
     expect(h.read().messages).toEqual([]);
     expect(h.read().loading).toBe(false);
   });
@@ -182,6 +187,43 @@ describe('chat history actions', () => {
       'Hello',
       'Hi there!',
     ]);
+  });
+
+  it('does not append the optimistic user message when equivalent history is loaded', async () => {
+    const { createHistoryActions } = await import('@/stores/chat/history-actions');
+    const h = makeHarness({
+      messages: [
+        {
+          role: 'user',
+          content: '帮我总结一下',
+          timestamp: 1773220800,
+          id: 'optimistic-user-1',
+        },
+      ],
+      sending: true,
+      lastUserMessageAt: 1_773_220_800_000,
+    });
+    const actions = createHistoryActions(h.set as never, h.get as never);
+
+    invokeIpcMock.mockResolvedValueOnce({
+      success: true,
+      result: {
+        messages: [
+          {
+            role: 'user',
+            content: '帮我总结一下',
+            timestamp: 1773220802,
+            id: 'history-user-1',
+          },
+        ],
+      },
+    });
+
+    await actions.loadHistory();
+
+    const userMessages = h.read().messages.filter((message) => message.role === 'user');
+    expect(userMessages).toHaveLength(1);
+    expect(userMessages[0].id).toBe('history-user-1');
   });
 
   it('filters out HEARTBEAT_OK assistant messages', async () => {
@@ -275,6 +317,7 @@ describe('chat history actions', () => {
     const actions = createHistoryActions(h.set as never, h.get as never);
 
     const loadPromise = actions.loadHistory();
+    await vi.waitFor(() => expect(resolveHistory).toBeTypeOf('function'));
     h.set({
       currentSessionKey: 'agent:main:session-b',
       messages: [

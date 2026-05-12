@@ -54,6 +54,7 @@ interface ChatMessageProps {
   onToggleThinkingExpanded: () => void;
   suppressToolCards?: boolean;
   isStreaming?: boolean;
+  responseDurationMs?: number | null;
   streamingTools?: Array<{
     id?: string;
     toolCallId?: string;
@@ -84,6 +85,7 @@ export const ChatMessage = memo(function ChatMessage({
   onToggleThinkingExpanded,
   suppressToolCards = false,
   isStreaming = false,
+  responseDurationMs = null,
   streamingTools = [],
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
@@ -303,9 +305,14 @@ export const ChatMessage = memo(function ChatMessage({
           <MessageHoverBar text={text} timestamp={message.timestamp} role="user" />
         )}
 
-        {/* Hover row for assistant messages — only when there is real text content */}
-        {!isUser && hasText && (
-          <MessageHoverBar text={text} timestamp={message.timestamp} role="assistant" />
+        {/* Assistant meta: show response timer even before final text arrives. */}
+        {!isUser && (hasText || (isStreaming && responseDurationMs)) && (
+          <MessageHoverBar
+            text={text}
+            timestamp={message.timestamp}
+            role="assistant"
+            responseDurationMs={responseDurationMs}
+          />
         )}
       </div>
 
@@ -386,42 +393,57 @@ const MessageHoverBar = memo(function MessageHoverBar({
   text,
   timestamp,
   role,
+  responseDurationMs,
 }: {
   text: string;
   timestamp?: number;
   role: 'user' | 'assistant';
+  responseDurationMs?: number | null;
 }) {
   const { t: tCommon } = useTranslation('common');
   const { t } = useTranslation('chat');
   const [copied, setCopied] = useState(false);
+  const responseDuration = formatDuration(responseDurationMs ?? undefined);
+  const canCopy = text.trim().length > 0;
 
   const copyContent = useCallback(() => {
+    if (!canCopy) return;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [text]);
+  }, [canCopy, text]);
 
   return (
     <div className="flex w-full select-none items-center justify-between px-1 opacity-100">
-      <span className="text-xs text-muted-foreground">
-        {timestamp ? formatTimestamp(timestamp, t as TimestampFormatter) : ''}
+      <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground/65">
+        {timestamp ? <span>{formatTimestamp(timestamp, t as TimestampFormatter)}</span> : null}
+        {role === 'assistant' && responseDuration ? (
+          <>
+            {timestamp ? <span aria-hidden="true">·</span> : null}
+            <span>{t('message.responseTime', { duration: responseDuration })}</span>
+          </>
+        ) : null}
       </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          'h-7 w-7 rounded-full border shadow-sm transition-colors',
-          copied
-            ? 'border-green-500/20 bg-green-500/8 text-green-600 hover:bg-green-500/12'
-            : 'border-[#edf0f5] bg-white/70 text-[#9aa2ae] hover:bg-white hover:text-[#5f6875]'
-        )}
-        onClick={copyContent}
-        title={tCommon('actions.copy')}
-        aria-label={tCommon('actions.copy')}
-        data-testid={`${role}-copy-button`}
-      >
-        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      </Button>
+      {canCopy ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-7 w-7 rounded-full border shadow-sm transition-colors',
+            copied
+              ? 'border-green-500/20 bg-green-500/8 text-green-600 hover:bg-green-500/12'
+              : 'border-[#edf0f5] bg-white/70 text-[#9aa2ae] hover:bg-white hover:text-[#5f6875]'
+          )}
+          onClick={copyContent}
+          title={tCommon('actions.copy')}
+          aria-label={tCommon('actions.copy')}
+          data-testid={`${role}-copy-button`}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </Button>
+      ) : (
+        <span className="h-7 w-7" aria-hidden="true" />
+      )}
     </div>
   );
 });

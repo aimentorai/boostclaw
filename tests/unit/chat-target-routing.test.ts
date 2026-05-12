@@ -243,4 +243,61 @@ describe('chat target routing', () => {
     expect(assistantMessages[0].id).toBe('history-assistant-1');
     expect(useChatStore.getState().sending).toBe(false);
   });
+
+  it('does not duplicate the optimistic user message when history returns it with a different id', async () => {
+    const { useChatStore } = await import('@/stores/chat');
+
+    useChatStore.setState({
+      currentSessionKey: 'agent:main:main',
+      currentAgentId: 'main',
+      sessions: [{ key: 'agent:main:main' }],
+      messages: [
+        {
+          role: 'user',
+          content: '帮我总结一下',
+          timestamp: 1773220800,
+          id: 'optimistic-user-1',
+        },
+      ],
+      sessionLabels: {},
+      sessionLastActivity: {},
+      sending: true,
+      activeRunId: 'run-1',
+      streamingText: '',
+      streamingMessage: null,
+      streamingTools: [],
+      pendingFinal: false,
+      lastUserMessageAt: 1_773_220_800_000,
+      pendingToolImages: [],
+      error: null,
+      loading: false,
+      thinkingLevel: null,
+      showThinking: true,
+    });
+
+    gatewayRpcMock.mockImplementationOnce(async (method: string) => {
+      if (method === 'chat.history') {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: '帮我总结一下',
+              timestamp: 1773220802,
+              id: 'history-user-1',
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected gateway RPC: ${method}`);
+    });
+
+    await useChatStore.getState().loadHistory(true);
+
+    const userMessages = useChatStore
+      .getState()
+      .messages.filter((message) => message.role === 'user');
+
+    expect(userMessages).toHaveLength(1);
+    expect(userMessages[0].id).toBe('optimistic-user-1');
+  });
 });

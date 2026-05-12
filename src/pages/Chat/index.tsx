@@ -30,6 +30,18 @@ function isSimpleGreetingMessage(message: RawMessage | undefined): boolean {
   return /^(你好|您好|哈喽|嗨|在吗|hi|hello|hey|yo|哈喽呀|你好呀)[!.。！?？\s]*$/i.test(text);
 }
 
+function toTimestampMs(timestamp: unknown): number | null {
+  const value = typeof timestamp === 'number' ? timestamp : Number(timestamp);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value > 1e12 ? value : value * 1000;
+}
+
+function formatDuration(durationMs?: number | null): string | null {
+  if (!durationMs || !Number.isFinite(durationMs)) return null;
+  if (durationMs < 1000) return `${Math.round(durationMs)}ms`;
+  return `${(durationMs / 1000).toFixed(1)}s`;
+}
+
 export function Chat() {
   const { t } = useTranslation('chat');
   const navigate = useNavigate();
@@ -57,6 +69,7 @@ export function Chat() {
   const cleanupEmptySession = useChatStore((s) => s.cleanupEmptySession);
 
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
+  const [responseTimerNowMs, setResponseTimerNowMs] = useState(() => Date.now());
   const toggleThinkingExpanded = useCallback(() => {
     setThinkingExpanded((expanded) => !expanded);
   }, []);
@@ -85,6 +98,15 @@ export function Chat() {
   useEffect(() => {
     void fetchAgents();
   }, [fetchAgents]);
+
+  useEffect(() => {
+    if (!sending) return;
+    setResponseTimerNowMs(Date.now());
+    const timer = window.setInterval(() => {
+      setResponseTimerNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [sending]);
 
   const activeExpert = getExpertByAgentId(currentAgentId);
 
@@ -156,9 +178,18 @@ export function Chat() {
   }, [messages, subagentCompletionInfos]);
 
   const messageRows = useMemo(
-    () =>
-      messages.map((msg, idx) => {
+    () => {
+      let lastUserMessageAtMs: number | null = null;
+      return messages.map((msg, idx) => {
         const shouldShowThinking = showThinking && !simpleGreetingSegments.has(idx);
+        const messageAtMs = toTimestampMs(msg.timestamp);
+        const responseDurationMs =
+          msg.role === 'assistant' && messageAtMs && lastUserMessageAtMs
+            ? Math.max(0, messageAtMs - lastUserMessageAtMs)
+            : null;
+        if (msg.role === 'user' && messageAtMs) {
+          lastUserMessageAtMs = messageAtMs;
+        }
 
         return (
           <div
@@ -172,10 +203,12 @@ export function Chat() {
               showThinking={shouldShowThinking}
               thinkingExpanded={thinkingExpanded}
               onToggleThinkingExpanded={toggleThinkingExpanded}
+              responseDurationMs={responseDurationMs}
             />
           </div>
         );
-      }),
+      });
+    },
     [messages, showThinking, simpleGreetingSegments, thinkingExpanded, toggleThinkingExpanded]
   );
 
@@ -188,6 +221,11 @@ export function Chat() {
     return undefined;
   }, [messages, subagentCompletionInfos]);
   const suppressActiveThinking = isSimpleGreetingMessage(activeUserMessage);
+  const activeUserMessageAtMs = toTimestampMs(activeUserMessage?.timestamp);
+  const streamingResponseDurationMs =
+    sending && activeUserMessageAtMs
+      ? Math.max(0, responseTimerNowMs - activeUserMessageAtMs)
+      : null;
 
   return (
     <div
@@ -262,18 +300,22 @@ export function Chat() {
                       thinkingExpanded={thinkingExpanded}
                       onToggleThinkingExpanded={toggleThinkingExpanded}
                       isStreaming
+                      responseDurationMs={streamingResponseDurationMs}
                       streamingTools={streamingTools}
                     />
                   )}
 
                   {/* Activity indicator: waiting for next AI turn after tool execution */}
                   {sending && pendingFinal && !streamState.shouldRenderStreaming && (
-                    <ActivityIndicator phase="tool_processing" />
+                    <ActivityIndicator
+                      phase="tool_processing"
+                      responseDurationMs={streamingResponseDurationMs}
+                    />
                   )}
 
                   {/* Typing indicator when sending but no stream content yet */}
                   {sending && !pendingFinal && !streamState.hasAnyStreamContent && (
-                    <TypingIndicator />
+                    <TypingIndicator responseDurationMs={streamingResponseDurationMs} />
                   )}
                 </div>
               </div>
@@ -402,27 +444,36 @@ function WelcomeScreen() {
 
 // ── Typing Indicator ────────────────────────────────────────────
 
-function TypingIndicator() {
+function TypingIndicator({ responseDurationMs }: { responseDurationMs?: number | null }) {
+  const { t } = useTranslation('chat');
+  const responseDuration = formatDuration(responseDurationMs);
   return (
     <div className="flex gap-3">
       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/30 text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
-        <div className="flex gap-1">
-          <span
-            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-            style={{ animationDelay: '0ms' }}
-          />
-          <span
-            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-            style={{ animationDelay: '150ms' }}
-          />
-          <span
-            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-            style={{ animationDelay: '300ms' }}
-          />
+      <div className="space-y-1">
+        <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
+          <div className="flex gap-1">
+            <span
+              className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+              style={{ animationDelay: '0ms' }}
+            />
+            <span
+              className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+              style={{ animationDelay: '150ms' }}
+            />
+            <span
+              className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+              style={{ animationDelay: '300ms' }}
+            />
+          </div>
         </div>
+        {responseDuration ? (
+          <div className="px-1 text-[11px] text-muted-foreground/60">
+            {t('message.responseTime', { duration: responseDuration })}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -430,19 +481,33 @@ function TypingIndicator() {
 
 // ── Activity Indicator (shown between tool cycles) ─────────────
 
-function ActivityIndicator({ phase }: { phase: 'tool_processing' }) {
+function ActivityIndicator({
+  phase,
+  responseDurationMs,
+}: {
+  phase: 'tool_processing';
+  responseDurationMs?: number | null;
+}) {
   void phase;
   const { t } = useTranslation('chat');
+  const responseDuration = formatDuration(responseDurationMs);
   return (
     <div className="flex gap-3">
       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/30 text-foreground">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          <span>{t('activity.toolProcessing')}</span>
+      <div className="space-y-1">
+        <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            <span>{t('activity.toolProcessing')}</span>
+          </div>
         </div>
+        {responseDuration ? (
+          <div className="px-1 text-[11px] text-muted-foreground/60">
+            {t('message.responseTime', { duration: responseDuration })}
+          </div>
+        ) : null}
       </div>
     </div>
   );

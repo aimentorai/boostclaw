@@ -53,7 +53,6 @@ import {
   buildProviderListItems,
   hasConfiguredCredentials,
   SYSTEM_DEFAULT_PROVIDER_ACCOUNT_ID,
-  type SystemDefaultModelProviderInfo,
   type ProviderListItem,
 } from '@/lib/provider-accounts';
 import { cn } from '@/lib/utils';
@@ -191,7 +190,6 @@ export function ProvidersSettings() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
-  const [systemDefaultProviderInfo, setSystemDefaultProviderInfo] = useState<SystemDefaultModelProviderInfo | null>(null);
   const safeStatuses = ensureArray<ProviderWithKeyInfo>(statuses);
   const safeAccounts = ensureArray<ProviderAccount>(accounts);
   const safeVendors = ensureArray<ProviderVendorInfo>(vendors);
@@ -205,24 +203,6 @@ export function ProvidersSettings() {
   // Fetch providers on mount
   useEffect(() => {
     refreshProviderSnapshot();
-  }, [refreshProviderSnapshot]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void hostApiFetch<SystemDefaultModelProviderInfo>('/api/auth/system-default-model-provider')
-      .then((result) => {
-        if (!cancelled) {
-          setSystemDefaultProviderInfo(result);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSystemDefaultProviderInfo(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
   }, [refreshProviderSnapshot]);
 
   const handleAddProvider = async (
@@ -294,17 +274,6 @@ export function ProvidersSettings() {
 
   return (
     <div data-testid="providers-settings" className="space-y-6">
-      {systemDefaultProviderInfo && !systemDefaultProviderInfo.available && (
-        <div
-          data-testid="providers-system-default-status"
-          className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
-        >
-          <p className="font-medium">{t('aiProviders.systemDefaultUnavailableTitle')}</p>
-          <p className="mt-1 break-all text-amber-900/80 dark:text-amber-100/80">
-            {systemDefaultProviderInfo.error || t('aiProviders.systemDefaultUnavailableDesc')}
-          </p>
-        </div>
-      )}
       <div className="flex items-center justify-between">
         <h2
           data-testid="providers-settings-title"

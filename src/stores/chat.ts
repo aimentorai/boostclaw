@@ -1090,7 +1090,19 @@ function hasNonToolAssistantContent(message: RawMessage | undefined): boolean {
 
 function normalizeMessageTextForDedupe(message: RawMessage | undefined): string {
   if (!message) return '';
-  return getMessageText(message.content).replace(/\s+/g, ' ').trim();
+  return stripSkillContext(getMessageText(message.content)).replace(/\s+/g, ' ').trim();
+}
+
+function isDuplicateUserMessage(existing: RawMessage, candidate: RawMessage): boolean {
+  if (existing.id && candidate.id && existing.id === candidate.id) return true;
+  if (existing.role !== 'user' || candidate.role !== 'user') return false;
+
+  const existingText = normalizeMessageTextForDedupe(existing);
+  const candidateText = normalizeMessageTextForDedupe(candidate);
+  if (!existingText || existingText !== candidateText) return false;
+
+  if (!existing.timestamp || !candidate.timestamp) return false;
+  return Math.abs(toMs(existing.timestamp) - toMs(candidate.timestamp)) < 60_000;
 }
 
 function isDuplicateAssistantMessage(existing: RawMessage, candidate: RawMessage): boolean {
@@ -1104,6 +1116,23 @@ function isDuplicateAssistantMessage(existing: RawMessage, candidate: RawMessage
 
   if (!existing.timestamp || !candidate.timestamp) return true;
   return Math.abs(toMs(existing.timestamp) - toMs(candidate.timestamp)) < 30_000;
+}
+
+function isDuplicateHistoryMessage(existing: RawMessage, candidate: RawMessage): boolean {
+  if (existing.id && candidate.id && existing.id === candidate.id) return true;
+  return isDuplicateUserMessage(existing, candidate) || isDuplicateAssistantMessage(existing, candidate);
+}
+
+function mergeHistoryMessagesDuringSend(
+  existingMessages: RawMessage[],
+  loadedMessages: RawMessage[]
+): RawMessage[] {
+  const merged = [...existingMessages];
+  for (const message of loadedMessages) {
+    if (merged.some((existing) => isDuplicateHistoryMessage(existing, message))) continue;
+    merged.push(message);
+  }
+  return merged;
 }
 
 // ── Store ────────────────────────────────────────────────────────
@@ -1596,12 +1625,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // When NOT sending (session switch / page load), replace normally.
         let finalMessages: RawMessage[];
         if (get().sending) {
-          const existing = get().messages;
-          const existingIds = new Set(existing.map((m) => m.id).filter(Boolean));
-          finalMessages = [
-            ...existing,
-            ...enrichedMessages.filter((m) => !m.id || !existingIds.has(m.id)),
-          ];
+          finalMessages = mergeHistoryMessagesDuringSend(get().messages, enrichedMessages);
         } else {
           finalMessages = enrichedMessages;
         }

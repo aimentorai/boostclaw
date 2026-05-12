@@ -112,6 +112,7 @@
         "thinkingHidden": "思考を非表示にしました",
         "openFile": "ファイルを開く",
         "file": "ファイル",
+        "responseTime": "{{duration}}",
         "loadingVideoPreview": "動画プレビューを読み込み中...",
         "videoPreviewUnavailable": "動画をプレビューできません"
     },

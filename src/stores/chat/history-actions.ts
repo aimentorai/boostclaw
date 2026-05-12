@@ -46,6 +46,28 @@ export async function loadSessionTranscriptFallbackMessages(sessionKey: string):
   }
 }
 
+function normalizeUserMessageText(message: RawMessage | undefined): string {
+  if (!message) return '';
+  return getMessageText(message.content).replace(/\s+/g, ' ').trim();
+}
+
+function isSameUserMessage(
+  candidate: RawMessage,
+  reference: RawMessage,
+  referenceAtMs: number
+): boolean {
+  if (candidate.id && reference.id && candidate.id === reference.id) return true;
+  if (candidate.role !== 'user' || reference.role !== 'user') return false;
+
+  const candidateText = normalizeUserMessageText(candidate);
+  const referenceText = normalizeUserMessageText(reference);
+  if (!candidateText || candidateText !== referenceText) return false;
+
+  const candidateAtMs = candidate.timestamp ? toMs(candidate.timestamp) : referenceAtMs;
+  const referenceMessageAtMs = reference.timestamp ? toMs(reference.timestamp) : referenceAtMs;
+  return Math.abs(candidateAtMs - referenceMessageAtMs) < 60_000;
+}
+
 export function createHistoryActions(
   set: ChatSet,
   get: ChatGet
@@ -112,18 +134,18 @@ export function createHistoryActions(
         const userMsgAt = get().lastUserMessageAt;
         if (get().sending && userMsgAt) {
           const userMsMs = toMs(userMsgAt);
-          const hasRecentUser = enrichedMessages.some(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
-          );
-          if (!hasRecentUser) {
-            const currentMsgs = get().messages;
-            const optimistic = [...currentMsgs]
-              .reverse()
-              .find(
-                (m) =>
-                  m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
-              );
-            if (optimistic) {
+          const currentMsgs = get().messages;
+          const optimistic = [...currentMsgs]
+            .reverse()
+            .find(
+              (m) =>
+                m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
+            );
+          if (optimistic) {
+            const hasRecentUser = enrichedMessages.some((m) =>
+              isSameUserMessage(m, optimistic, userMsMs)
+            );
+            if (!hasRecentUser) {
               finalMessages = [...enrichedMessages, optimistic];
             }
           }
