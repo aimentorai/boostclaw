@@ -243,6 +243,7 @@ export function ChatInput({
   /** Avoid spamming fetchAgents when agents list is still missing the current id after one refresh. */
   const missingAgentFetchKey = useRef<string | null>(null);
   const initializedSystemDefaultModelForAgent = useRef<string | null>(null);
+  const userTouchedModelAgentsRef = useRef<Set<string>>(new Set());
   const gatewayStatus = useGatewayStore((s) => s.status);
   const agents = useAgentsStore((s) => s.agents);
   const agentsLoading = useAgentsStore((s) => s.loading);
@@ -559,6 +560,7 @@ export function ChatInput({
     if (currentAgentId !== 'main') return;
     if (currentSessionHasMessages) return;
     if (!currentAgent) return;
+    if (userTouchedModelAgentsRef.current.has(currentAgentId)) return;
     if (currentAgent.overrideModelRef) return;
     if (currentModelRef === systemDefaultModelOption.modelRef) return;
 
@@ -1168,6 +1170,7 @@ export function ChatInput({
                                   setModelPickerOpen(false);
                                   return;
                                 }
+                                userTouchedModelAgentsRef.current.add(currentAgentId);
                                 setSwitchingModel(true);
                                 try {
                                   const normalizedDefaultModelRef = (defaultModelRef || '').trim();
