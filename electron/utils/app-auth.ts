@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { randomBytes, createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { isDeepStrictEqual } from 'node:util';
-import { BrowserWindow, session } from 'electron';
+import { BrowserWindow, session, shell } from 'electron';
 import { getSecretStore } from '../services/secrets/secret-store';
 import { getProviderService } from '../services/providers/provider-service';
 import { logger } from './logger';
@@ -167,7 +167,7 @@ const TOKEN_AUTH_METHOD = (
   process.env.BoostClaw_APP_AUTH_TOKEN_AUTH_METHOD
   || 'auto'
 ).trim() as 'auto' | 'none' | 'client_secret_post' | 'client_secret_basic';
-const REDIRECT_URI = process.env.BoostClaw_APP_AUTH_REDIRECT_URI || 'https://open.microdata-inc.com';
+const REDIRECT_URI = process.env.BoostClaw_APP_AUTH_REDIRECT_URI || 'BoostClaw://auth/callback';
 const APP_CALLBACK_URI = process.env.BoostClaw_APP_AUTH_APP_CALLBACK_URI || 'BoostClaw://auth/callback';
 const SCOPE = process.env.BoostClaw_APP_AUTH_SCOPE || 'openid profile';
 const AUTH_PROMPT = (process.env.BoostClaw_APP_AUTH_PROMPT || '').trim();
@@ -3080,10 +3080,10 @@ export class AppAuthManager extends EventEmitter {
       this.pendingFlow.authorizationUrl = authorizationUrl;
     }
     try {
-      await this.openLoginInMainWindow(authorizationUrl);
+      await shell.openExternal(authorizationUrl);
+      logger.info('[AppAuth] Opened system browser for login', summarizeAuthUrl(authorizationUrl));
     } catch (error) {
       this.clearPendingFlow();
-      this.cleanupMainWindowAuthNavigation();
       throw error;
     }
     this.emit('auth:started', { authorizationUrl });
