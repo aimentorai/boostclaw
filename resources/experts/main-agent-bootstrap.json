@@ -6,7 +6,7 @@
     "tiktok-publish",
     "video-maker",
     "auto-publish-pipeline",
-    "product-market-scout"
+    "product-market-scout0515"
   ],
   "systemPromptFile": "main-agent/SOUL.md",
   "identityPromptFile": "main-agent/IDENTITY.md",

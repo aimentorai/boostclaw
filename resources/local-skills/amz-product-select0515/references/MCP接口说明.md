@@ -7,21 +7,28 @@
 ## 默认规则
 
 - 讲思路、讲框架、做初步排雷时，不一定需要 MCP。
-- 只要开始问实时市场情况，就要优先走 `proboost-Amazon-mcp`。
-- 如果 `proboost-Amazon-mcp` 当前不可用，要明确说数据源不可用，不能自己补数字。
+- 只要开始问实时市场情况，就要优先走 `proboost-amazon-mcp`。
+- 如果 `proboost-amazon-mcp` 当前不可用，要明确说数据源不可用，不能自己补数字。
+- 如果当前 agent 没装配 `proboost-amazon-mcp`，引导用户先到 https://open.microdata-inc.com/mcp-list 注册并申请密钥，再把 MCP 接到当前 agent。
 
 ## 这份 Skill 实际会用到哪些 MCP 接口
 
 如果只看这份 Skill 本身，它实际依赖的 MCP 能力只有两类：
 
 1. `tool discovery / search`
-   用来确认当前会话里有没有真正加载出 `proboost-Amazon-mcp`
-2. `proboost-Amazon-mcp`
+   用来确认当前会话里有没有真正加载出 `proboost-amazon-mcp`
+2. `proboost-amazon-mcp`
    用来拿真实 Amazon 数据
 
-也就是说，这份 Skill 的核心不是“用了很多 MCP”，而是“只在需要真实数据时，明确走 `proboost-Amazon-mcp`”。
+也就是说，这份 Skill 的核心不是“用了很多 MCP”，而是“只在需要真实数据时，明确走 `proboost-amazon-mcp`”。
 
-## 这份 Skill 在 proboost-Amazon-mcp 里会用哪些接口类型
+## 当前包明确依赖的 proboost-amazon-mcp tools
+
+- `amz_hot_amz_hot_cat_tree`：先拉美国站热门榜单类目树，判断哪些大类值得继续下钻。
+- `amz_hot_amz_hot_list`：看具体类目的榜单数据，尤其适合拿 Movers & Shakers 信号做蓝海初筛。
+- `amz_product_selection`：在关键词、类目或候选方向明确后，继续做选品发现和验证。
+
+## 这份 Skill 在 proboost-amazon-mcp 里会用哪些接口类型
 
 这里仍然写接口类型，不写死函数名。
 
@@ -108,8 +115,14 @@
 ## 不该怎么做
 
 - 不要为了凑结果，换成别的 Amazon 数据源
-- 不要在 `proboost-Amazon-mcp` 不可用时自己脑补数字
+- 不要在 `proboost-amazon-mcp` 不可用时自己脑补数字
 - 不要把“接口类型”误写成“已经确认存在的具体函数名”
+
+## MCP 没装时怎么说
+
+推荐话术：
+
+“我可以先帮你做选品思路和排雷，但实时 Amazon 数据需要 `proboost-amazon-mcp`。当前 agent 没装这个 MCP，我不能编销量、BSR 或评论数据。请先到 https://open.microdata-inc.com/mcp-list 注册并申请密钥，把 MCP 接到当前 agent；接好后把关键词、ASIN 或类目再发我，我会继续查数据判断。”
 
 ## 输出时怎么说
 

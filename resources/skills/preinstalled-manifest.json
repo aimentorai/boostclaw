@@ -77,21 +77,21 @@
       "autoEnable": true
     },
     {
-      "slug": "listing-generator0428",
-      "localPath": "resources/local-skills/listing-generator0428",
-      "version": "0.1.0",
+      "slug": "listing-generator0515",
+      "localPath": "resources/local-skills/listing-generator0515",
+      "version": "0.1.1",
       "autoEnable": true
     },
     {
-      "slug": "amz-product-select0427",
-      "localPath": "resources/local-skills/amz-product-select0427",
-      "version": "0.1.0",
+      "slug": "amz-product-select0515",
+      "localPath": "resources/local-skills/amz-product-select0515",
+      "version": "0.1.1",
       "autoEnable": true
     },
     {
-      "slug": "product-market-scout",
-      "localPath": "resources/local-skills/product-market-scout",
-      "version": "0.1.0",
+      "slug": "product-market-scout0515",
+      "localPath": "resources/local-skills/product-market-scout0515",
+      "version": "0.1.1",
       "autoEnable": true
     }
   ]

@@ -1,6 +1,6 @@
 # Product Market Scout Rubric
 
-Use this reference after collecting proboost-mcp data and before writing the final Chinese answer.
+Use this reference after collecting platform data from `proboost-amazon-mcp` and/or `proboost-Tiktok-mcp`, then before writing the final Chinese answer.
 
 ## Trend Labels
 
@@ -10,7 +10,7 @@ Use the best available 7/30/90 day signal. Prefer 30-day trend for executive con
 - `稳定盘`: 30-day change is between -10% and +15%, demand is consistent, and top products remain active.
 - `下滑盘`: 30-day sales/GMV/search/BSR signal is down more than 10%, especially if 7-day data is also weak.
 - `早期起量`: TikTok GMV/sales/video signals are rising from a low base, with several recent creators/shops/products gaining traction.
-- `数据不足`: proboost-mcp does not return enough comparable time-series data.
+- `数据不足`: the required platform MCP does not return enough comparable time-series data.
 
 ## Competition Labels
 

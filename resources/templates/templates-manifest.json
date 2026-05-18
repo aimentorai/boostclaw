@@ -12,7 +12,7 @@
         "猫抓板在 TikTok 美区有没有机会",
         "这个1688链接适合做跨境电商吗"
       ],
-      "requiredSkills": ["product-market-scout"],
+      "requiredSkills": ["product-market-scout0515"],
       "enabled": true
     },
     {
@@ -27,7 +27,7 @@
         "拆一下这个竞品 ASIN 值不值得跟",
         "按我的预算和供应链条件找几个产品方向"
       ],
-      "requiredSkills": ["amz-product-select0427"],
+      "requiredSkills": ["amz-product-select0515"],
       "enabled": true
     },
     {
@@ -42,7 +42,7 @@
         "帮我优化这个 Listing 的标题和五点",
         "用竞品关键词重写一版英文 Listing"
       ],
-      "requiredSkills": ["listing-generator0428"],
+      "requiredSkills": ["listing-generator0515"],
       "enabled": true
     }
   ]

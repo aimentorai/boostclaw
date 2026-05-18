@@ -5,7 +5,7 @@
  *
  * All file I/O uses async fs/promises to avoid blocking the main thread.
  */
-import { readFile, writeFile, access, mkdir } from 'fs/promises';
+import { readFile, writeFile, access, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
 import { constants } from 'fs';
 import { join } from 'path';
@@ -318,7 +318,8 @@ async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | n
  * - If skill is missing locally, install it.
  * - If local skill exists without our marker, treat as user-managed and never overwrite.
  * - If marker exists with same version, skip.
- * - If marker exists with a different version, skip by default to avoid overwriting edits.
+ * - If marker exists with a different version, OVERWRITE with the new bundled version
+ *   (BoostClaw-preinstalled marker means we own this directory's lifecycle).
  */
 export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
   const skills = await readPreinstalledManifest();
@@ -352,6 +353,7 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
       lockVersions.get(spec.slug) || (spec.version || 'unknown').trim() || 'unknown';
     const marker = await tryReadMarker(markerPath);
 
+    let isUpdate = false;
     if (existsSync(targetManifest)) {
       if (!marker) {
         logger.info(`Skipping user-managed skill: ${spec.slug}`);
@@ -361,9 +363,15 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
         continue;
       }
       logger.info(
-        `Skipping preinstalled skill update for ${spec.slug} (local marker version=${marker.version}, desired=${desiredVersion})`
+        `Updating preinstalled skill ${spec.slug} (marker version=${marker.version} -> desired=${desiredVersion})`
       );
-      continue;
+      try {
+        await rm(targetDir, { recursive: true, force: true });
+      } catch (error) {
+        logger.warn(`Failed to remove old skill dir for ${spec.slug}:`, error);
+        continue;
+      }
+      isUpdate = true;
     }
 
     try {
@@ -379,9 +387,14 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
       if (spec.autoEnable) {
         toEnable.push(spec.slug);
       }
-      logger.info(`Installed preinstalled skill: ${spec.slug} -> ${targetDir}`);
+      logger.info(
+        `${isUpdate ? 'Updated' : 'Installed'} preinstalled skill: ${spec.slug} -> ${targetDir}`
+      );
     } catch (error) {
-      logger.warn(`Failed to install preinstalled skill ${spec.slug}:`, error);
+      logger.warn(
+        `Failed to ${isUpdate ? 'update' : 'install'} preinstalled skill ${spec.slug}:`,
+        error
+      );
     }
   }
 

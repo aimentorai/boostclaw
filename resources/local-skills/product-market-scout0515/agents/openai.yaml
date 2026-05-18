@@ -1,0 +1,18 @@
+interface:
+  display_name: "Product Market Scout"
+  short_description: "用分平台 Proboost MCP 判断 Amazon/TK 卖家选品机会"
+  default_prompt: "Use $product-market-scout0515 to evaluate whether this product is worth selling on Amazon and TikTok Shop."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "proboost-amazon-mcp"
+      description: "Amazon product, category, sales, BSR, price, review, and trend data source"
+      transport: "streamable_http"
+      url: "http://mcp.microdata-inc.com/mcp-servers/proboost-amazon-mcp/mcp"
+    - type: "mcp"
+      value: "proboost-Tiktok-mcp"
+      description: "TikTok Shop/TK product, shop, GMV, sales, creator, video, live, and trend data source"
+      transport: "streamable_http"
+      url: "http://mcp.microdata-inc.com/mcp-servers/proboost-Tiktok-mcp/mcp"
+policy:
+  allow_implicit_invocation: true

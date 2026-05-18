@@ -1,9 +1,9 @@
 ---
-name: listing-generator0428
+name: listing-generator0515
 description: "Use this skill to generate or optimize an Amazon listing from one source ASIN for precise-follow selling. Keep the source ASIN physical facts unchanged, fetch source and competitor data with lightweight local scripts, expand keywords with SellerSprite, rank and embed keywords, and export a three-sheet workbook."
 ---
 
-# listing-generator0428
+# listing-generator0515
 
 Generate a better Amazon listing from one source ASIN while keeping the product facts strictly aligned to that source ASIN.
 
