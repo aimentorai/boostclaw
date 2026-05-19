@@ -80,6 +80,12 @@ function sortMessagesChronologically(messages: RawMessage[]): RawMessage[] {
     .map((entry) => entry.message);
 }
 
+function stripSkillContext(text: string): string {
+  const match = text.match(/<user_request>\n?([\s\S]*?)\n?<\/user_request>/);
+  if (match) return match[1].trim();
+  return text;
+}
+
 export function createHistoryActions(
   set: ChatSet,
   get: ChatGet
@@ -171,9 +177,9 @@ export function createHistoryActions(
         // displayName (e.g. the configured agent name "BoostClaw") instead.
         const isMainSession = currentSessionKey.endsWith(':main');
         if (!isMainSession) {
-          const firstUserMsg = finalMessages.find((m) => m.role === 'user');
+          const firstUserMsg = finalMessages.find((m) => m.role === 'user' && !isInternalMessage(m));
           if (firstUserMsg) {
-            const labelText = getMessageText(firstUserMsg.content).trim();
+            const labelText = stripSkillContext(getMessageText(firstUserMsg.content)).trim();
             if (labelText) {
               const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
               set((s) => ({

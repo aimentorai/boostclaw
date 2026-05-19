@@ -1,6 +1,6 @@
 import { invokeIpc } from '@/lib/api-client';
 import { hostApiFetch } from '@/lib/host-api';
-import { getCanonicalPrefixFromSessions, getMessageText, toMs } from './helpers';
+import { getCanonicalPrefixFromSessions, getMessageText, isInternalMessage, toMs } from './helpers';
 import {
   CHAT_HISTORY_RPC_TIMEOUT_MS,
   loadSessionTranscriptFallbackMessages,
@@ -27,8 +27,8 @@ function parseSessionUpdatedAtMs(value: unknown): number | undefined {
   return undefined;
 }
 
-const SIDEBAR_LABEL_HISTORY_LIMIT = 3;
-const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 2_000;
+const SIDEBAR_LABEL_HISTORY_LIMIT = 50;
+const SIDEBAR_LABEL_HISTORY_TIMEOUT_MS = 8_000;
 const SIDEBAR_LABEL_HISTORY_CONCURRENCY = 2;
 
 type SessionListResult = {
@@ -65,11 +65,22 @@ async function hydrateSidebarSessionMetadata(
   set: ChatSet,
   get: ChatGet
 ): Promise<void> {
-  const candidates = sessions.filter((session) => {
-    if (session.key.endsWith(':main')) return false;
-    if (get().sessionLabels[session.key] || session.label) return false;
-    return true;
-  });
+  const candidates = [...sessions]
+    .filter((session) => {
+      if (get().sessionLabels[session.key] || session.label) return false;
+      return true;
+    })
+    .sort((left, right) => {
+      const leftActivity =
+        (typeof left.updatedAt === 'number' ? left.updatedAt : undefined) ??
+        get().sessionLastActivity[left.key] ??
+        0;
+      const rightActivity =
+        (typeof right.updatedAt === 'number' ? right.updatedAt : undefined) ??
+        get().sessionLastActivity[right.key] ??
+        0;
+      return rightActivity - leftActivity;
+    });
 
   let nextIndex = 0;
   const worker = async () => {
@@ -79,14 +90,20 @@ async function hydrateSidebarSessionMetadata(
 
       try {
         const msgs = await loadShortSessionHistory(session.key, SIDEBAR_LABEL_HISTORY_LIMIT);
-        const firstUser = msgs.find((m) => m.role === 'user');
+        const firstUser =
+          msgs.find(
+            (m) => m.role === 'user' && getMessageText(m.content).trim() && !isInternalMessage(m)
+          ) ??
+          [...msgs].reverse().find(
+            (m) => m.role === 'user' && getMessageText(m.content).trim() && !isInternalMessage(m)
+          );
         const lastMsg = msgs[msgs.length - 1];
         if (!firstUser && !lastMsg?.timestamp) continue;
 
         set((s) => {
           const next: Partial<typeof s> = {};
           if (firstUser && !s.sessionLabels[session.key]) {
-            const labelText = getMessageText(firstUser.content).trim();
+            const labelText = stripSkillContext(getMessageText(firstUser.content)).trim();
             if (labelText) {
               const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
               next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
@@ -125,6 +142,12 @@ function normalizeRawSessions(rawSessions: unknown): ChatSession[] {
       updatedAt: parseSessionUpdatedAtMs(s.updatedAt),
     }))
     .filter((s: ChatSession) => s.key);
+}
+
+function stripSkillContext(text: string): string {
+  const match = text.match(/<user_request>\n?([\s\S]*?)\n?<\/user_request>/);
+  if (match) return match[1].trim();
+  return text;
 }
 
 function applySessionList(
