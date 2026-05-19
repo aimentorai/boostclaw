@@ -2,6 +2,7 @@
  * Electron Main Process Entry
  * Manages window creation, system tray, and IPC handlers
  */
+import '../utils/load-local-env';
 import { app, BrowserWindow, nativeImage, session, shell } from 'electron';
 import type { Server } from 'node:http';
 import { join } from 'path';

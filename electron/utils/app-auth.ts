@@ -191,6 +191,8 @@ const MCP_BLOCKED_SERVER_NAMES = new Set<string>([
     .filter(Boolean),
 ]);
 const POST_LOGIN_SESSION_URL = process.env.BoostClaw_APP_AUTH_POST_LOGIN_URL || 'https://model.microdata-inc.com/login';
+const POST_LOGIN_ENRICHMENT_ENABLED = process.env.BoostClaw_APP_AUTH_POST_LOGIN_ENRICHMENT === '1';
+const DEBUG_LOG_RAW_TOKENS = process.env.BoostClaw_APP_AUTH_DEBUG_LOG_TOKENS === '1';
 const POST_LOGIN_SESSION_COOKIE_NAME = 'session';
 const POST_LOGIN_SESSION_WAIT_ATTEMPTS = 240;
 const POST_LOGIN_SESSION_AFTER_CONSENT_WAIT_ATTEMPTS = 20;
@@ -549,20 +551,6 @@ export class AppAuthManager extends EventEmitter {
 
     const win = this.mainWindow;
     const returnUrl = this.authReturnUrl;
-    if (flow.authorizationUrl && flow.webRetryCount < 1) {
-      logger.warn('[AppAuth] Auth mask timeout reached, retrying login flow once', {
-        timeoutMs: AUTH_MASK_TIMEOUT_MS,
-        returnUrl,
-      });
-      this.emitDebug('web_mask_timeout_retry', {
-        timeoutMs: AUTH_MASK_TIMEOUT_MS,
-        returnUrl,
-      });
-      this.startAuthMaskTimeout();
-      await this.retryAuthorizationInMainWindow('mask_timeout');
-      return;
-    }
-
     logger.warn('[AppAuth] Auth mask timeout reached, aborting login flow', {
       timeoutMs: AUTH_MASK_TIMEOUT_MS,
       returnUrl,
@@ -749,6 +737,12 @@ export class AppAuthManager extends EventEmitter {
   private normalizeMainWindowReturnUrl(returnUrl: string): string {
     try {
       const parsed = new URL(returnUrl);
+      const isAppShellUrl = parsed.protocol === 'file:' || parsed.host === 'localhost' || parsed.host === '127.0.0.1';
+      if (isAppShellUrl) {
+        parsed.hash = '#/';
+        parsed.search = '';
+        return parsed.toString();
+      }
       const pathname = parsed.pathname || '/';
       const hashRaw = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
       const hashPath = hashRaw.startsWith('/') ? hashRaw.split(/[?#]/)[0] : '';
@@ -779,6 +773,9 @@ export class AppAuthManager extends EventEmitter {
   private async restoreMainWindowAfterAuth(): Promise<void> {
     const win = this.mainWindow;
     const postLoginUrl = (() => {
+      if (!POST_LOGIN_ENRICHMENT_ENABLED) {
+        return null;
+      }
       try {
         return new URL(POST_LOGIN_SESSION_URL).toString();
       } catch {
@@ -794,20 +791,30 @@ export class AppAuthManager extends EventEmitter {
       this.postLoginModelUserId = null;
       this.postLoginSessionCookieValue = null;
       this.systemDefaultModelProviderInfoCache = null;
-      await this.syncPostLoginAuthMask('');
-      await win.loadURL(postLoginUrl);
-      await this.capturePostLoginSessionCookie(postLoginUrl);
-      await this.capturePostLoginLocalStorageUserId();
+      try {
+        await this.syncPostLoginAuthMask('');
+        await win.loadURL(postLoginUrl);
+        await this.capturePostLoginSessionCookie(postLoginUrl);
+        await this.capturePostLoginLocalStorageUserId();
+      } catch (error) {
+        logger.warn('[AppAuth] Post-login page restore step failed, continuing to app shell', {
+          error: String(error),
+        });
+      }
     }
     this.closeAuthMaskWindow();
     if (returnUrl) {
       await win.loadURL(returnUrl);
     }
-    void this.runPostLoginFollowups().catch((error) => {
-      logger.warn('[AppAuth] Post-login follow-up tasks failed', {
-        error: String(error),
+    if (POST_LOGIN_ENRICHMENT_ENABLED) {
+      void this.runPostLoginFollowups().catch((error) => {
+        logger.warn('[AppAuth] Post-login follow-up tasks failed', {
+          error: String(error),
+        });
       });
-    });
+      return;
+    }
+    logger.info('[AppAuth] Post-login enrichment disabled; skipped session/model bootstrap');
   }
 
   private async runPostLoginFollowups(): Promise<void> {
@@ -1674,6 +1681,12 @@ export class AppAuthManager extends EventEmitter {
         headers: safeHeaders,
         body: safeBody,
       });
+      logger.info('[AppAuth] Token exchange request', {
+        endpoint: TOKEN_ENDPOINT,
+        authMethod: method,
+        hasAuthorizationHeader: Boolean(headers.Authorization),
+        hasClientSecretInBody: body.has('client_secret'),
+      });
 
       const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
@@ -1699,6 +1712,12 @@ export class AppAuthManager extends EventEmitter {
           status: response.status,
           ok: true,
         });
+        logger.info('[AppAuth] Token exchange response', {
+          endpoint: TOKEN_ENDPOINT,
+          authMethod: method,
+          status: response.status,
+          ok: true,
+        });
         if (!parsed.access_token || !parsed.refresh_token) {
           throw new Error('Token response missing access_token or refresh_token');
         }
@@ -1706,6 +1725,13 @@ export class AppAuthManager extends EventEmitter {
       }
 
       this.emitDebug('token_response', {
+        endpoint: TOKEN_ENDPOINT,
+        authMethod: method,
+        status: response.status,
+        ok: false,
+        body: text.slice(0, 500),
+      });
+      logger.warn('[AppAuth] Token exchange response', {
         endpoint: TOKEN_ENDPOINT,
         authMethod: method,
         status: response.status,
@@ -1805,6 +1831,24 @@ export class AppAuthManager extends EventEmitter {
       portalUserId: currentSecret?.type === 'oauth' ? currentSecret.portalUserId : undefined,
       modelUserId: currentSecret?.type === 'oauth' ? currentSecret.modelUserId : undefined,
     });
+    logger.info('[AppAuth] OAuth token persisted', {
+      hasAccessToken: Boolean(token.access_token),
+      accessTokenLength: token.access_token?.length ?? 0,
+      hasRefreshToken: Boolean(token.refresh_token),
+      refreshTokenLength: token.refresh_token?.length ?? 0,
+      expiresAt,
+      hasIdToken: Boolean(token.id_token),
+    });
+    if (DEBUG_LOG_RAW_TOKENS) {
+      logger.warn('[AppAuth] OAuth token debug payload (raw tokens enabled)', {
+        access_token: token.access_token || '',
+        refresh_token: token.refresh_token || '',
+        id_token: token.id_token || '',
+        token_type: token.token_type || '',
+        scope: token.scope || '',
+        expires_at: expiresAt,
+      });
+    }
     this.forcePromptLoginOnce = false;
 
     return {
@@ -2390,8 +2434,7 @@ export class AppAuthManager extends EventEmitter {
           }
         }
         if (this.pendingFlow.cookiePollMisses >= 8 && this.pendingFlow.webRetryCount < 1) {
-          void this.retryAuthorizationInMainWindow('redirect_without_token');
-          return;
+          logger.warn('[AppAuth] Skip in-app auth retry after redirect_without_token; waiting for external callback');
         }
       }
       this.scheduleCookiePoll(currentUrl);
