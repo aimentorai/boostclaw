@@ -214,12 +214,11 @@ export function Sidebar() {
     // Prefer auto-generated label (from first user message), then Gateway label
     const resolved = sessionLabels[key] ?? label;
     if (resolved) return resolved;
-    // If displayName is the agent's name (not a real session title), skip it
-    if (displayName && displayName !== key) {
-      const agentId = getAgentIdFromSessionKey(key);
-      if (agentNameById[agentId] !== displayName) {
-        return displayName;
-      }
+    // displayName from sessions.list is often just the runtime/agent name
+    // (e.g. "BoostClaw"), not a user-facing session title.
+    // Avoid showing it as chat history title to prevent generic duplicates.
+    if (!key.startsWith('agent:') && displayName && displayName !== key) {
+      return displayName;
     }
     if (key.startsWith('agent:')) {
       return t('common:sidebar.newChat');
@@ -391,29 +390,15 @@ export function Sidebar() {
 
           <div className="mt-auto flex flex-col gap-4 border-t border-[#e2e8f2] dark:border-[#252b38] px-2 py-4">
             {bottomNavItems.map((item) => (
-              <NavItem key={item.to} {...item} collapsed={false} hideLabel />
+              <NavItem key={item.to} {...item} collapsed={false} />
             ))}
-            <div className="flex justify-center">
-              <Tooltip delayDuration={500}>
-                <TooltipTrigger asChild>
-                  <NavLink
-                    to="/settings"
-                    data-testid="sidebar-nav-settings"
-                    aria-label={t('common:sidebar.settings')}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[12px] font-medium transition-all',
-                        'text-[#3a4452] hover:bg-white/70 hover:text-[#20242d] dark:text-[#b0b8c4] dark:hover:bg-white/8 dark:hover:text-[#e2e6ed]',
-                        isActive && 'bg-white text-[#20242d] shadow-[0_8px_22px_rgba(80,92,120,0.10)] dark:bg-white/10 dark:text-[#e2e6ed] dark:shadow-none'
-                      )
-                    }
-                  >
-                    <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
-                  </NavLink>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">{t('common:sidebar.settings')}</TooltipContent>
-              </Tooltip>
-            </div>
+            <NavItem
+              to="/settings"
+              icon={<SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />}
+              label={t('common:sidebar.settings')}
+              testId="sidebar-nav-settings"
+              collapsed={false}
+            />
             {sidebarCollapsed && (
               <Button
                 variant="ghost"

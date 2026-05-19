@@ -195,6 +195,33 @@ function formatModelLabel(modelRef: string): string {
   return modelRef.slice(separatorIndex + 1);
 }
 
+function resolveModelDisplayLabel(
+  modelDisplay: string | null | undefined,
+  modelRef: string,
+  providerAccounts: ProviderAccount[]
+): string {
+  const display = (modelDisplay || '').trim();
+  if (display && !/^custom-[a-z0-9]+$/i.test(display)) {
+    return display;
+  }
+
+  const modelFromRef = formatModelLabel(modelRef);
+  if (modelFromRef && modelFromRef !== modelRef) {
+    return modelFromRef;
+  }
+
+  if (/^custom-[a-z0-9]+$/i.test(display)) {
+    const matchedAccount = providerAccounts.find(
+      (account) => resolveRuntimeProviderKey(account) === display
+    );
+    const fallbackModel =
+      matchedAccount?.model?.trim() || matchedAccount?.fallbackModels?.find((value) => value.trim());
+    if (fallbackModel) return fallbackModel;
+  }
+
+  return display || modelFromRef || 'Model';
+}
+
 function shouldOpenDropdownUpward(
   triggerEl: HTMLElement | null,
   estimatedPanelHeight = 220
@@ -1123,7 +1150,11 @@ export function ChatInput({
                     title={t('composer.selectModel')}
                   >
                     <span className="min-w-0 flex-1 truncate text-left">
-                      {currentModelDisplay || formatModelLabel(currentModelRef) || 'Model'}
+                      {resolveModelDisplayLabel(
+                        currentModelDisplay,
+                        currentModelRef,
+                        providerAccounts
+                      )}
                     </span>
                     {switchingModel ? (
                       <Loader2 className="h-4 w-4 shrink-0 animate-spin opacity-60" />

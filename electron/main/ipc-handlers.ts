@@ -58,6 +58,7 @@ import { deviceOAuthManager, OAuthProviderType } from '../utils/device-oauth';
 import { browserOAuthManager, type BrowserOAuthProviderType } from '../utils/browser-oauth';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
+import { refreshTrayLocale } from './tray';
 import { proxyAwareFetch } from '../utils/proxy-fetch';
 import { getRecentTokenUsageHistory } from '../utils/token-usage';
 import { getProviderService } from '../services/providers/provider-service';
@@ -2282,6 +2283,9 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
       if (key === 'launchAtStartup') {
         await syncLaunchAtStartupSettingFromStore();
       }
+      if (key === 'language') {
+        refreshTrayLocale();
+      }
 
       return { success: true };
     }
@@ -2311,6 +2315,9 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
     if (entries.some(([key]) => key === 'launchAtStartup')) {
       await syncLaunchAtStartupSettingFromStore();
     }
+    if (entries.some(([key]) => key === 'language')) {
+      refreshTrayLocale();
+    }
 
     return { success: true };
   });
@@ -2320,6 +2327,7 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
     const settings = await getAllSettings();
     await handleProxySettingsChange();
     await syncLaunchAtStartupSettingFromStore();
+    refreshTrayLocale();
     return { success: true, settings };
   });
 }

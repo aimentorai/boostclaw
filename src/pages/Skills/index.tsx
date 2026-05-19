@@ -601,6 +601,34 @@ export function Skills() {
     }
   }, [t]);
 
+  const handleUploadLocalSkill = useCallback(async () => {
+    try {
+      const result = (await invokeIpc('dialog:open', {
+        properties: ['openDirectory'],
+      })) as { canceled: boolean; filePaths?: string[] };
+      if (result.canceled || !result.filePaths?.length) return;
+
+      const sourceDir = result.filePaths[0];
+      if (!sourceDir) return;
+
+      const importResult = await hostApiFetch<{ success: boolean; error?: string }>(
+        '/api/skills/import-local',
+        {
+          method: 'POST',
+          body: JSON.stringify({ sourceDir }),
+        }
+      );
+      if (!importResult.success) {
+        throw new Error(importResult.error || 'Import failed');
+      }
+
+      await fetchSkills();
+      toast.success(t('toast.localImported'));
+    } catch (err) {
+      toast.error(t('toast.failedImportLocal') + ': ' + String(err));
+    }
+  }, [fetchSkills, t]);
+
   const handleOpenSkillFolder = useCallback(
     async (skill: Skill) => {
       try {
@@ -710,6 +738,13 @@ export function Skills() {
                 {t('openFolder')}
               </button>
             )}
+            <button
+              onClick={() => void handleUploadLocalSkill()}
+              className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0 text-[13px] font-medium px-4 h-8 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center text-foreground/80 hover:text-foreground"
+            >
+              <FileCode className="h-4 w-4 mr-2" />
+              {t('actions.uploadLocalSkill')}
+            </button>
           </div>
         </div>
 

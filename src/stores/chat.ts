@@ -1132,7 +1132,15 @@ function mergeHistoryMessagesDuringSend(
     if (merged.some((existing) => isDuplicateHistoryMessage(existing, message))) continue;
     merged.push(message);
   }
-  return merged;
+  return merged
+    .map((message, index) => ({ message, index }))
+    .sort((left, right) => {
+      const leftTs = left.message.timestamp ? toMs(left.message.timestamp) : Number.POSITIVE_INFINITY;
+      const rightTs = right.message.timestamp ? toMs(right.message.timestamp) : Number.POSITIVE_INFINITY;
+      if (leftTs !== rightTs) return leftTs - rightTs;
+      return left.index - right.index;
+    })
+    .map((entry) => entry.message);
 }
 
 // ── Store ────────────────────────────────────────────────────────
@@ -1218,6 +1226,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
               nextSessionKey = canonicalMatch;
             }
           }
+          const preferredNonMainSession = dedupedSessions.find(
+            (session) => !session.key.endsWith(':main')
+          );
+          if (preferredNonMainSession && nextSessionKey.endsWith(':main')) {
+            nextSessionKey = preferredNonMainSession.key;
+          }
           if (
             !dedupedSessions.find((s) => s.key === nextSessionKey) &&
             dedupedSessions.length > 0
@@ -1228,7 +1242,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
               (session) => session.key === nextSessionKey
             );
             if (!hasLocalPendingSession) {
-              nextSessionKey = dedupedSessions[0].key;
+              const preferredSession =
+                dedupedSessions.find((session) => !session.key.endsWith(':main')) ??
+                dedupedSessions[0];
+              nextSessionKey = preferredSession.key;
             }
           }
 
@@ -1263,14 +1280,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           // Background: hydrate sidebar labels in staggered batches to avoid
           // flooding the gateway with chat.history calls at startup.
           const sessionsToLabel = sessionsWithCurrent.filter((s) => {
-            if (s.key.endsWith(':main')) return false;
             if (get().sessionLabels[s.key] || s.label) return false;
             return true;
           });
           if (sessionsToLabel.length > 0) {
             const LABEL_CONCURRENCY = 2;
             const LABEL_TIMEOUT_MS = 8_000;
-            const LABEL_HISTORY_LIMIT = 3;
+            const LABEL_HISTORY_LIMIT = 50;
             const BATCH_SIZE = 5;
             const BATCH_DELAY_MS = 2_000;
             let batchStart = 0;
@@ -1296,13 +1312,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
                       ),
                     ]);
                     const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
-                    const firstUser = msgs.find((m) => m.role === 'user');
+                    const firstUser =
+                      msgs.find(
+                        (m) =>
+                          m.role === 'user' &&
+                          getMessageText(m.content).trim() &&
+                          !isInternalMessage(m)
+                      ) ??
+                      [...msgs].reverse().find(
+                        (m) =>
+                          m.role === 'user' &&
+                          getMessageText(m.content).trim() &&
+                          !isInternalMessage(m)
+                      );
                     const lastMsg = msgs[msgs.length - 1];
                     if (!firstUser && !lastMsg?.timestamp) continue;
                     set((s) => {
                       const next: Partial<typeof s> = {};
                       if (firstUser && !s.sessionLabels[session.key]) {
-                        const labelText = getMessageText(firstUser.content).trim();
+                        const labelText = stripSkillContext(
+                          getMessageText(firstUser.content)
+                        ).trim();
                         if (labelText) {
                           const truncated =
                             labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
@@ -1624,7 +1654,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // from disappearing or duplicating during history polling.
         // When NOT sending (session switch / page load), replace normally.
         let finalMessages: RawMessage[];
-        if (get().sending) {
+        if (get().sending || !!get().lastUserMessageAt) {
           finalMessages = mergeHistoryMessagesDuringSend(get().messages, enrichedMessages);
         } else {
           finalMessages = enrichedMessages;
@@ -1633,7 +1663,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Batch label + activity + messages into a single state update to avoid
         // consecutive re-renders during session switch.
         const isMainSession = currentSessionKey.endsWith(':main');
-        const firstUserMsg = isMainSession ? null : finalMessages.find((m) => m.role === 'user');
+        const firstUserMsg = isMainSession
+          ? null
+          : finalMessages.find((m) => m.role === 'user' && !isInternalMessage(m));
         const lastMsg = finalMessages[finalMessages.length - 1];
         set((s) => {
           const patch: Partial<ChatState> = {
@@ -1642,7 +1674,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             loading: false,
           };
           if (firstUserMsg && !s.sessionLabels[currentSessionKey]) {
-            const labelText = getMessageText(firstUserMsg.content).trim();
+            const labelText = stripSkillContext(
+              getMessageText(firstUserMsg.content)
+            ).trim();
             if (labelText) {
               const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
               patch.sessionLabels = { ...s.sessionLabels, [currentSessionKey]: truncated };

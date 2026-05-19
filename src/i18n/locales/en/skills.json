@@ -19,7 +19,8 @@
     "actions": {
         "enableVisible": "Enable Visible",
         "disableVisible": "Disable Visible",
-        "installSkill": "Install Skills"
+        "installSkill": "Install Skills",
+        "uploadLocalSkill": "Upload Local Skill"
     },
     "noSkills": "No skills found",
     "noSkillsSearch": "Try a different search term",
@@ -93,7 +94,9 @@
         "noBatchDisableTargets": "All visible skills are already disabled.",
         "batchEnabled": "{{count}} skills enabled.",
         "batchDisabled": "{{count}} skills disabled.",
-        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed"
+        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed",
+        "localImported": "Local skill imported",
+        "failedImportLocal": "Failed to import local skill"
     },
     "marketplace": {
         "title": "Marketplace",

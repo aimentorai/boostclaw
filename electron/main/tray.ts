@@ -4,8 +4,156 @@
  */
 import { Tray, Menu, BrowserWindow, app, nativeImage } from 'electron';
 import { join } from 'path';
+import { getSetting } from '../utils/store';
+import { resolveSupportedLanguage, type LanguageCode } from '../../shared/language';
 
 let tray: Tray | null = null;
+let trayMainWindow: BrowserWindow | null = null;
+
+const trayI18n: Record<
+  LanguageCode,
+  {
+    appSubtitle: string;
+    showApp: string;
+    gatewayStatus: string;
+    statusRunning: string;
+    statusConnecting: string;
+    statusStopped: string;
+    quickActions: string;
+    openChat: string;
+    openSettings: string;
+    checkUpdates: string;
+    quitApp: string;
+  }
+> = {
+  en: {
+    appSubtitle: 'AI Assistant',
+    showApp: 'Show BoostClaw',
+    gatewayStatus: 'Gateway Status',
+    statusRunning: 'Running',
+    statusConnecting: 'Connecting',
+    statusStopped: 'Stopped',
+    quickActions: 'Quick Actions',
+    openChat: 'Open Chat',
+    openSettings: 'Open Settings',
+    checkUpdates: 'Check for Updates...',
+    quitApp: 'Quit BoostClaw',
+  },
+  zh: {
+    appSubtitle: 'AI 助手',
+    showApp: '显示 BoostClaw',
+    gatewayStatus: '网关状态',
+    statusRunning: '运行中',
+    statusConnecting: '连接中',
+    statusStopped: '已停止',
+    quickActions: '快捷操作',
+    openChat: '打开聊天',
+    openSettings: '打开设置',
+    checkUpdates: '检查更新...',
+    quitApp: '退出 BoostClaw',
+  },
+  ja: {
+    appSubtitle: 'AI アシスタント',
+    showApp: 'BoostClaw を表示',
+    gatewayStatus: 'ゲートウェイ状態',
+    statusRunning: '実行中',
+    statusConnecting: '接続中',
+    statusStopped: '停止',
+    quickActions: 'クイックアクション',
+    openChat: 'チャットを開く',
+    openSettings: '設定を開く',
+    checkUpdates: 'アップデートを確認...',
+    quitApp: 'BoostClaw を終了',
+  },
+};
+
+function mapGatewayStatus(status: string, t: (typeof trayI18n)['en']): string {
+  const normalized = status.trim().toLowerCase();
+  if (normalized === 'running' || normalized === 'connected') return t.statusRunning;
+  if (normalized === 'connecting' || normalized === 'starting') return t.statusConnecting;
+  if (normalized === 'stopped' || normalized === 'error') return t.statusStopped;
+  return status;
+}
+
+function buildContextMenu(mainWindow: BrowserWindow, t: (typeof trayI18n)['en'], status: string) {
+  const showWindow = () => {
+    if (mainWindow.isDestroyed()) return;
+    mainWindow.show();
+    mainWindow.focus();
+  };
+
+  return Menu.buildFromTemplate([
+    {
+      label: t.showApp,
+      click: showWindow,
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: t.gatewayStatus,
+      enabled: false,
+    },
+    {
+      label: `  ${mapGatewayStatus(status, t)}`,
+      type: 'checkbox',
+      checked: true,
+      enabled: false,
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: t.quickActions,
+      submenu: [
+        {
+          label: t.openChat,
+          click: () => {
+            if (mainWindow.isDestroyed()) return;
+            mainWindow.show();
+            mainWindow.webContents.send('navigate', '/');
+          },
+        },
+        {
+          label: t.openSettings,
+          click: () => {
+            if (mainWindow.isDestroyed()) return;
+            mainWindow.show();
+            mainWindow.webContents.send('navigate', '/settings');
+          },
+        },
+      ],
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: t.checkUpdates,
+      click: () => {
+        if (mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send('update:check');
+      },
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: t.quitApp,
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+}
+
+async function applyTrayLocale(status = 'Running'): Promise<void> {
+  if (!tray || !trayMainWindow || trayMainWindow.isDestroyed()) return;
+  const languageSetting = await getSetting('language');
+  const language = resolveSupportedLanguage(languageSetting, 'en');
+  const t = trayI18n[language];
+  tray.setToolTip(`BoostClaw - ${t.appSubtitle}`);
+  tray.setContextMenu(buildContextMenu(trayMainWindow, t, status));
+}
 
 /**
  * Resolve the icons directory path (works in both dev and packaged mode)
@@ -61,6 +209,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   }
 
   tray = new Tray(icon);
+  trayMainWindow = mainWindow;
 
   if (process.platform === 'darwin') {
     tray.setIgnoreDoubleClickEvents(true);
@@ -68,80 +217,8 @@ export function createTray(mainWindow: BrowserWindow): Tray {
     tray.setPressedImage(icon);
   }
 
-  // Set tooltip
-  tray.setToolTip('BoostClaw - AI Assistant');
-  
-  const showWindow = () => {
-    if (mainWindow.isDestroyed()) return;
-    mainWindow.show();
-    mainWindow.focus();
-  };
-
-  // Create context menu
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show BoostClaw',
-      click: showWindow,
-    },
-    {
-      type: 'separator',
-    },
-    {
-      label: 'Gateway Status',
-      enabled: false,
-    },
-    {
-      label: '  Running',
-      type: 'checkbox',
-      checked: true,
-      enabled: false,
-    },
-    {
-      type: 'separator',
-    },
-    {
-      label: 'Quick Actions',
-      submenu: [
-        {
-          label: 'Open Chat',
-          click: () => {
-            if (mainWindow.isDestroyed()) return;
-            mainWindow.show();
-            mainWindow.webContents.send('navigate', '/');
-          },
-        },
-        {
-          label: 'Open Settings',
-          click: () => {
-            if (mainWindow.isDestroyed()) return;
-            mainWindow.show();
-            mainWindow.webContents.send('navigate', '/settings');
-          },
-        },
-      ],
-    },
-    {
-      type: 'separator',
-    },
-    {
-      label: 'Check for Updates...',
-      click: () => {
-        if (mainWindow.isDestroyed()) return;
-        mainWindow.webContents.send('update:check');
-      },
-    },
-    {
-      type: 'separator',
-    },
-    {
-      label: 'Quit BoostClaw',
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
+  tray.setContextMenu(buildContextMenu(mainWindow, trayI18n.en, 'Running'));
+  void applyTrayLocale('Running');
 
   // Click to show window (Windows/Linux)
   tray.on('click', () => {
@@ -169,8 +246,12 @@ export function createTray(mainWindow: BrowserWindow): Tray {
  */
 export function updateTrayStatus(status: string): void {
   if (tray) {
-    tray.setToolTip(`BoostClaw - ${status}`);
+    void applyTrayLocale(status);
   }
+}
+
+export function refreshTrayLocale(): void {
+  void applyTrayLocale();
 }
 
 /**
@@ -181,4 +262,5 @@ export function destroyTray(): void {
     tray.destroy();
     tray = null;
   }
+  trayMainWindow = null;
 }

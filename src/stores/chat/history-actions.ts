@@ -68,6 +68,18 @@ function isSameUserMessage(
   return Math.abs(candidateAtMs - referenceMessageAtMs) < 60_000;
 }
 
+function sortMessagesChronologically(messages: RawMessage[]): RawMessage[] {
+  return messages
+    .map((message, index) => ({ message, index }))
+    .sort((left, right) => {
+      const leftTs = left.message.timestamp ? toMs(left.message.timestamp) : Number.POSITIVE_INFINITY;
+      const rightTs = right.message.timestamp ? toMs(right.message.timestamp) : Number.POSITIVE_INFINITY;
+      if (leftTs !== rightTs) return leftTs - rightTs;
+      return left.index - right.index;
+    })
+    .map((entry) => entry.message);
+}
+
 export function createHistoryActions(
   set: ChatSet,
   get: ChatGet
@@ -132,14 +144,14 @@ export function createHistoryActions(
         // until the run completes, causing it to flash out of the UI.
         let finalMessages = enrichedMessages;
         const userMsgAt = get().lastUserMessageAt;
-        if (get().sending && userMsgAt) {
+        if ((get().sending || !!get().lastUserMessageAt) && userMsgAt) {
           const userMsMs = toMs(userMsgAt);
           const currentMsgs = get().messages;
           const optimistic = [...currentMsgs]
             .reverse()
             .find(
               (m) =>
-                m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
+                m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 60_000
             );
           if (optimistic) {
             const hasRecentUser = enrichedMessages.some((m) =>
@@ -150,6 +162,7 @@ export function createHistoryActions(
             }
           }
         }
+        finalMessages = sortMessagesChronologically(finalMessages);
 
         set({ messages: finalMessages, thinkingLevel, loading: false });
 
