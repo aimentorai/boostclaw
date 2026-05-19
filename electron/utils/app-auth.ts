@@ -161,7 +161,7 @@ const TOKEN_ENDPOINT = process.env.BoostClaw_APP_AUTH_TOKEN_ENDPOINT
   || 'https://open.am.microdata-inc.com/usercenter/oauth/token';
 const CODE_EXCHANGE_ENDPOINT = (process.env.BoostClaw_APP_AUTH_CODE_EXCHANGE_ENDPOINT || '').trim();
 const CLIENT_ID = process.env.BoostClaw_APP_AUTH_CLIENT_ID
-  || '4edb20b8-9bb1-4fe1-9b20-b89bb19fe13a';
+  || '9a65a740-5095-4cd7-a5a7-4050953cd73e';
 const CLIENT_SECRET = (process.env.BoostClaw_APP_AUTH_CLIENT_SECRET || '').trim();
 const TOKEN_AUTH_METHOD = (
   process.env.BoostClaw_APP_AUTH_TOKEN_AUTH_METHOD

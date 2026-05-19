@@ -56,6 +56,7 @@ let _historyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _errorRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
 let _loadSessionsInFlight: Promise<void> | null = null;
 let _lastLoadSessionsAt = 0;
+let _labelHydrationGeneration = 0;
 const _historyLoadInFlight = new Map<string, Promise<void>>();
 const _lastHistoryLoadAtBySession = new Map<string, number>();
 const SESSION_LOAD_MIN_INTERVAL_MS = 1_200;
@@ -1132,7 +1133,15 @@ function mergeHistoryMessagesDuringSend(
     if (merged.some((existing) => isDuplicateHistoryMessage(existing, message))) continue;
     merged.push(message);
   }
-  return merged;
+  return merged
+    .map((message, index) => ({ message, index }))
+    .sort((left, right) => {
+      const leftTs = left.message.timestamp ? toMs(left.message.timestamp) : Number.POSITIVE_INFINITY;
+      const rightTs = right.message.timestamp ? toMs(right.message.timestamp) : Number.POSITIVE_INFINITY;
+      if (leftTs !== rightTs) return leftTs - rightTs;
+      return left.index - right.index;
+    })
+    .map((entry) => entry.message);
 }
 
 // ── Store ────────────────────────────────────────────────────────
@@ -1218,6 +1227,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
               nextSessionKey = canonicalMatch;
             }
           }
+          const preferredNonMainSession = dedupedSessions.find(
+            (session) => !session.key.endsWith(':main')
+          );
+          if (preferredNonMainSession && nextSessionKey.endsWith(':main')) {
+            nextSessionKey = preferredNonMainSession.key;
+          }
           if (
             !dedupedSessions.find((s) => s.key === nextSessionKey) &&
             dedupedSessions.length > 0
@@ -1228,7 +1243,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
               (session) => session.key === nextSessionKey
             );
             if (!hasLocalPendingSession) {
-              nextSessionKey = dedupedSessions[0].key;
+              const preferredSession =
+                dedupedSessions.find((session) => !session.key.endsWith(':main')) ??
+                dedupedSessions[0];
+              nextSessionKey = preferredSession.key;
             }
           }
 
@@ -1262,75 +1280,151 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           // Background: hydrate sidebar labels in staggered batches to avoid
           // flooding the gateway with chat.history calls at startup.
-          const sessionsToLabel = sessionsWithCurrent.filter((s) => {
-            if (s.key.endsWith(':main')) return false;
-            if (get().sessionLabels[s.key] || s.label) return false;
-            return true;
-          });
+          const sessionsToLabel = [...sessionsWithCurrent]
+            .filter((s) => {
+              if (get().sessionLabels[s.key] || s.label) return false;
+              return true;
+            })
+            .sort((left, right) => {
+              const leftActivity =
+                (typeof left.updatedAt === 'number' ? left.updatedAt : undefined) ??
+                get().sessionLastActivity[left.key] ??
+                0;
+              const rightActivity =
+                (typeof right.updatedAt === 'number' ? right.updatedAt : undefined) ??
+                get().sessionLastActivity[right.key] ??
+                0;
+              return rightActivity - leftActivity;
+            });
           if (sessionsToLabel.length > 0) {
+            const generation = ++_labelHydrationGeneration;
             const LABEL_CONCURRENCY = 2;
             const LABEL_TIMEOUT_MS = 8_000;
-            const LABEL_HISTORY_LIMIT = 3;
+            const LABEL_HISTORY_LIMIT = 50;
             const BATCH_SIZE = 5;
             const BATCH_DELAY_MS = 2_000;
-            let batchStart = 0;
+            const RETRY_DELAY_MS = 1_500;
+            const MAX_PASSES = 2;
+            const FINAL_COMPENSATION_DELAY_MS = 45_000;
 
-            const processBatch = async () => {
-              const batch = sessionsToLabel.slice(batchStart, batchStart + BATCH_SIZE);
-              if (batch.length === 0) return;
-              let nextIdx = 0;
-              const worker = async () => {
-                while (nextIdx < batch.length) {
-                  const session = batch[nextIdx++];
-                  if (!session) continue;
-                  try {
-                    const r = await Promise.race([
-                      useGatewayStore
-                        .getState()
-                        .rpc<Record<string, unknown>>(
-                          'chat.history',
-                          { sessionKey: session.key, limit: LABEL_HISTORY_LIMIT },
+            const hydrateLabelsPass = async (
+              candidates: ChatSession[],
+              pass: number
+            ): Promise<void> => {
+              if (generation !== _labelHydrationGeneration) return;
+              let batchStart = 0;
+              while (batchStart < candidates.length) {
+                if (generation !== _labelHydrationGeneration) return;
+                const batch = candidates.slice(batchStart, batchStart + BATCH_SIZE);
+                if (batch.length === 0) break;
+                let nextIdx = 0;
+                const worker = async () => {
+                  while (nextIdx < batch.length) {
+                    if (generation !== _labelHydrationGeneration) return;
+                    const session = batch[nextIdx++];
+                    if (!session) continue;
+                    try {
+                      const r = await Promise.race([
+                        useGatewayStore
+                          .getState()
+                          .rpc<Record<string, unknown>>('chat.history', {
+                            sessionKey: session.key,
+                            limit: LABEL_HISTORY_LIMIT,
+                          }),
+                        new Promise<never>((_, reject) =>
+                          setTimeout(() => reject(new Error('label timeout')), LABEL_TIMEOUT_MS)
                         ),
-                      new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error('label timeout')), LABEL_TIMEOUT_MS)
-                      ),
-                    ]);
-                    const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
-                    const firstUser = msgs.find((m) => m.role === 'user');
-                    const lastMsg = msgs[msgs.length - 1];
-                    if (!firstUser && !lastMsg?.timestamp) continue;
-                    set((s) => {
-                      const next: Partial<typeof s> = {};
-                      if (firstUser && !s.sessionLabels[session.key]) {
-                        const labelText = getMessageText(firstUser.content).trim();
-                        if (labelText) {
-                          const truncated =
-                            labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                          next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                      ]);
+                      const msgs = Array.isArray(r.messages) ? (r.messages as RawMessage[]) : [];
+                      const firstUser =
+                        msgs.find(
+                          (m) =>
+                            m.role === 'user' &&
+                            getMessageText(m.content).trim() &&
+                            !isInternalMessage(m)
+                        ) ??
+                        [...msgs].reverse().find(
+                          (m) =>
+                            m.role === 'user' &&
+                            getMessageText(m.content).trim() &&
+                            !isInternalMessage(m)
+                        );
+                      const lastMsg = msgs[msgs.length - 1];
+                      if (!firstUser && !lastMsg?.timestamp) continue;
+                      set((s) => {
+                        const next: Partial<typeof s> = {};
+                        if (firstUser && !s.sessionLabels[session.key]) {
+                          const labelText = stripSkillContext(
+                            getMessageText(firstUser.content)
+                          ).trim();
+                          if (labelText) {
+                            const truncated =
+                              labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+                            next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                          }
                         }
-                      }
-                      if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
-                        next.sessionLastActivity = {
-                          ...s.sessionLastActivity,
-                          [session.key]: toMs(lastMsg.timestamp),
-                        };
-                      }
-                      return next;
-                    });
-                  } catch {
-                    // Sidebar metadata is best-effort.
+                        if (lastMsg?.timestamp && !s.sessionLastActivity[session.key]) {
+                          next.sessionLastActivity = {
+                            ...s.sessionLastActivity,
+                            [session.key]: toMs(lastMsg.timestamp),
+                          };
+                        }
+                        return next;
+                      });
+                    } catch {
+                      // Sidebar metadata is best-effort.
+                    }
                   }
+                };
+                await Promise.all(
+                  Array.from({ length: Math.min(LABEL_CONCURRENCY, batch.length) }, () => worker())
+                );
+                if (generation !== _labelHydrationGeneration) return;
+                batchStart += BATCH_SIZE;
+                if (batchStart < candidates.length) {
+                  await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
                 }
-              };
-              await Promise.all(
-                Array.from({ length: Math.min(LABEL_CONCURRENCY, batch.length) }, () => worker()),
-              );
-              batchStart += BATCH_SIZE;
-              if (batchStart < sessionsToLabel.length) {
-                setTimeout(processBatch, BATCH_DELAY_MS);
               }
+
+              if (pass >= MAX_PASSES) return;
+              const unresolved = candidates
+                .filter((s) => {
+                  const state = get();
+                  return !state.sessionLabels[s.key] && !s.label;
+                })
+                .sort((left, right) => {
+                  const state = get();
+                  const leftActivity = state.sessionLastActivity[left.key] ?? 0;
+                  const rightActivity = state.sessionLastActivity[right.key] ?? 0;
+                  return rightActivity - leftActivity;
+                });
+              if (unresolved.length === 0) return;
+              if (generation !== _labelHydrationGeneration) return;
+              await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+              if (generation !== _labelHydrationGeneration) return;
+              await hydrateLabelsPass(unresolved, pass + 1);
             };
-            void processBatch();
+
+            void hydrateLabelsPass(sessionsToLabel, 1);
+
+            // Low-frequency compensation pass for sessions that still missed labels
+            // due to transient Gateway latency/timeouts during startup.
+            setTimeout(() => {
+              if (generation !== _labelHydrationGeneration) return;
+              const unresolved = sessionsToLabel
+                .filter((s) => {
+                  const state = get();
+                  return !state.sessionLabels[s.key] && !s.label;
+                })
+                .sort((left, right) => {
+                  const state = get();
+                  const leftActivity = state.sessionLastActivity[left.key] ?? 0;
+                  const rightActivity = state.sessionLastActivity[right.key] ?? 0;
+                  return rightActivity - leftActivity;
+                });
+              if (unresolved.length === 0) return;
+              void hydrateLabelsPass(unresolved, 1);
+            }, FINAL_COMPENSATION_DELAY_MS);
           }
         }
       } catch (err) {
@@ -1624,7 +1718,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // from disappearing or duplicating during history polling.
         // When NOT sending (session switch / page load), replace normally.
         let finalMessages: RawMessage[];
-        if (get().sending) {
+        if (get().sending || !!get().lastUserMessageAt) {
           finalMessages = mergeHistoryMessagesDuringSend(get().messages, enrichedMessages);
         } else {
           finalMessages = enrichedMessages;
@@ -1633,7 +1727,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Batch label + activity + messages into a single state update to avoid
         // consecutive re-renders during session switch.
         const isMainSession = currentSessionKey.endsWith(':main');
-        const firstUserMsg = isMainSession ? null : finalMessages.find((m) => m.role === 'user');
+        const firstUserMsg = isMainSession
+          ? null
+          : finalMessages.find((m) => m.role === 'user' && !isInternalMessage(m));
         const lastMsg = finalMessages[finalMessages.length - 1];
         set((s) => {
           const patch: Partial<ChatState> = {
@@ -1642,7 +1738,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             loading: false,
           };
           if (firstUserMsg && !s.sessionLabels[currentSessionKey]) {
-            const labelText = getMessageText(firstUserMsg.content).trim();
+            const labelText = stripSkillContext(
+              getMessageText(firstUserMsg.content)
+            ).trim();
             if (labelText) {
               const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
               patch.sessionLabels = { ...s.sessionLabels, [currentSessionKey]: truncated };

@@ -19,7 +19,8 @@
     "actions": {
         "enableVisible": "批量启用可见项",
         "disableVisible": "批量禁用可见项",
-        "installSkill": "安装技能"
+        "installSkill": "安装技能",
+        "uploadLocalSkill": "上传本地技能"
     },
     "noSkills": "未找到技能",
     "noSkillsSearch": "尝试不同的搜索词",
@@ -89,11 +90,15 @@
         "installRateLimitError": "安装请求过于频繁。您也可在 ClawHub.ai 下载该技能压缩包，解压到 \"{{path}}\"",
         "fetchTimeoutError": "获取技能列表超时，请检查网络。",
         "fetchRateLimitError": "获取技能列表请求过于频繁，请稍后再试。",
+        "timeoutError": "请求超时，请稍后重试。",
+        "rateLimitError": "请求过于频繁，请稍后再试。",
         "noBatchEnableTargets": "当前可见技能都已启用。",
         "noBatchDisableTargets": "当前可见技能都已禁用。",
         "batchEnabled": "已启用 {{count}} 个技能。",
         "batchDisabled": "已禁用 {{count}} 个技能。",
-        "batchPartial": "已更新 {{success}} / {{total}} 个技能，部分操作失败"
+        "batchPartial": "已更新 {{success}} / {{total}} 个技能，部分操作失败",
+        "localImported": "本地技能导入成功",
+        "failedImportLocal": "导入本地技能失败"
     },
     "marketplace": {
         "title": "市场",

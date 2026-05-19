@@ -54,11 +54,20 @@ export function Chat() {
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const loading = useChatStore((s) => s.loading);
   const sending = useChatStore((s) => s.sending);
+  const activeRunId = useChatStore((s) => s.activeRunId);
   const error = useChatStore((s) => s.error);
   const showThinking = useChatStore((s) => s.showThinking);
   const streamingMessage = useChatStore((s) => s.streamingMessage);
   const streamingTools = useChatStore((s) => s.streamingTools);
   const pendingFinal = useChatStore((s) => s.pendingFinal);
+  const lastUserMessageAt = useChatStore((s) => s.lastUserMessageAt);
+  const composerBusy =
+    sending ||
+    pendingFinal ||
+    !!activeRunId ||
+    !!lastUserMessageAt ||
+    !!streamingMessage ||
+    streamingTools.length > 0;
   const sendMessage = useChatStore((s) => s.sendMessage);
   const abortRun = useChatStore((s) => s.abortRun);
   const clearError = useChatStore((s) => s.clearError);
@@ -100,13 +109,13 @@ export function Chat() {
   }, [fetchAgents]);
 
   useEffect(() => {
-    if (!sending) return;
+    if (!composerBusy) return;
     setResponseTimerNowMs(Date.now());
     const timer = window.setInterval(() => {
       setResponseTimerNowMs(Date.now());
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [sending]);
+  }, [composerBusy]);
 
   const activeExpert = getExpertByAgentId(currentAgentId);
 
@@ -154,11 +163,13 @@ export function Chat() {
       hasStreamImages,
       hasStreamToolStatus,
       hasAnyStreamContent,
-      shouldRenderStreaming: sending && hasAnyStreamContent,
+      shouldRenderStreaming: composerBusy && hasAnyStreamContent,
     };
-  }, [showThinking, sending, streamingMessage, streamingTools]);
+  }, [composerBusy, showThinking, streamingMessage, streamingTools]);
 
-  const isEmpty = messages.length === 0 && !sending;
+  const isEmpty = messages.length === 0 && !composerBusy;
+  const historyLoading = loading && messages.length === 0 && !composerBusy;
+  const composerDisabled = !isGatewayRunning || historyLoading;
 
   const simpleGreetingSegments = useMemo(() => {
     const simpleIndexes = new Set<number>();
@@ -223,7 +234,7 @@ export function Chat() {
   const suppressActiveThinking = isSimpleGreetingMessage(activeUserMessage);
   const activeUserMessageAtMs = toTimestampMs(activeUserMessage?.timestamp);
   const streamingResponseDurationMs =
-    sending && activeUserMessageAtMs
+    composerBusy && activeUserMessageAtMs
       ? Math.max(0, responseTimerNowMs - activeUserMessageAtMs)
       : null;
 
@@ -257,8 +268,8 @@ export function Chat() {
             <ChatInput
               onSend={sendMessage}
               onStop={abortRun}
-              disabled={!isGatewayRunning}
-              sending={sending}
+              disabled={composerDisabled}
+              sending={composerBusy}
               isEmpty={isEmpty}
             />
           </div>
@@ -306,7 +317,7 @@ export function Chat() {
                   )}
 
                   {/* Activity indicator: waiting for next AI turn after tool execution */}
-                  {sending && pendingFinal && !streamState.shouldRenderStreaming && (
+                  {composerBusy && pendingFinal && !streamState.shouldRenderStreaming && (
                     <ActivityIndicator
                       phase="tool_processing"
                       responseDurationMs={streamingResponseDurationMs}
@@ -314,7 +325,7 @@ export function Chat() {
                   )}
 
                   {/* Typing indicator when sending but no stream content yet */}
-                  {sending && !pendingFinal && !streamState.hasAnyStreamContent && (
+                  {composerBusy && !pendingFinal && !streamState.hasAnyStreamContent && (
                     <TypingIndicator responseDurationMs={streamingResponseDurationMs} />
                   )}
                 </div>
@@ -354,15 +365,15 @@ export function Chat() {
           <ChatInput
             onSend={sendMessage}
             onStop={abortRun}
-            disabled={!isGatewayRunning}
-            sending={sending}
+            disabled={composerDisabled}
+            sending={composerBusy}
             isEmpty={isEmpty}
           />
         </>
       )}
 
       {/* Transparent loading overlay */}
-      {minLoading && !sending && (
+      {minLoading && !composerBusy && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[1px] pointer-events-auto">
           <div className="rounded-full border border-border bg-background p-2.5 shadow-lg">
             <LoadingSpinner size="md" />

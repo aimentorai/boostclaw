@@ -19,7 +19,8 @@
     "actions": {
         "enableVisible": "Enable Visible",
         "disableVisible": "Disable Visible",
-        "installSkill": "Install Skills"
+        "installSkill": "Install Skills",
+        "uploadLocalSkill": "Upload Local Skill"
     },
     "noSkills": "No skills found",
     "noSkillsSearch": "Try a different search term",
@@ -89,11 +90,15 @@
         "installRateLimitError": "Installation rate limit exceeded. You can also download the ZIP from ClawHub.ai and extract it to \"{{path}}\"",
         "fetchTimeoutError": "Fetching skills timed out, please check your network connection.",
         "fetchRateLimitError": "Fetching skills rate limit exceeded, please try again later.",
+        "timeoutError": "Request timed out, please try again.",
+        "rateLimitError": "Too many requests. Please wait and try again.",
         "noBatchEnableTargets": "All visible skills are already enabled.",
         "noBatchDisableTargets": "All visible skills are already disabled.",
         "batchEnabled": "{{count}} skills enabled.",
         "batchDisabled": "{{count}} skills disabled.",
-        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed"
+        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed",
+        "localImported": "Local skill imported",
+        "failedImportLocal": "Failed to import local skill"
     },
     "marketplace": {
         "title": "Marketplace",
