@@ -36,6 +36,13 @@ type ClawHubListResult = {
   baseDir?: string;
 };
 
+const REMOVED_SKILL_IDS = ['0428'];
+
+function shouldRemoveSkillFromState(skill: Pick<Skill, 'id' | 'slug' | 'name'>): boolean {
+  const searchable = [skill.id, skill.slug, skill.name].filter(Boolean).join(' ').toLowerCase();
+  return REMOVED_SKILL_IDS.some((id) => searchable.includes(id));
+}
+
 function mapErrorCodeToSkillErrorKey(
   code: AppError['code'],
   operation: 'fetch' | 'search' | 'install'
@@ -181,7 +188,10 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
           });
         }
 
-        set({ skills: combinedSkills, loading: false });
+        set({
+          skills: combinedSkills.filter((skill) => !shouldRemoveSkillFromState(skill)),
+          loading: false,
+        });
       } catch (error) {
         console.error('Failed to fetch skills:', error);
         const appError = normalizeAppError(error, { module: 'skills', operation: 'fetch' });
@@ -316,7 +326,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     }
   },
 
-  setSkills: (skills) => set({ skills }),
+  setSkills: (skills) => set({ skills: skills.filter((skill) => !shouldRemoveSkillFromState(skill)) }),
 
   updateSkill: (skillId, updates) => {
     set((state) => ({

@@ -99,6 +99,23 @@ function parseUnifiedProxyResponse<T>(
     status: data.status ?? 200,
   });
 
+  if (data.ok === false) {
+    const message =
+      (typeof data.json === 'object' &&
+      data.json != null &&
+      'error' in (data.json as Record<string, unknown>)
+        ? String((data.json as Record<string, unknown>).error)
+        : undefined) ||
+      data.text ||
+      `HTTP ${data.status ?? 'unknown'}`;
+    throw normalizeAppError(new Error(message), {
+      source: 'ipc-proxy',
+      status: data.status,
+      path,
+      method,
+    });
+  }
+
   if (data.status === 204) return undefined as T;
   if (data.json !== undefined) return data.json as T;
   return data.text as T;

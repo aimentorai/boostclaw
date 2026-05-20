@@ -82,6 +82,25 @@ interface PickerItem {
   templateId?: string;
 }
 
+const CROSS_BORDER_SKILL_KEYWORDS = [
+  '跨境',
+  'cross-border',
+  'cross border',
+  'crossborder',
+  'international',
+  'overseas',
+  'amazon',
+  'shopify',
+  'ebay',
+  'aliexpress',
+];
+
+const ALWAYS_VISIBLE_SKILL_IDS = [
+  'development-sheet-factory',
+  'product-chart-get',
+  'listing-generator',
+];
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 function formatFileSize(bytes: number): string {
@@ -233,6 +252,15 @@ function shouldOpenDropdownUpward(
   if (spaceBelow >= estimatedPanelHeight) return false;
   if (spaceAbove >= estimatedPanelHeight) return true;
   return spaceAbove > spaceBelow;
+}
+
+function isCrossBorderSkill(skill: Skill): boolean {
+  const searchable = [skill.name, skill.description || '', skill.slug || '', skill.id]
+    .join(' ')
+    .toLowerCase();
+  if (ALWAYS_VISIBLE_SKILL_IDS.some((id) => searchable.includes(id))) return true;
+  if (searchable.includes('product-market-scout')) return false;
+  return CROSS_BORDER_SKILL_KEYWORDS.some((keyword) => searchable.includes(keyword.toLowerCase()));
 }
 
 // ── Component ────────────────────────────────────────────────────
@@ -532,7 +560,7 @@ export function ChatInput({
   );
 
   const filteredSkills = useMemo(() => {
-    const enabled = (skills ?? []).filter((s) => s.enabled);
+    const enabled = (skills ?? []).filter((s) => s.enabled && isCrossBorderSkill(s));
     const query = skillSearchQuery.trim().toLowerCase();
     if (!query) return enabled;
     return enabled.filter(
@@ -542,6 +570,14 @@ export function ChatInput({
         (s.slug || '').toLowerCase().includes(query)
     );
   }, [skills, skillSearchQuery]);
+
+  useEffect(() => {
+    if (!selectedSkillId) return;
+    const skill = (skills ?? []).find((s) => s.id === selectedSkillId);
+    if (!skill || !isCrossBorderSkill(skill)) {
+      setSelectedSkillId(null);
+    }
+  }, [selectedSkillId, skills]);
 
   // Auto-resize textarea
   useEffect(() => {
